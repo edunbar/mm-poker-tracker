@@ -7,6 +7,7 @@ interface PlayerInfo {
   buyOutSum: number;
   inGame: number;
   net: number;
+  validated_name?: string;
 }
 
 interface GameDataTableProps {
@@ -20,6 +21,11 @@ const GameDataTable: React.FC<GameDataTableProps> = ({
   playersInfos,
   setEditableData,
 }) => {
+  // Sort players by net, biggest to smallest
+  const sortedPlayers = playersInfos
+    .map((player, originalIdx) => ({ ...player, originalIdx }))
+    .sort((a, b) => b.net - a.net);
+
   const handleChange = (
     index: number,
     field: keyof PlayerInfo,
@@ -28,7 +34,6 @@ const GameDataTable: React.FC<GameDataTableProps> = ({
     const updated = [...playersInfos];
     if (field === "buyInSum" || field === "buyOutSum") {
       updated[index][field] = Number(value);
-      // Recalculate net when buyInSum or buyOutSum changes
       updated[index].net = updated[index].buyOutSum - updated[index].buyInSum;
     } else if (field === "net") {
       updated[index][field] = Number(value);
@@ -39,6 +44,8 @@ const GameDataTable: React.FC<GameDataTableProps> = ({
         .split(",")
         .map((n) => n.trim())
         .join(",");
+    } else if (field === "validated_name") {
+      updated[index][field] = value as string;
     }
     setEditableData(updated);
   };
@@ -52,20 +59,36 @@ const GameDataTable: React.FC<GameDataTableProps> = ({
       <thead>
         <tr>
           <th>ID</th>
-          <th>Name(s)</th>
+          <th>Name</th>
+          <th>IGN</th>
           <th>Buy In</th>
           <th>Cash Out</th>
           <th>Net</th>
         </tr>
       </thead>
       <tbody>
-        {playersInfos.map((player, idx) => (
+        {sortedPlayers.map((player, idx) => (
           <tr key={player.id || idx}>
             <td>
               <input
                 type="text"
                 value={player.id}
-                onChange={(e) => handleChange(idx, "id", e.target.value)}
+                onChange={(e) =>
+                  handleChange(player.originalIdx, "id", e.target.value)
+                }
+              />
+            </td>
+            <td>
+              <input
+                type="text"
+                value={player.validated_name || ""}
+                onChange={(e) =>
+                  handleChange(
+                    player.originalIdx,
+                    "validated_name",
+                    e.target.value
+                  )
+                }
               />
             </td>
             <td>
@@ -76,14 +99,18 @@ const GameDataTable: React.FC<GameDataTableProps> = ({
                     ? player.names.join(", ")
                     : player.names
                 }
-                onChange={(e) => handleChange(idx, "names", e.target.value)}
+                onChange={(e) =>
+                  handleChange(player.originalIdx, "names", e.target.value)
+                }
               />
             </td>
             <td>
               <input
                 type="number"
                 value={player.buyInSum}
-                onChange={(e) => handleChange(idx, "buyInSum", e.target.value)}
+                onChange={(e) =>
+                  handleChange(player.originalIdx, "buyInSum", e.target.value)
+                }
               />
             </td>
             <td>
@@ -92,14 +119,18 @@ const GameDataTable: React.FC<GameDataTableProps> = ({
                 value={
                   player.buyOutSum === 0 ? player.inGame : player.buyOutSum
                 }
-                onChange={(e) => handleChange(idx, "buyOutSum", e.target.value)}
+                onChange={(e) =>
+                  handleChange(player.originalIdx, "buyOutSum", e.target.value)
+                }
               />
             </td>
             <td>
               <input
                 type="number"
                 value={player.net}
-                onChange={(e) => handleChange(idx, "net", e.target.value)}
+                onChange={(e) =>
+                  handleChange(player.originalIdx, "net", e.target.value)
+                }
               />
             </td>
           </tr>

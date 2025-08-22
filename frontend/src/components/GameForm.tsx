@@ -5,18 +5,54 @@ import { uploadGameToSheets } from "../api/game";
 import GameDataTable from "./GameDataTable";
 import GameTotals from "./GameTotals";
 
-const GameForm: React.FC = () => {
-  const uploadMutation = useMutation(uploadGameToSheets);
+function formatErrorMessage(error: any): string {
+  if (!error) return "An unknown error occurred.";
 
+  const str = String(error);
+
+  // Look for a quoted human-readable message inside the HttpError
+  const match = str.match(/"([^"]+)"/);
+  if (match && match[1]) {
+    return match[1];
+  }
+
+  // Otherwise, just return the raw string
+  return str;
+}
+
+const GameForm: React.FC = () => {
   const [gameUrl, setGameUrl] = useState("");
   const [submittedUrl, setSubmittedUrl] = useState("");
   const [editableData, setEditableData] = useState<any[]>([]);
+  const [uploadStatus, setUploadStatus] = useState<"success" | "error" | null>(
+    null
+  );
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const uploadMutation = useMutation(uploadGameToSheets, {
+    onSuccess: () => {
+      setUploadStatus("success");
+      setErrorMessage(null);
+    },
+    onError: (error: any) => {
+      setUploadStatus("error");
+      // Use formatErrorMessage for better error display
+      if (error?.response?.data?.error) {
+        setErrorMessage(formatErrorMessage(error.response.data.error));
+      } else if (error?.message) {
+        setErrorMessage(formatErrorMessage(error.message));
+      } else {
+        setErrorMessage("Failed to upload to Google Sheets.");
+      }
+    },
+  });
 
   const { data, isLoading, isError } = useGameQuery(submittedUrl);
 
   const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault();
     setSubmittedUrl(gameUrl);
+    setUploadStatus(null); // Reset status on new submission
   };
 
   // Converts playersInfos JSON to array
@@ -89,15 +125,25 @@ const GameForm: React.FC = () => {
                 cursor: "pointer",
               }}
               onClick={() => {
-                uploadMutation.mutate(editableData, {
-                  onSuccess: () => alert("Upload to Google Sheets triggered."),
-                  onError: () => alert("Failed to upload to Google Sheets."),
-                });
+                setUploadStatus(null); // Reset status before upload
+                uploadMutation.mutate(editableData);
               }}
               disabled={uploadMutation.isLoading}
             >
               {uploadMutation.isLoading ? "Uploading..." : "Upload"}
             </button>
+            {uploadStatus === "success" && (
+              <div style={{ color: "green", marginTop: "1rem" }}>
+                Upload to Google Sheets was successful.
+              </div>
+            )}
+            {uploadStatus === "error" && (
+              <div style={{ color: "red", marginTop: "1rem" }}>
+                {"Upload Failed: " +
+                  (errorMessage ||
+                    "Failed to upload to Google Sheets. Please try again.")}
+              </div>
+            )}
           </div>
         </div>
       )}

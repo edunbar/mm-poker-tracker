@@ -209,3 +209,7 @@ __marimo__/
 mm-poker-tracker-0392299a602a.json
 poker-analytics-app/backend/mm-poker-tracker-0392299a602a.json
 node_modules/
+.DS_Store
+dist/
+build/
+.env
