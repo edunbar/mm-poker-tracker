@@ -205,3 +205,7 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+# Google service account credentials
+mm-poker-tracker-0392299a602a.json
+poker-analytics-app/backend/mm-poker-tracker-0392299a602a.json
+node_modules/
