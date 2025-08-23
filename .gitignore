@@ -27,7 +27,7 @@ migrations/*.pyc
 
 # Local config / secrets
 .env
-*.json         # exclude service account JSON keys (e.g. mm-poker-tracker-*.json)
+*.json
 
 # -------------------------
 # Node / React frontend

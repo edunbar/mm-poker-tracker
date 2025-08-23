@@ -4,7 +4,7 @@ from googleapiclient.discovery import build
 
 logging.basicConfig(level=logging.DEBUG)
 
-CREDENTIALS_PATH = "/app/mm-poker-tracker-0392299a602a.json"
+CREDENTIALS_PATH = "/app/mm-poker-tracker-f0be11fedfdd.json"
 NAME_VALIDATION_SHEET_ID = "18NVq3om_d5I-oGrwTT_f8BmyVFwz8Q3uFoPVNAFtxME"
 NAME_VALIDATION_RANGE = "Name Validation!A:B"
 
