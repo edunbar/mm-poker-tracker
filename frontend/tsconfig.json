@@ -14,7 +14,16 @@
     "isolatedModules": true,
     "jsx": "react-jsx",
     "allowSyntheticDefaultImports": true,
-    "noFallthroughCasesInSwitch": true
+    "noFallthroughCasesInSwitch": true,
+    "baseUrl": "src",
+    "paths": {
+      "@app/*": ["app/*"],
+      "@entities/*": ["entities/*"],
+      "@features/*": ["features/*"],
+      "@shared/*": ["shared/*"],
+      "@ui/*": ["shared/ui/*"],
+      "@pages/*": ["pages/*"]
+    }
   },
   "include": ["src"],
   "exclude": ["node_modules"]

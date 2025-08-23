@@ -1,15 +1,20 @@
 import React from "react";
-import ReactDOM from "react-dom";
-import App from "./App";
+import { createRoot } from "react-dom/client";
+import App from "./app/App";
 import "./index.css";
+import { QueryProvider } from "./app/providers/QueryProvider";
+import AppErrorBoundary from "./app/errors/AppErrorBoundary";
 
-import { QueryClient, QueryClientProvider } from "react-query";
+const container = document.getElementById("root");
+if (!container) throw new Error("Root element #root not found");
 
-const queryClient = new QueryClient();
-
-ReactDOM.render(
-  <QueryClientProvider client={queryClient}>
-    <App />
-  </QueryClientProvider>,
-  document.getElementById("root")
+const root = createRoot(container);
+root.render(
+  <React.StrictMode>
+    <AppErrorBoundary>
+      <QueryProvider>
+        <App />
+      </QueryProvider>
+    </AppErrorBoundary>
+  </React.StrictMode>
 );

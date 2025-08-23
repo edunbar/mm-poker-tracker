@@ -7,23 +7,13 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "./ui/table";
+} from "../../../shared/ui/table";
+import { PlayerInfo } from "../../../entities/game/types";
+import { deriveTotals } from "../lib/deriveTotals";
+import { isNumeric } from "../lib/validation";
 
 function formatNumber(n: number) {
   return new Intl.NumberFormat().format(n || 0);
-}
-function isNumeric(value: any) {
-  return value !== null && value !== "" && !Number.isNaN(Number(value));
-}
-
-export interface PlayerInfo {
-  id: string;
-  names: string;
-  buyInSum: number;
-  buyOutSum: number;
-  inGame: number;
-  net: number;
-  validated_name?: string;
 }
 
 interface GameDataTableProps {
@@ -35,31 +25,15 @@ const GameDataTable: React.FC<GameDataTableProps> = ({
   playersInfos,
   setEditableData,
 }) => {
-  // Sort players by net, biggest to smallest
+  // keep a stable mapping back to original index so edits update correct item
   const sortedPlayers = playersInfos
     .map((player, originalIdx) => ({ ...player, originalIdx }))
     .sort((a, b) => b.net - a.net);
 
-  // Derived totals and validation
-  const derived = useMemo(() => {
-    const buyInTotal = sortedPlayers.reduce(
-      (sum, p) => sum + Number(p.buyInSum || 0),
-      0
-    );
-    const cashOutTotal = sortedPlayers.reduce(
-      (sum, p) => sum + Number(p.buyOutSum === 0 ? p.inGame : p.buyOutSum || 0),
-      0
-    );
-    const net = cashOutTotal - buyInTotal;
-    const hasInvalid = sortedPlayers.some(
-      (r) =>
-        !isNumeric(r.buyInSum) ||
-        !isNumeric(r.buyOutSum === 0 ? r.inGame : r.buyOutSum)
-    );
-    return { buyInTotal, cashOutTotal, net, hasInvalid };
-  }, [sortedPlayers]);
+  // Use shared deriveTotals/validation utilities
+  const derived = useMemo(() => deriveTotals(playersInfos), [playersInfos]);
 
-  const balanced = derived.net === 0 && !derived.hasInvalid;
+  const balanced = derived.balanced;
 
   const handleChange = (
     index: number,
@@ -67,24 +41,34 @@ const GameDataTable: React.FC<GameDataTableProps> = ({
     value: string | number | boolean
   ) => {
     const updated = [...playersInfos];
+    const target = updated[index];
+
+    if (!target) return;
+
     if (field === "buyInSum" || field === "buyOutSum") {
-      updated[index][field] = Number(value);
-      updated[index].net =
-        (updated[index].buyOutSum === 0
-          ? updated[index].inGame
-          : updated[index].buyOutSum) - updated[index].buyInSum;
+      // coerce to number (empty -> NaN will be handled by validation)
+      const num = value === "" ? NaN : Number(value);
+      target[field] = num as any;
+
+      // recalc per-row net using same rule as UI (if buyOutSum === 0 use inGame)
+      const buyOutEffective =
+        target.buyOutSum === 0
+          ? Number(target.inGame || 0)
+          : Number(target.buyOutSum || 0);
+      target.net = buyOutEffective - Number(target.buyInSum || 0);
     } else if (field === "net") {
-      updated[index][field] = Number(value);
+      target.net = Number(value);
     } else if (field === "id") {
-      updated[index][field] = value as string;
+      target.id = String(value);
     } else if (field === "names") {
-      updated[index][field] = (value as string)
+      target.names = (value as string)
         .split(",")
         .map((n) => n.trim())
-        .join(",");
+        .filter((n) => n.length > 0);
     } else if (field === "validated_name") {
-      updated[index][field] = value as string;
+      target.validated_name = String(value);
     }
+
     setEditableData(updated);
   };
 
@@ -108,8 +92,11 @@ const GameDataTable: React.FC<GameDataTableProps> = ({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {sortedPlayers.map((player, idx) => (
-              <TableRow key={player.id || idx} className="hover:bg-gray-50">
+            {sortedPlayers.map((player) => (
+              <TableRow
+                key={player.id || player.originalIdx}
+                className="hover:bg-gray-50"
+              >
                 <TableCell>
                   <input
                     type="text"
@@ -151,7 +138,7 @@ const GameDataTable: React.FC<GameDataTableProps> = ({
                 <TableCell className="text-right">
                   <input
                     type="number"
-                    value={player.buyInSum}
+                    value={player.buyInSum as any}
                     className={`w-full text-right bg-transparent outline-none border rounded-lg px-2 py-1 text-sm ${
                       !isNumeric(player.buyInSum)
                         ? "border-red-300 focus:border-red-400"
@@ -201,7 +188,7 @@ const GameDataTable: React.FC<GameDataTableProps> = ({
                 >
                   <input
                     type="number"
-                    value={player.net}
+                    value={player.net as any}
                     className="w-full text-right bg-transparent outline-none border border-transparent focus:border-gray-300 rounded-lg px-2 py-1 text-sm"
                     onChange={(e) =>
                       handleChange(player.originalIdx, "net", e.target.value)
@@ -210,7 +197,7 @@ const GameDataTable: React.FC<GameDataTableProps> = ({
                 </TableCell>
               </TableRow>
             ))}
-            {/* Totals Row */}
+            {/* Totals Row uses shared deriveTotals */}
             <TableRow className="bg-gray-50">
               <TableCell colSpan={3} className="font-medium">
                 Totals
@@ -239,31 +226,5 @@ const GameDataTable: React.FC<GameDataTableProps> = ({
     </div>
   );
 };
-
-function SummaryTile({
-  label,
-  value,
-  accent,
-}: {
-  label: string;
-  value: number;
-  accent?: string;
-}) {
-  const accentMap: Record<string, string> = {
-    ok: "bg-emerald-50 text-emerald-700 ring-emerald-200",
-    pos: "bg-emerald-50 text-emerald-700 ring-emerald-200",
-    neg: "bg-red-50 text-red-700 ring-red-200",
-    base: "bg-white text-gray-900 ring-gray-200",
-  };
-  const classes = accent ? accentMap[accent] : accentMap.base;
-  return (
-    <div className={`shadow-sm ring-1 ${classes} border-none p-4 rounded-lg`}>
-      <div className="text-sm text-gray-500 mb-1">{label}</div>
-      <div className="text-2xl font-semibold tracking-tight">
-        {formatNumber(value)}
-      </div>
-    </div>
-  );
-}
 
 export default GameDataTable;
