@@ -123,7 +123,7 @@ def upload_game_to_sheets(game_data):
             next_game_number,                              # game number
             player.get("validated_name", ""),              # Name (from mapping)
             round(player.get("buyInSum", 0) / 100, 2),     # buy in (dollars)
-            round(player.get("buyOutSum", 0) / 100, 2),    # cash out (dollars)
+            round((player.get("buyOutSum", 0) + player.get("inGame", 0)) / 100, 2),    # cash out (dollars)
             game_date                                      # date
         ]
         for player in game_data.get("playersInfos", [])

@@ -1,16 +1,20 @@
 from flask import Flask
-from flask_sqlalchemy import SQLAlchemy
-from flask_cors import CORS 
-from config import Config
+from flask_cors import CORS
 from routes.game import game_bp
+import os
 
-app = Flask(__name__)
-CORS(app, origins=["http://localhost:3000"])
-app.config.from_object(Config)
+def create_app():
+    app = Flask(__name__)
 
-db = SQLAlchemy(app)
+    # CORS for local FE
+    CORS(app, resources={r"/*": {"origins": ["http://localhost:3000"]}})
 
-app.register_blueprint(game_bp, url_prefix='/api/games')
+    # Register routes
+    app.register_blueprint(game_bp, url_prefix="/api/games")
 
-if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=8000)
+    return app
+
+if __name__ == "__main__":
+    app = create_app()
+    port = int(os.getenv("PORT", "8000"))
+    app.run(host="0.0.0.0", port=port, debug=True)

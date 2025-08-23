@@ -1,10 +1,16 @@
-FROM python:3.10-slim
+FROM python:3.11-slim
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential libpq-dev && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
+COPY requirements.txt /app/requirements.txt
+RUN pip install --no-cache-dir -r /app/requirements.txt
 
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# Copy backend including alembic files
+COPY . /app
 
-COPY src/ ./src/
+# Make your source importable: we want /app/src on PYTHONPATH
+ENV PYTHONPATH=/app/src
 
-CMD ["python", "src/app.py"]
+EXPOSE 8000

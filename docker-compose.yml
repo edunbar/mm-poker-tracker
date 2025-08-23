@@ -1,29 +1,67 @@
-version: "3.8"
-
 services:
+  db:
+    image: postgres:16
+    container_name: poker_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
+      POSTGRES_DB: ${POSTGRES_DB:-poker_analytics}
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:-user} -d ${POSTGRES_DB:-poker_analytics}",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
+    container_name: poker_backend
+    restart: unless-stopped
+    env_file: .env
+    working_dir: /app # alembic.ini lives here inside the image
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
+      POSTGRES_DB: ${POSTGRES_DB:-poker_analytics}
+      POSTGRES_PORT: ${POSTGRES_PORT:-5432}
+      DATABASE_URL: postgresql+psycopg2://${POSTGRES_USER:-user}:${POSTGRES_PASSWORD:-password}@db:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-poker_analytics}
+      PORT: "8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+    command: >
+      sh -c "
+        python -m alembic -c /app/alembic.ini upgrade head &&
+        python src/app.py
+      "
     volumes:
       - ./backend/src:/app/src
       - ./backend/mm-poker-tracker-0392299a602a.json:/app/mm-poker-tracker-0392299a602a.json
-    environment:
-      - DATABASE_URL=postgresql://user:password@db:5432/poker_analytics
-      - PYTHONPATH=/app/src
-    ports:
-      - "8000:8000"
-    depends_on:
-      - db
 
-  db:
-    image: postgres:latest
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
+  pgadmin:
+    image: dpage/pgadmin4:8
+    container_name: poker_pgadmin
+    restart: unless-stopped
     environment:
-      - POSTGRES_USER=user
-      - POSTGRES_PASSWORD=password
-      - POSTGRES_DB=poker_analytics
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL:-admin@example.com}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD:-adminadmin}
+    ports:
+      - "5050:80"
+    depends_on:
+      db:
+        condition: service_healthy
 
 volumes:
-  postgres_data:
+  db_data:
