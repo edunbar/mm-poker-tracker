@@ -1,11 +1,11 @@
 import React from "react";
 import MainLayout from "./layout/MainLayout";
-import GameIngestPage from "features/game/pages/GameIngestPage";
+import AppRoutes from "./routes";
 
 export default function App() {
   return (
     <MainLayout>
-      <GameIngestPage />
+      <AppRoutes />
     </MainLayout>
   );
 }

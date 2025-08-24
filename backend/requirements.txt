@@ -11,3 +11,4 @@ google-auth-oauthlib
 sqlalchemy
 alembic
 mako
+pandas

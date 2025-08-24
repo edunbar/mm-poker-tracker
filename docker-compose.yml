@@ -48,6 +48,7 @@ services:
       "
     volumes:
       - ./backend/src:/app/src
+      - ./backend:/app
       - ./backend/mm-poker-tracker-0392299a602a.json:/app/mm-poker-tracker-0392299a602a.json
 
   pgadmin:
