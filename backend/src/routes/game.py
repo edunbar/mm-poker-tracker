@@ -1,8 +1,11 @@
+from sqlalchemy import text
+from db.database import SessionLocal
 from flask import Blueprint, request, jsonify
 import logging
 from services.transaction_service import get_game_transactions
 from services.sheets_service import upload_game_to_sheets
 from services.dual_write_service import upload_game_dual_write
+from services.game_summary_service import get_player_summaries
 
 game_bp = Blueprint('game', __name__)
 
@@ -68,3 +71,10 @@ def upload_dual():
     except Exception as e:
         logging.exception("Unexpected error in /upload")
         return jsonify({"error": "Internal server error"}), 500
+
+@game_bp.get("/<public_code>/summary")
+def players_summary(public_code: str):
+    result = get_player_summaries(public_code)
+    title = result.get("title")
+    rows = result.get("rows", [])
+    return jsonify({"game": public_code, "title": title, "rows": rows})

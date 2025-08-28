@@ -5,7 +5,7 @@ import { useUploadGame } from "../api/uploadGame";
 import GameUrlForm from "../components/GameUrlForm";
 import GameStatusCard from "../components/GameStatusCard";
 import GameSummaryTiles from "../components/GameSummaryTiles";
-import GameDataTable from "../components/GameDataTable";
+import GameDataTable from "../components/IngestDataTable";
 import GameActionBar from "../components/GameActionBar";
 import { deriveTotals } from "../lib/deriveTotals";
 import { formatErrorMessage } from "../lib/validation";
