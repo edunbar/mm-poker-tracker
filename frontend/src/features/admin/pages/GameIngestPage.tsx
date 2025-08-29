@@ -1,12 +1,12 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { PlayerInfo } from "../../../entities/game/types";
-import { useGetGame } from "../api/getGame";
-import { useUploadGame } from "../api/uploadGame";
-import GameUrlForm from "../components/GameUrlForm";
-import GameStatusCard from "../components/GameStatusCard";
-import GameSummaryTiles from "../components/GameSummaryTiles";
+import { useGetGame } from "../api/getSession";
+import { useUploadGame } from "../api/uploadSession";
+import GameUrlForm from "../components/SessionUrlForm";
+import GameStatusCard from "../components/SessionStatusCard";
+import GameSummaryTiles from "../components/SessionSummaryTiles";
 import GameDataTable from "../components/IngestDataTable";
-import GameActionBar from "../components/GameActionBar";
+import GameActionBar from "../components/SessionActionBar";
 import { deriveTotals } from "../lib/deriveTotals";
 import { formatErrorMessage } from "../lib/validation";
 import { useLocation } from "react-router-dom";
@@ -92,7 +92,7 @@ export default function GameIngestPage() {
   };
 
   return (
-    <div className="space-y-6 max-w-4xl mx-auto py-8 px-4">
+    <div className="w-full py-8 space-y-6">
       <h2 className="text-2xl font-bold">Submit PokerNow Game URL</h2>
 
       <GameUrlForm

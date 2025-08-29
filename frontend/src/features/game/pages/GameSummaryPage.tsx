@@ -13,7 +13,7 @@ export default function GameSummaryPage({ publicCode }: GameSummaryPageProps) {
   const title = data?.title?.trim() ? data.title : publicCode;
 
   return (
-    <div className="w-full px-6 py-8">
+    <div className="w-full py-8">
       <h2 className="text-2xl font-bold mb-6">Game Summary for {title}</h2>
       <>
         {isLoading && <p>Loading...</p>}

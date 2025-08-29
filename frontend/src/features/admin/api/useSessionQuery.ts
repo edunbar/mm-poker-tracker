@@ -1,5 +1,5 @@
 import { useQuery } from "react-query";
-import { fetchGameData } from "./game";
+import { fetchGameData } from "./session";
 
 const useGameQuery = (gameUrl: string) => {
   return useQuery(["gameData", gameUrl], () => fetchGameData(gameUrl), {
