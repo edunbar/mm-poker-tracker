@@ -14,14 +14,12 @@ const GameStatusCard: React.FC<GameStatusCardProps> = ({
 }) => {
   if (status === "success") {
     return (
-      <div className="border-emerald-200 bg-emerald-50 rounded-lg p-4 flex gap-3 items-center">
-        <CheckCircle2 className="h-5 w-5 text-emerald-600" />
-        <div>
-          <div className="font-semibold text-emerald-700">
-            Upload successful
-          </div>
-          <div className="text-sm">
-            Game has been saved to the database and synced to your sheet.
+      <div className="mb-6 p-4 bg-green-50 border-l-4 border-green-400 rounded">
+        <div className="flex items-center">
+          <CheckCircle2 className="h-5 w-5 text-green-600 mr-3" />
+          <div>
+            <div className="text-green-800 font-medium">Success!</div>
+            <div className="text-green-700">Game has been saved to the database and synced to your sheet.</div>
           </div>
         </div>
       </div>
@@ -29,40 +27,40 @@ const GameStatusCard: React.FC<GameStatusCardProps> = ({
   }
   if (status === "error") {
     return (
-      <div className="border-red-200 bg-red-50 rounded-lg p-4 flex gap-3 items-center">
-        <AlertTriangle className="h-5 w-5 text-red-600" />
-        <div>
-          <div className="font-semibold text-red-700">Upload blocked</div>
-          <div className="text-sm">
-            Please fix invalid cells and ensure totals are balanced before
-            uploading.
+      <div className="mb-6 p-4 bg-red-50 border-l-4 border-red-400 rounded">
+        <div className="flex items-center">
+          <AlertTriangle className="h-5 w-5 text-red-600 mr-3" />
+          <div>
+            <div className="text-red-800 font-medium">Error</div>
+            <div className="text-red-700">{errorMessage || "Please fix invalid cells and ensure totals are balanced before uploading."}</div>
           </div>
-          {errorMessage && (
-            <div className="text-sm text-red-600 mt-2">{errorMessage}</div>
-          )}
         </div>
       </div>
     );
   }
   return (
-    <div className="bg-white rounded-lg p-4 flex gap-3 items-center">
-      {balanced ? (
-        <CheckCircle2 className="h-5 w-5 text-emerald-600" />
-      ) : (
-        <AlertTriangle className="h-5 w-5 text-red-600" />
-      )}
-      <div>
-        <div
-          className={`font-semibold ${
-            balanced ? "text-emerald-700" : "text-red-700"
-          }`}
-        >
-          {balanced ? "Ready to upload" : "Needs attention"}
-        </div>
-        <div className="text-sm">
-          {balanced
-            ? "Totals are balanced. You can safely upload this game."
-            : "Enter numeric values for Buy In and Cash Out. Net and totals will auto‑recalculate."}
+    <div className="bg-white rounded-lg border shadow-sm p-4 mb-6">
+      <div className="flex items-center">
+        {balanced ? (
+          <CheckCircle2 className="h-5 w-5 text-green-600 mr-3" />
+        ) : (
+          <AlertTriangle className="h-5 w-5 text-red-600 mr-3" />
+        )}
+        <div>
+          <div
+            className={`font-medium ${
+              balanced ? "text-green-800" : "text-red-800"
+            }`}
+          >
+            {balanced ? "Ready to upload" : "Needs attention"}
+          </div>
+          <div className={`text-sm ${
+            balanced ? "text-green-700" : "text-red-700"
+          }`}>
+            {balanced
+              ? "Totals are balanced. You can safely upload this game."
+              : "Enter numeric values for Buy In and Cash Out. Net and totals will auto‑recalculate."}
+          </div>
         </div>
       </div>
     </div>

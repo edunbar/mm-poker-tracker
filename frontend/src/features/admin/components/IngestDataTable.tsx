@@ -1,5 +1,5 @@
 import React, { useMemo } from "react";
-import { CheckCircle2, AlertTriangle } from "lucide-react";
+import { CheckCircle2, AlertTriangle, Trash2 } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -72,6 +72,13 @@ const GameDataTable: React.FC<GameDataTableProps> = ({
     setEditableData(updated);
   };
 
+  const handleDelete = (indexToDelete: number) => {
+    if (window.confirm('Are you sure you want to delete this player row?')) {
+      const updated = playersInfos.filter((_, index) => index !== indexToDelete);
+      setEditableData(updated);
+    }
+  };
+
   if (!Array.isArray(playersInfos) || playersInfos.length === 0) {
     return <div>No player data available.</div>;
   }
@@ -89,6 +96,7 @@ const GameDataTable: React.FC<GameDataTableProps> = ({
               <TableHead className="w-[140px] text-right">Buy In</TableHead>
               <TableHead className="w-[140px] text-right">Cash Out</TableHead>
               <TableHead className="w-[120px] text-right">Net</TableHead>
+              <TableHead className="w-[80px] text-center">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -195,11 +203,20 @@ const GameDataTable: React.FC<GameDataTableProps> = ({
                     }
                   />
                 </TableCell>
+                <TableCell className="text-center">
+                  <button
+                    onClick={() => handleDelete(player.originalIdx)}
+                    className="p-1 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-md transition-colors"
+                    title="Delete this player row"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </TableCell>
               </TableRow>
             ))}
             {/* Totals Row uses shared deriveTotals */}
             <TableRow className="bg-gray-50">
-              <TableCell colSpan={3} className="font-medium">
+              <TableCell colSpan={4} className="font-medium">
                 Totals
               </TableCell>
               <TableCell className="text-right font-semibold">

@@ -7,12 +7,14 @@ export const uploadGameDualWrite = async ({
   sessionId,
   game_data,
   date,
+  gameNumber,
 }: {
   public_code: string;
   admin_code: string;
   sessionId: string;
   game_data: any;
   date?: string;
+  gameNumber?: number;
 }) => {
   const response = await axios.post(
     "http://localhost:8000/api/games/upload",
@@ -21,6 +23,7 @@ export const uploadGameDualWrite = async ({
       sessionId,
       game_data,
       date,
+      gameNumber,
     },
     {
       headers: {

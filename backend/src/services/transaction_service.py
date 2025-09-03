@@ -1,6 +1,42 @@
 import requests
 import logging
-from services.sheets_service import map_validated_names_to_players
+from sqlalchemy import select
+from db.database import SessionLocal
+from db.models import Player
+
+def map_validated_names_to_players(player_data):
+    """
+    Fetches name-id mapping from players table and merges it with player data.
+    Returns a list of player dicts with validated names.
+    If any player ID does not map to a name, leaves validated_name blank.
+    """
+    logging.debug("Fetching name-id map from database and merging with player data")
+    
+    with SessionLocal() as db:
+        # Fetch all players with external_id (verified players)
+        players = db.execute(
+            select(Player.external_id, Player.display_name)
+            .where(Player.external_id.isnot(None))
+        ).all()
+        
+        # Build mapping from external_id to display_name
+        id_to_name = {}
+        for external_id, display_name in players:
+            if external_id and external_id.strip():
+                id_to_name[external_id.strip()] = display_name.strip()
+    
+    logging.debug(f"Fetched name mappings: {id_to_name}")
+
+    merged_players = []
+    for player in player_data.get("playersInfos", []):
+        player_id = player.get("id")
+        validated_name = id_to_name.get(player_id, "")
+        merged_player = player.copy()
+        merged_player["validated_name"] = validated_name
+        merged_players.append(merged_player)
+
+    logging.debug(f"Merged player data: {merged_players}")
+    return merged_players
 
 def get_game_transactions(base_url):
     url = base_url + '/players_sessions'

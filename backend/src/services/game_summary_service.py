@@ -33,15 +33,15 @@ def get_player_summaries(public_code: str):
                     cash_out_chips,
                     in_game_chips,
                     games_played,
-                    (cash_out_chips - buy_in_chips)                       AS realized_net_chips
+                    (cash_out_chips + in_game_chips - buy_in_chips)       AS total_net_chips
                 FROM base
             )
             SELECT
                 player                                        AS "player",
-                DENSE_RANK() OVER (ORDER BY realized_net_chips DESC)    AS "rank",
+                DENSE_RANK() OVER (ORDER BY total_net_chips DESC)    AS "rank",
                 ROUND(buy_in_chips/100.0, 2)                  AS "buyIn",
                 ROUND(cash_out_chips/100.0, 2)                AS "cashOut",
-                ROUND(realized_net_chips/100.0, 2)            AS "net",
+                ROUND(total_net_chips/100.0, 2)               AS "net",
                 games_played                                  AS "gamesPlayed"
             FROM calc
             ORDER BY "rank", "player";

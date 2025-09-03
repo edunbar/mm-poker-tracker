@@ -1,100 +1,354 @@
-# Poker Analytics App
+# 🃏 Poker Analytics Application
 
-## Overview
+A comprehensive web application for analyzing poker games from both PokerNow sessions and live home games. Built with Flask backend, React frontend, PostgreSQL database, and Google Sheets integration.
 
-The Poker Analytics App is a web application designed to submit and analyze PokerNow game IDs. It consists of a backend built with Flask and a frontend developed using React. The application utilizes PostgreSQL as the database and React Query for efficient data fetching and state management.
+## ✨ Features
 
-## Project Structure
+- **PokerNow Import**: Import game sessions directly from PokerNow URLs
+- **Live Game Entry**: Manual entry for home games with balance validation
+- **Player Management**: Track players across sessions with verification system
+- **Advanced Analytics**: Comprehensive game summaries and player statistics
+- **Google Sheets Integration**: Automatic data export to spreadsheets
+- **Audit System**: Complete audit trail of all changes
+- **Balance Detection**: Automatic validation of game money flows
 
-```
-poker-analytics-app
-├── backend
-│   ├── src
-│   │   ├── app.py
-│   │   ├── db
-│   │   │   └── models.py
-│   │   ├── routes
-│   │   │   └── game.py
-│   │   └── config.py
-│   ├── requirements.txt
-│   └── README.md
-├── frontend
-│   ├── src
-│   │   ├── App.tsx
-│   │   ├── index.tsx
-│   │   ├── api
-│   │   │   └── game.ts
-│   │   ├── components
-│   │   │   ├── GameForm.tsx
-│   │   │   ├── GameDataTable.tsx
-│   │   │   ├── GameTotals.tsx
-│   │   │   └── ui
-│   │   │       ├── button.tsx
-│   │   │       └── table.tsx
-│   │   └── hooks
-│   │       └── useGameQuery.ts
-│   ├── package.json
-│   ├── tsconfig.json
-│   └── README.md
-├── README.md
-└── docker-compose.yml
-```
-
-## Backend
-
-The backend is responsible for handling API requests and interacting with the PostgreSQL database. It is structured as follows:
-
-- **app.py**: Entry point of the backend application.
-- **db/models.py**: Defines the database models using SQLAlchemy.
-- **routes/game.py**: Contains route definitions for game-related endpoints.
-- **config.py**: Configuration settings for the application.
-- **requirements.txt**: Lists the Python dependencies required for the backend.
-
-## Frontend
-
-The frontend is a React application that provides a user interface for submitting game IDs and viewing analytics. It includes:
-
-- **App.tsx**: Main component that sets up routing and layout.
-- **index.tsx**: Entry point of the React application.
-- **api/game.ts**: Functions to interact with the backend API.
-- **components/GameForm.tsx**: Component for submitting game IDs.
-- **hooks/useGameQuery.ts**: Custom hook for fetching game data using React Query.
-
-## Setup Instructions
-
-### Backend
-
-1. Navigate to the `backend` directory.
-2. Install the required dependencies:
-   ```
-   pip install -r requirements.txt
-   ```
-3. Set up the PostgreSQL database and update the configuration in `config.py`.
-4. Run the backend application:
-   ```
-   python src/app.py
-   ```
-
-### Frontend
-
-1. Navigate to the `frontend` directory.
-2. Install the required dependencies:
-   ```
-   npm install
-   ```
-3. Start the React application:
-   ```
-   npm start
-   ```
-
-## Docker
-
-To run the application using Docker, use the `docker-compose.yml` file to set up the services. Run the following command in the root directory:
+## 🏗️ Architecture
 
 ```
-docker-compose up
+poker-analytics/
+├── backend/                # Flask API server
+│   ├── src/
+│   │   ├── app.py         # Main Flask application
+│   │   ├── db/            # Database models and config
+│   │   ├── routes/        # API endpoints
+│   │   └── services/      # Business logic layer
+│   ├── migrations/        # Database migrations (Alembic)
+│   └── requirements.txt   # Python dependencies
+├── frontend/              # React application
+│   ├── src/
+│   │   ├── features/      # Feature-based components
+│   │   ├── shared/        # Reusable components
+│   │   └── app/           # App-level routing and layout
+│   └── package.json       # Node.js dependencies
+├── docker-compose.yml     # Docker services definition
+└── .env                   # Environment configuration
 ```
 
-## License
+## 🚀 Quick Start (Docker - Recommended)
 
-This project is licensed under the MIT License.
+### Prerequisites
+- Docker and Docker Compose
+- Git
+
+### 1. Clone the Repository
+```bash
+git clone <repository-url>
+cd poker-analytics
+```
+
+### 2. Environment Setup
+```bash
+# Copy the example environment file
+cp .env.example .env
+
+# Edit .env file with your settings (optional - defaults work for development)
+# Key settings to review:
+# - POSTGRES_PASSWORD: Database password
+# - REACT_APP_PUBLIC_CODE: Your game's public code  
+# - REACT_APP_ADMIN_CODE: Your game's admin code (should be 32+ characters)
+
+# The .env.example file contains detailed documentation for all configuration options
+```
+
+### 3. Start All Services
+```bash
+docker-compose up -d
+```
+
+This starts:
+- **PostgreSQL** database (port 5432)
+- **Backend** API server (port 8000) 
+- **pgAdmin** database UI (port 5050)
+
+### 4. Access the Application
+
+**Frontend Development Server** (run separately):
+```bash
+cd frontend
+npm install
+npm start
+```
+Open [http://localhost:3000](http://localhost:3000)
+
+**API Server**: [http://localhost:8000](http://localhost:8000)
+
+**pgAdmin** (Database UI): [http://localhost:5050](http://localhost:5050)
+- Email: `admin@example.com`
+- Password: `adminadmin`
+
+### 5. First Time Setup
+
+The database will be automatically initialized with all necessary tables when the backend starts.
+
+## 🛠️ Manual Development Setup
+
+### Prerequisites
+- Python 3.11+
+- Node.js 16+
+- PostgreSQL 16+
+
+### Backend Setup
+```bash
+cd backend
+
+# Create virtual environment
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\\Scripts\\activate
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Set up database
+export DATABASE_URL="postgresql+psycopg2://pokeruser:supersecret@localhost:5432/poker_analytics"
+
+# Run migrations
+alembic upgrade head
+
+# Start development server
+python src/app.py
+```
+
+### Frontend Setup
+```bash
+cd frontend
+
+# Install dependencies
+npm install
+
+# Start development server
+npm start
+```
+
+### Database Setup (Manual)
+```sql
+-- Connect to PostgreSQL and create database
+CREATE DATABASE poker_analytics;
+CREATE USER pokeruser WITH ENCRYPTED PASSWORD 'supersecret';
+GRANT ALL PRIVILEGES ON DATABASE poker_analytics TO pokeruser;
+```
+
+## 🎮 Usage Guide
+
+### For Game Players
+1. Navigate to `http://localhost:3000`
+2. View game summaries and statistics
+3. Check your performance across sessions
+
+### For Game Administrators
+1. **Access admin features**: Click "Login as Admin" and enter your admin code
+2. **Import PokerNow games**: Go to "PokerNow Import" and paste game URLs
+3. **Enter live games**: Go to "Live Game Entry" and manually input results
+4. **Manage players**: Use "Player Verification" to link player names
+5. **Analyze data**: Review "Ledger Analysis" for detailed insights
+
+### API Usage
+```bash
+# Import PokerNow game
+curl -X POST http://localhost:8000/api/games/upload \
+  -H "Content-Type: application/json" \
+  -H "X-Admin-Code: YOUR_ADMIN_CODE" \
+  -d '{
+    "public_code": "C4QROK",
+    "sessionId": "pokernow-session-id",
+    "game_data": {...}
+  }'
+
+# Submit live game
+curl -X POST http://localhost:8000/api/games/upload_live \
+  -H "Content-Type: application/json" \
+  -H "X-Admin-Code: YOUR_ADMIN_CODE" \
+  -d '{
+    "public_code": "C4QROK",
+    "session_name": "Friday Night Poker",
+    "players": [
+      {"name": "Alice", "buy_in": 100.00, "cash_out": 120.00, "in_game": 0.00}
+    ]
+  }'
+```
+
+## 🔧 Configuration
+
+### Environment Variables (.env)
+```bash
+# Database Configuration
+POSTGRES_USER=pokeruser
+POSTGRES_PASSWORD=supersecret
+POSTGRES_DB=poker_analytics
+POSTGRES_PORT=5432
+
+# Backend Configuration
+PORT=8000
+DATABASE_URL=postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:${POSTGRES_PORT}/${POSTGRES_DB}
+
+# Game Configuration
+REACT_APP_PUBLIC_CODE=C4QROK                    # Shareable game code
+REACT_APP_ADMIN_CODE=your-secret-admin-code     # Admin access code
+
+# pgAdmin Configuration
+PGADMIN_DEFAULT_EMAIL=admin@example.com
+PGADMIN_DEFAULT_PASSWORD=adminadmin
+```
+
+### Google Sheets Integration (Optional)
+1. Create a Google Cloud project
+2. Enable Google Sheets API
+3. Create service account credentials
+4. Download JSON key file as `backend/mm-poker-tracker-[id].json`
+5. Update hardcoded path in `backend/src/services/sheets_service.py`
+
+## 🧪 Testing
+
+### Backend Tests
+```bash
+cd backend
+source venv/bin/activate
+python -m pytest tests/
+```
+
+### Frontend Tests
+```bash
+cd frontend
+npm test
+```
+
+### API Testing
+```bash
+# Test live game endpoint
+curl -X POST http://localhost:8000/api/games/upload_live \
+  -H "Content-Type: application/json" \
+  -H "X-Admin-Code: 2LT8wByw4sMLAwB_ISq2TMRwJ6zaUZ1oy4w7y4WQscE" \
+  -d '{
+    "public_code": "C4QROK",
+    "session_name": "Test Game",
+    "players": [
+      {"name": "Alice", "buy_in": 100.00, "cash_out": 120.00, "in_game": 0.00},
+      {"name": "Bob", "buy_in": 100.00, "cash_out": 80.00, "in_game": 0.00}
+    ]
+  }'
+```
+
+## 🔍 Troubleshooting
+
+### Common Issues
+
+**Database Connection Error**
+```bash
+# Check if PostgreSQL is running
+docker-compose ps
+
+# View database logs
+docker-compose logs db
+
+# Reset database
+docker-compose down -v
+docker-compose up -d
+```
+
+**Frontend Won't Start**
+```bash
+# Clear node_modules and reinstall
+cd frontend
+rm -rf node_modules package-lock.json
+npm install
+npm start
+```
+
+**Backend Import Error**
+```bash
+# Check Python path
+cd backend
+export PYTHONPATH=/app/src
+source venv/bin/activate
+python src/app.py
+```
+
+**Google Sheets Integration Issues**
+- Verify service account JSON file is correctly placed
+- Check file permissions
+- Ensure Google Sheets API is enabled in Google Cloud Console
+
+### Useful Commands
+```bash
+# View all running containers
+docker-compose ps
+
+# View application logs
+docker-compose logs -f backend
+docker-compose logs -f db
+
+# Access database directly
+docker-compose exec db psql -U pokeruser -d poker_analytics
+
+# Rebuild containers
+docker-compose down
+docker-compose up --build
+
+# Run database migrations
+docker-compose exec backend python -m alembic upgrade head
+```
+
+## 📊 Database Schema
+
+**Key Tables:**
+- `games`: Game containers with public/admin codes
+- `sessions`: Individual poker sessions (PokerNow or live)
+- `players`: Player entities across all games  
+- `session_player_summaries`: Per-session player statistics
+- `audit_log`: Complete audit trail of changes
+
+## 🚢 Deployment
+
+### Production Environment Variables
+```bash
+# Set production database URL
+DATABASE_URL=postgresql://user:password@production-db-host:5432/poker_analytics
+
+# Disable Flask debug mode
+FLASK_ENV=production
+
+# Set secure admin codes
+REACT_APP_ADMIN_CODE=secure-production-admin-code
+```
+
+### Docker Production Build
+```bash
+# Build production images
+docker-compose -f docker-compose.prod.yml build
+
+# Deploy with production config
+docker-compose -f docker-compose.prod.yml up -d
+```
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch: `git checkout -b feature/amazing-feature`
+3. Make your changes
+4. Run tests: `npm test` and `python -m pytest`
+5. Commit changes: `git commit -m 'Add amazing feature'`
+6. Push to branch: `git push origin feature/amazing-feature`
+7. Open a Pull Request
+
+## 📝 License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+## 📞 Support
+
+- **Issues**: Create an issue in the GitHub repository
+- **Documentation**: Check the `backend/README.md` and `frontend/README.md` for detailed component documentation
+- **API Documentation**: Visit `http://localhost:8000/api/games/` when running locally
+
+---
+
+**Happy Poker Analytics!** 🎰

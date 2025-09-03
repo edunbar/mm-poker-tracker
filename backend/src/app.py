@@ -1,6 +1,8 @@
 from flask import Flask
 from flask_cors import CORS
 from routes.game import game_bp
+from services.audit_middleware import setup_request_audit_context, teardown_request_audit_context
+import services.audit_middleware  # Initialize the event listeners
 import os
 
 def create_app():
@@ -11,6 +13,10 @@ def create_app():
 
     # Register routes
     app.register_blueprint(game_bp, url_prefix="/api/games")
+
+    # Set up audit middleware
+    app.before_request(setup_request_audit_context)
+    app.teardown_appcontext(teardown_request_audit_context)
 
     return app
 

@@ -98,19 +98,23 @@ class GamePlayer(Base):
 # ==========================================================
 # Sessions Table
 # ----------------------------------------------------------
-# Represents one PokerNow session (a run of play under a Game).
+# Represents one game session (PokerNow or live game).
 #
 # Columns:
 # - id               : UUID primary key.
 # - game_id          : FK to games.id (CASCADE on delete).
 # - external_id      : Optional PokerNow session id (unique per game).
+# - session_type     : 'pokernow' | 'live' to distinguish data sources.
+# - session_name     : Human-readable name for live games (e.g. "Thursday Night #5").
+# - game_number      : Chronological game number within the game (1, 2, 3, ...).
 # - started_at       : Timestamp when the session began.
 # - ended_at         : Timestamp when the session ended.
-# - end_session_json : Raw JSONB copy of the PokerNow players_sessions payload.
+# - end_session_json : Raw JSONB copy of the session data (PokerNow or live game format).
 # - created_at       : Timestamp when the session record was created.
 #
 # Constraints:
 # - (game_id, external_id) unique, so a session ID cannot repeat in the same game.
+# - (game_id, game_number) unique, so a game number cannot repeat in the same game.
 #
 # Relationships:
 # - game       : parent Game.
@@ -123,6 +127,9 @@ class Session(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
     game_id = Column(UUID(as_uuid=True), ForeignKey('games.id', ondelete='CASCADE'), nullable=False)
     external_id = Column(Text, nullable=True)  # PokerNow session id if available
+    session_type = Column(Text, nullable=False, server_default=text("'pokernow'"))  # 'pokernow' | 'live'
+    session_name = Column(Text, nullable=True)  # Human-readable name for live games
+    game_number = Column(BigInteger, nullable=True)  # Chronological game number within the game (1, 2, 3, ...)
     started_at = Column(TIMESTAMP(timezone=True), nullable=True)
     ended_at = Column(TIMESTAMP(timezone=True), nullable=True)
     end_session_json = Column(JSONB, nullable=True)
@@ -134,7 +141,9 @@ class Session(Base):
 
     __table_args__ = (
         UniqueConstraint('game_id', 'external_id', name='uq_sessions_game_external'),
+        UniqueConstraint('game_id', 'game_number', name='uq_sessions_game_number'),  # Ensure game_number is unique within each game
         Index('ix_sessions_game_id', 'game_id'),
+        Index('ix_sessions_game_number', 'game_id', 'game_number'),  # Efficient lookups by game and number
     )
 
 
