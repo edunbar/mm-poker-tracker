@@ -1,6 +1,6 @@
-# 🃏 Poker Analytics Backend
+# 🃏 HomeGame Backend
 
-Flask-based API server for the Poker Analytics application. Provides RESTful endpoints for game data ingestion, player management, and analytics with PostgreSQL persistence and Google Sheets integration.
+Flask-based API server for the HomeGame application. Provides RESTful endpoints for game data ingestion, player management, and analytics with PostgreSQL persistence and Google Sheets integration.
 
 ## 🏗️ Architecture
 
@@ -15,7 +15,7 @@ backend/
 │   ├── routes/
 │   │   └── game.py              # API endpoints
 │   └── services/                # Business logic layer
-│       ├── dual_write_service.py     # Core session ingestion
+│       ├── session_ingestion_service.py  # Core session ingestion
 │       ├── live_game_service.py      # Live game processing
 │       ├── transaction_service.py    # PokerNow API integration
 │       ├── game_summary_service.py   # Analytics and reporting

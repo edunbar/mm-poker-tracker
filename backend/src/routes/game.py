@@ -3,8 +3,7 @@ from db.database import SessionLocal
 from flask import Blueprint, request, jsonify
 import logging
 from services.transaction_service import get_game_transactions
-from services.sheets_service import upload_game_to_sheets
-from services.dual_write_service import upload_game_dual_write
+from services.session_ingestion_service import ingest_session
 from services.game_summary_service import get_player_summaries
 from services.ledger_service import (
     get_all_session_summaries,
@@ -40,6 +39,10 @@ from services.game_creation_service import (
     create_game,
     validate_game_title
 )
+from services.payment_service import PaymentService
+from decimal import Decimal
+from datetime import timezone
+from db.models import Game
 
 game_bp = Blueprint('game', __name__)
 
@@ -90,6 +93,8 @@ def create_new_game():
 @game_bp.route('/get_transactions', methods=['GET'])
 def get_transactions():
     base_url = request.args.get('url')
+    if base_url:
+        base_url = base_url.strip()
     logging.debug(f"Received base_url: {base_url}")
     if not base_url:
         logging.error("URL parameter is missing")
@@ -131,7 +136,7 @@ def upload_dual():
         if not admin_code:
             return jsonify({"error": "X-Admin-Code header required"}), 401
 
-        result = upload_game_dual_write(
+        result = ingest_session(
             public_code=public_code,
             admin_code=admin_code,
             session_id=session_id,
@@ -216,7 +221,7 @@ def upload_live_game():
         )
 
         # Use existing dual_write_service with live game data
-        result = upload_game_dual_write(
+        result = ingest_session(
             public_code=public_code,
             admin_code=admin_code,
             session_id=live_session_data["sessionId"],
@@ -296,7 +301,7 @@ def update_ledger_entry(public_code: str, session_id: str, player_id: str):
             return jsonify({"error": "X-Admin-Code header required"}), 401
 
         # Get game for audit context
-        from services.dual_write_service import _require_admin_for_game
+        from services.session_ingestion_service import _require_admin_for_game
         with SessionLocal() as db:
             game = _require_admin_for_game(db, public_code, admin_code)
         
@@ -333,7 +338,7 @@ def delete_ledger_entry(public_code: str, session_id: str, player_id: str):
             return jsonify({"error": "X-Admin-Code header required"}), 401
 
         # Get game for audit context
-        from services.dual_write_service import _require_admin_for_game
+        from services.session_ingestion_service import _require_admin_for_game
         with SessionLocal() as db:
             game = _require_admin_for_game(db, public_code, admin_code)
 
@@ -365,7 +370,7 @@ def delete_entire_session_route(public_code: str, session_id: str):
             return jsonify({"error": "X-Admin-Code header required"}), 401
 
         # Get game for audit context
-        from services.dual_write_service import _require_admin_for_game
+        from services.session_ingestion_service import _require_admin_for_game
         with SessionLocal() as db:
             game = _require_admin_for_game(db, public_code, admin_code)
 
@@ -521,7 +526,7 @@ def merge_duplicate_players(public_code: str):
                 return jsonify({"error": f"{field} is required"}), 400
 
         # Get game for audit logging
-        from services.dual_write_service import _require_admin_for_game
+        from services.session_ingestion_service import _require_admin_for_game
         with SessionLocal() as db:
             game = _require_admin_for_game(db, public_code, admin_code)
         
@@ -615,7 +620,7 @@ def undo_merge_operation(public_code: str, operation_id: str):
             return jsonify({"error": "X-Admin-Code header required"}), 401
 
         # Validate admin code for this game
-        from services.dual_write_service import _require_admin_for_game
+        from services.session_ingestion_service import _require_admin_for_game
         with SessionLocal() as db:
             game = _require_admin_for_game(db, public_code, admin_code)
         
@@ -675,7 +680,7 @@ def recalculate_session_balance(public_code: str, session_id: str):
             return jsonify({"error": "X-Admin-Code header required"}), 401
 
         # Get game for audit context
-        from services.dual_write_service import _require_admin_for_game
+        from services.session_ingestion_service import _require_admin_for_game
         with SessionLocal() as db:
             game = _require_admin_for_game(db, public_code, admin_code)
         
@@ -694,4 +699,182 @@ def recalculate_session_balance(public_code: str, session_id: str):
         return jsonify({"error": str(e)}), 400
     except Exception as e:
         logging.error(f"Error recalculating session balance: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+# ==========================================================
+# Payment Ledger Endpoints
+# ==========================================================
+
+payment_service = PaymentService()
+
+@game_bp.get("/<public_code>/payments/summary")
+def get_payment_summary(public_code: str):
+    """
+    Get payment summary for all players in the game.
+    Returns current balances and payment status.
+    """
+    try:
+        # Get game by public code
+        with SessionLocal() as db:
+            game = db.query(Game).filter(Game.public_code == public_code).first()
+            if not game:
+                return jsonify({"error": "Game not found"}), 404
+            
+            summary = payment_service.get_payment_summary(str(game.id))
+            
+            # Convert to JSON-serializable format
+            result = []
+            for player_summary in summary:
+                result.append({
+                    "player_id": player_summary.player_id,
+                    "player_name": player_summary.player_name,
+                    "poker_net_winnings": float(player_summary.poker_net_winnings),
+                    "total_paid": float(player_summary.total_paid),
+                    "total_received": float(player_summary.total_received),
+                    "balance": float(player_summary.balance),
+                    "realized_earnings": float(player_summary.realized_earnings)
+                })
+            
+            return jsonify({"players": result}), 200
+            
+    except Exception as e:
+        logging.error(f"Error getting payment summary: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@game_bp.get("/<public_code>/payments/settlements")
+def get_settlement_suggestions(public_code: str):
+    """
+    Get optimal settlement suggestions to minimize transactions.
+    """
+    try:
+        # Get game by public code
+        with SessionLocal() as db:
+            game = db.query(Game).filter(Game.public_code == public_code).first()
+            if not game:
+                return jsonify({"error": "Game not found"}), 404
+            
+            suggestions = payment_service.get_settlement_suggestions(str(game.id))
+            
+            # Convert to JSON-serializable format
+            result = []
+            for suggestion in suggestions:
+                result.append({
+                    "payer_id": suggestion.payer_id,
+                    "payer_name": suggestion.payer_name,
+                    "recipient_id": suggestion.recipient_id,
+                    "recipient_name": suggestion.recipient_name,
+                    "amount": float(suggestion.amount)
+                })
+            
+            return jsonify({"settlements": result}), 200
+            
+    except Exception as e:
+        logging.error(f"Error getting settlement suggestions: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@game_bp.get("/<public_code>/payments/history")
+def get_payment_history(public_code: str):
+    """
+    Get payment transaction history for the game.
+    Query params:
+    - limit: number of transactions to return (default 50)
+    - offset: pagination offset (default 0)
+    """
+    try:
+        limit = int(request.args.get('limit', 50))
+        offset = int(request.args.get('offset', 0))
+        
+        # Get game by public code
+        with SessionLocal() as db:
+            game = db.query(Game).filter(Game.public_code == public_code).first()
+            if not game:
+                return jsonify({"error": "Game not found"}), 404
+            
+            history = payment_service.get_payment_history(
+                str(game.id), 
+                limit=limit, 
+                offset=offset
+            )
+            
+            return jsonify({"transactions": history}), 200
+            
+    except Exception as e:
+        logging.error(f"Error getting payment history: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@game_bp.post("/<public_code>/payments/record")
+def record_payment_transaction(public_code: str):
+    """
+    Record a payment between two players (admin only).
+    
+    Body expects:
+    {
+      "payer_id": "uuid",
+      "recipient_id": "uuid", 
+      "amount": 125.50,
+      "payment_date": "2025-09-03T10:30:00Z",  // optional, defaults to now
+      "payment_method": "Venmo",               // optional
+      "notes": "Weekly settlement",            // optional
+      "reference_id": "venmo_12345"            // optional
+    }
+    Header: X-Admin-Code: <admin_code>
+    """
+    try:
+        admin_code = request.headers.get("X-Admin-Code")
+        if not admin_code:
+            return jsonify({"error": "X-Admin-Code header required"}), 401
+
+        # Get game and validate admin access
+        from services.session_ingestion_service import _require_admin_for_game
+        with SessionLocal() as db:
+            game = _require_admin_for_game(db, public_code, admin_code)
+
+        body = request.get_json(force=True)
+        if not body:
+            return jsonify({"error": "Request body is required"}), 400
+
+        # Validate required fields
+        required_fields = ["payer_id", "recipient_id", "amount"]
+        for field in required_fields:
+            if field not in body:
+                return jsonify({"error": f"{field} is required"}), 400
+
+        # Parse payment date
+        from datetime import datetime
+        payment_date = datetime.now(timezone.utc)
+        if "payment_date" in body and body["payment_date"]:
+            try:
+                payment_date = datetime.fromisoformat(body["payment_date"].replace('Z', '+00:00'))
+            except ValueError:
+                return jsonify({"error": "Invalid payment_date format"}), 400
+
+        # Set audit context
+        with audit_context(
+            operation_type="PAYMENT_RECORD",
+            game_id=str(game.id),
+            actor_kind="admin_code",
+            actor_id=admin_code[:8] + "…"
+        ):
+            payment = payment_service.record_payment(
+                game_id=str(game.id),
+                payer_id=body["payer_id"],
+                recipient_id=body["recipient_id"],
+                amount=Decimal(str(body["amount"])),
+                payment_date=payment_date,
+                payment_method=body.get("payment_method"),
+                notes=body.get("notes"),
+                reference_id=body.get("reference_id"),
+                created_by=admin_code[:8] + "…"
+            )
+
+        return jsonify({
+            "id": str(payment.id),
+            "message": "Payment recorded successfully"
+        }), 201
+
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+    except Exception as e:
+        logging.error(f"Error recording payment: {e}")
         return jsonify({"error": str(e)}), 500

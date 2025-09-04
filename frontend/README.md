@@ -1,4 +1,4 @@
-# 🎮 Poker Analytics Frontend
+# 🎮 HomeGame Frontend
 
 Modern React + TypeScript application for managing and analyzing poker game data. Features both PokerNow game import and live game entry capabilities with real-time validation and comprehensive analytics.
 

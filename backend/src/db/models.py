@@ -31,6 +31,9 @@ class Player(Base):
 
     games = relationship('GamePlayer', back_populates='player', cascade="all, delete-orphan")
     summaries = relationship('SessionPlayerSummary', back_populates='player', cascade="all, delete-orphan")
+    payments_sent = relationship('PaymentTransaction', back_populates='payer', foreign_keys='PaymentTransaction.payer_id', cascade="all, delete-orphan")
+    payments_received = relationship('PaymentTransaction', back_populates='recipient', foreign_keys='PaymentTransaction.recipient_id', cascade="all, delete-orphan")
+    payment_balances = relationship('PaymentBalance', back_populates='player', cascade="all, delete-orphan")
 
 
 # ==========================================================
@@ -66,6 +69,8 @@ class Game(Base):
     players = relationship('GamePlayer', back_populates='game', cascade="all, delete-orphan")
     sessions = relationship('Session', back_populates='game', cascade="all, delete-orphan")
     audit_logs = relationship('AuditLog', back_populates='game')
+    payment_transactions = relationship('PaymentTransaction', back_populates='game', cascade="all, delete-orphan")
+    payment_balances = relationship('PaymentBalance', back_populates='game', cascade="all, delete-orphan")
 
     __table_args__ = (
         # public_code is already UNIQUE → PG will create an index
@@ -225,3 +230,112 @@ class AuditLog(Base):
 
     game = relationship('Game', back_populates='audit_logs')
     session = relationship('Session', back_populates='audit_logs')
+
+
+# ==========================================================
+# PaymentTransactions Table
+# ----------------------------------------------------------
+# Records peer-to-peer payments between players within a game.
+#
+# Columns:
+# - id            : UUID primary key.
+# - game_id       : FK to games.id (CASCADE on delete).
+# - payer_id      : FK to players.id (CASCADE on delete).
+# - recipient_id  : FK to players.id (CASCADE on delete).
+# - amount_cents  : Payment amount in cents for precision.
+# - payment_method: Optional payment method (Venmo, Zelle, Cash, etc.).
+# - payment_date  : Date when payment was made.
+# - status        : Payment status (pending, completed, cancelled).
+# - notes         : Optional notes about the payment.
+# - reference_id  : Optional external transaction ID.
+# - created_at    : When record was created.
+# - created_by    : Admin code hash for audit trail.
+#
+# Constraints:
+# - payer_id != recipient_id (cannot pay yourself).
+# - amount_cents > 0 (positive amounts only).
+# ==========================================================
+class PaymentTransaction(Base):
+    __tablename__ = 'payment_transactions'
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
+    game_id = Column(UUID(as_uuid=True), ForeignKey('games.id', ondelete='CASCADE'), nullable=False)
+    payer_id = Column(UUID(as_uuid=True), ForeignKey('players.id', ondelete='CASCADE'), nullable=False)
+    recipient_id = Column(UUID(as_uuid=True), ForeignKey('players.id', ondelete='CASCADE'), nullable=False)
+    
+    # Amount in cents (like existing system)
+    amount_cents = Column(BigInteger, nullable=False)
+    
+    # Payment details
+    payment_method = Column(Text, nullable=True)  # "Venmo", "Zelle", "Cash", etc.
+    payment_date = Column(TIMESTAMP(timezone=True), nullable=False)
+    
+    # Status tracking
+    status = Column(Text, nullable=False, server_default=text("'completed'"))  # pending, completed, cancelled
+    
+    # Optional references
+    notes = Column(Text, nullable=True)
+    reference_id = Column(Text, nullable=True)  # Venmo/Zelle transaction ID
+    
+    # Audit fields
+    created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
+    created_by = Column(Text, nullable=False)  # admin_code hash for audit
+    
+    # Relationships
+    game = relationship('Game', back_populates='payment_transactions')
+    payer = relationship('Player', back_populates='payments_sent', foreign_keys=[payer_id])
+    recipient = relationship('Player', back_populates='payments_received', foreign_keys=[recipient_id])
+    
+    __table_args__ = (
+        Index('ix_payment_transactions_game_date', 'game_id', 'payment_date'),
+        Index('ix_payment_transactions_payer', 'payer_id'),
+        Index('ix_payment_transactions_recipient', 'recipient_id'),
+    )
+
+
+# ==========================================================
+# PaymentBalances Table
+# ----------------------------------------------------------
+# Cached payment balances for each player in each game.
+# Updated whenever payments are recorded or poker results change.
+#
+# Columns:
+# - id                  : UUID primary key.
+# - game_id            : FK to games.id (CASCADE on delete).
+# - player_id          : FK to players.id (CASCADE on delete).
+# - total_paid         : Total amount paid by this player (in cents).
+# - total_received     : Total amount received by this player (in cents).
+# - poker_net_winnings : Net poker winnings from SessionPlayerSummary (in cents).
+# - payment_balance    : Net balance: poker_net_winnings - total_paid + total_received.
+# - last_updated       : When this balance was last calculated.
+#
+# The payment_balance represents:
+# - Positive: Player is owed money
+# - Negative: Player owes money
+# - Zero: Player is settled up
+# ==========================================================
+class PaymentBalance(Base):
+    __tablename__ = 'payment_balances'
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
+    game_id = Column(UUID(as_uuid=True), ForeignKey('games.id', ondelete='CASCADE'), nullable=False)
+    player_id = Column(UUID(as_uuid=True), ForeignKey('players.id', ondelete='CASCADE'), nullable=False)
+    
+    # Running totals (in cents)
+    total_paid = Column(BigInteger, nullable=False, server_default=text("0"))
+    total_received = Column(BigInteger, nullable=False, server_default=text("0"))
+    poker_net_winnings = Column(BigInteger, nullable=False, server_default=text("0"))  # From SessionPlayerSummary
+    payment_balance = Column(BigInteger, nullable=False, server_default=text("0"))  # Net amount owed/owed to
+    
+    # Timestamps
+    last_updated = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
+    
+    # Relationships
+    game = relationship('Game', back_populates='payment_balances')
+    player = relationship('Player', back_populates='payment_balances')
+    
+    __table_args__ = (
+        UniqueConstraint('game_id', 'player_id', name='uq_payment_balances_game_player'),
+        Index('ix_payment_balances_game', 'game_id'),
+        Index('ix_payment_balances_balance', 'game_id', 'payment_balance'),  # For finding who owes/is owed
+    )

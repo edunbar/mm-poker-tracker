@@ -12,6 +12,7 @@ import { formatErrorMessage } from "../lib/validation";
 import { useLocation, useParams } from "react-router-dom";
 import AdminSessionStatus from "../../../components/AdminSessionStatus";
 import { useAdminSession } from "../../../contexts/AdminSessionContext";
+import { useToast } from "../../../contexts/ToastContext";
 
 interface GameDataTableProps {
   playersInfos: PlayerInfo[];
@@ -32,6 +33,7 @@ export default function GameIngestPage() {
   // Get public code from URL params and admin session context
   const { publicCode } = useParams<{ publicCode: string }>();
   const { adminCode } = useAdminSession();
+  const { showSuccess, showError, showInfo } = useToast();
   
   // Ensure we have required codes
   if (!publicCode) {
@@ -75,6 +77,28 @@ export default function GameIngestPage() {
     }
   }, [game.data]);
 
+  // Handle upload success/error with toast notifications
+  useEffect(() => {
+    if (upload.isSuccess) {
+      showSuccess(
+        "Upload Successful!",
+        "Session has been saved to the database successfully.",
+        5000
+      );
+    }
+  }, [upload.isSuccess, showSuccess]);
+
+  useEffect(() => {
+    if (upload.isError) {
+      const errorMessage = formatErrorMessage(upload.error);
+      showError(
+        "Upload Failed",
+        errorMessage || "There was an error uploading the session. Please try again.",
+        7000 // Show errors longer
+      );
+    }
+  }, [upload.isError, upload.error, showError]);
+
   const totals = useMemo(() => deriveTotals(rows), [rows]);
 
   const status: "success" | "error" | null = upload.isSuccess
@@ -92,6 +116,9 @@ export default function GameIngestPage() {
   };
 
   const handleUpload = () => {
+    // Show info toast when upload starts
+    showInfo("Upload Started", "Processing your session data...", 3000);
+    
     // Extract sessionId from submittedUrl after '/games/'
     let sessionId = "";
     const match = submittedUrl.match(/\/games\/([^/?#]+)/);
@@ -202,6 +229,7 @@ export default function GameIngestPage() {
                 onUpload={handleUpload}
                 balanced={totals.balanced}
                 isLoading={upload.isLoading}
+                isSuccess={upload.isSuccess}
               />
             </>
           )}

@@ -9,6 +9,7 @@ export const adminNav = [
   { label: "PokerNow Import", path: "/ingest/:publicCode" },
   { label: "Live Game Entry", path: "/live/:publicCode" },
   { label: "Player Verification", path: "/players/:publicCode" },
+  { label: "Payment Ledger", path: "/payments/:publicCode" },
   { label: "Ledger Analysis", path: "/ledger-analysis/:publicCode" },
   { label: "Audit Log", path: "/audit/:publicCode" },
 ];

@@ -3,6 +3,7 @@ import LandingPage from "../pages/Landing/LandingPage";
 import GameIngestPage from "../features/admin/pages/SessionIngestPage";
 import LiveGameIngestPage from "../features/admin/pages/LiveGameIngestPage";
 import GameLedgerPage from "../features/admin/pages/GameLedgerPage";
+import PaymentLedgerPage from "../features/admin/pages/PaymentLedgerPage";
 import VerifiedUsersPage from "../features/admin/pages/VerifiedUsersPage";
 import GameSummaryPage from "../features/game/pages/GameSummaryPage";
 import AuditPage from "../features/admin/pages/AuditPage";
@@ -40,6 +41,11 @@ export default function AppRoutes() {
       <Route path="/audit/:publicCode" element={
         <ProtectedRoute requireAdmin={true}>
           <AuditPage />
+        </ProtectedRoute>
+      } />
+      <Route path="/payments/:publicCode" element={
+        <ProtectedRoute requireAdmin={true}>
+          <PaymentLedgerPage />
         </ProtectedRoute>
       } />
     </Routes>

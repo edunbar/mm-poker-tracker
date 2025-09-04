@@ -1,11 +1,11 @@
-# services/dual_write_service.py
+# services/session_ingestion_service.py
 from __future__ import annotations
 
 import logging
 from datetime import datetime, timezone
 from typing import Dict, Any, List, Tuple
 
-from sqlalchemy import select, func, text
+from sqlalchemy import select, func, text, delete
 from sqlalchemy.orm import Session
 
 from db.database import SessionLocal
@@ -16,14 +16,7 @@ from db.models import (
     AuditLog,
 )
 
-# Reuse your Sheets helpers (or keep them here if you prefer)
-from services.sheets_service import get_sheets_service
-
-# ---- Config for your Google Sheet tabs/ranges ----
-GAME_LEDGER_SHEET_ID = "18NVq3om_d5I-oGrwTT_f8BmyVFwz8Q3uFoPVNAFtxME"
-GAME_LEDGER_RANGE = "Game Ledger1!A1"
-NAME_VALIDATION_SHEET_ID = "18NVq3om_d5I-oGrwTT_f8BmyVFwz8Q3uFoPVNAFtxME"
-NAME_VALIDATION_RANGE = "Name Validation!A:B"
+# Database-only implementation (Google Sheets removed)
 
 log = logging.getLogger(__name__)
 
@@ -75,43 +68,16 @@ def _fetch_name_map(db: Session) -> Dict[str, str]:
     return id_to_name
 
 
-def _compute_next_game_number() -> int:
-    """Peek at Game Ledger column A and return max + 1, or 1 if empty."""
-    sheet = get_sheets_service()
-    res = sheet.values().get(spreadsheetId=GAME_LEDGER_SHEET_ID, range="Game Ledger1!A:A").execute()
-    values = res.get("values", [])
-    nums: List[int] = []
-    for row in values:
-        if row and str(row[0]).isdigit():
-            nums.append(int(row[0]))
-    return (max(nums) + 1) if nums else 1
+def _compute_next_game_number(db: Session, game_id: str) -> int:
+    """Get the next game number for this game from the database."""
+    max_game_number = db.execute(
+        text("SELECT MAX(game_number) FROM sessions WHERE game_id = :game_id"),
+        {"game_id": game_id}
+    ).scalar()
+    return (max_game_number or 0) + 1
 
 
-def _append_ledger_rows(game_number: int, date_for_sheet: str, validated_players: List[Dict[str, Any]]) -> Dict[str, Any]:
-    """
-    Append rows to Game Ledger:
-    [game_number, validated_name, buy-in $ , cash-out $ , date M/D/YYYY]
-    """
-    sheet = get_sheets_service()
-    rows = []
-    for p in validated_players:
-        buy_in = int(p.get("buyInSum") or 0)       # chips
-        cash_out = int(p.get("buyOutSum") or 0)    # chips
-        in_game = int(p.get("inGame") or 0)        # chips
-        rows.append([
-            game_number,
-            p.get("validated_name", ""),
-            _chips_to_dollars(buy_in),
-            _chips_to_dollars(cash_out + in_game),
-            date_for_sheet,
-        ])
-    body = {"values": rows}
-    return sheet.values().append(
-        spreadsheetId=GAME_LEDGER_SHEET_ID,
-        range=GAME_LEDGER_RANGE,
-        valueInputOption="RAW",
-        body=body
-    ).execute()
+# _append_ledger_rows function removed - no longer needed without Google Sheets
 
 
 def _require_admin_for_game(db: Session, public_code: str, admin_code: str) -> Game:
@@ -207,30 +173,73 @@ def _upsert_db_for_session(
         # ignore if JSONB merge fails for some reason
         pass
 
+    # Clear existing summaries for this session to prevent duplicate key errors
+    db.execute(
+        delete(SessionPlayerSummary).where(SessionPlayerSummary.session_id == sess.id)
+    )
+    db.flush()  # Ensure delete is executed before inserts
+    
+    # Deduplicate players by external_id or display_name to prevent duplicate insertions
+    seen_players = set()
+    unique_players = []
+    for p in validated_players:
+        ext_pid = (p.get("id") or "").strip() or None
+        display_name = (p.get("validated_name") or (p.get("names")[0] if p.get("names") else "Unknown")).strip()
+        
+        # Create a unique key based on external_id or normalized display_name
+        unique_key = ext_pid if ext_pid else display_name.lower()
+        
+        if unique_key not in seen_players:
+            seen_players.add(unique_key)
+            unique_players.append(p)
+    
     # Summaries
     affected = 0
-    for p in validated_players:
+    for p in unique_players:
         ext_pid = (p.get("id") or "").strip() or None
         names = p.get("names") or []
         display_name = (p.get("validated_name") or (names[0] if names else "Unknown")).strip()
 
-        # Find player by display_name within this game only (to maintain game isolation)
-        player = db.execute(
-            select(Player)
-            .join(GamePlayer, Player.id == GamePlayer.player_id)
-            .where(
-                GamePlayer.game_id == game.id,
-                func.lower(Player.display_name) == display_name.lower()
-            )
-        ).scalar_one_or_none()
+        # Find player by external_id first, then by display_name within this game only (to maintain game isolation)
+        player = None
+        if ext_pid:
+            # First try to find by external_id
+            player = db.execute(
+                select(Player)
+                .join(GamePlayer, Player.id == GamePlayer.player_id)
+                .where(
+                    GamePlayer.game_id == game.id,
+                    Player.external_id == ext_pid
+                )
+            ).scalar_one_or_none()
+        
         if not player:
-            player = Player(display_name=display_name)  # No external_id on creation
+            # Fall back to finding by display_name, but handle multiple results gracefully
+            players = db.execute(
+                select(Player)
+                .join(GamePlayer, Player.id == GamePlayer.player_id)
+                .where(
+                    GamePlayer.game_id == game.id,
+                    func.lower(Player.display_name) == display_name.lower()
+                )
+            ).scalars().all()
+            
+            if len(players) == 1:
+                player = players[0]
+            elif len(players) > 1:
+                # Multiple players with same display name - pick the one with external_id if available
+                player = next((p for p in players if p.external_id), players[0])
+        if not player:
+            player = Player(display_name=display_name, external_id=ext_pid)
             db.add(player)
             db.flush()
         else:
             # If display name changed to the validated name, update it
             if display_name and player.display_name != display_name:
                 player.display_name = display_name
+            # If we have an external_id and the player doesn't, set it
+            if ext_pid and not player.external_id:
+                player.external_id = ext_pid
 
         # Link to game
         link = db.execute(
@@ -245,28 +254,16 @@ def _upsert_db_for_session(
         in_game = int(p.get("inGame") or 0)
         net = int(p.get("net") or (cash_out + in_game - buy_in))
 
-        sps = db.execute(
-            select(SessionPlayerSummary).where(
-                SessionPlayerSummary.session_id == sess.id,
-                SessionPlayerSummary.player_id == player.id
-            )
-        ).scalar_one_or_none()
-        if not sps:
-            db.add(SessionPlayerSummary(
-                session_id=sess.id,
-                player_id=player.id,
-                buy_in_sum=buy_in,       # chips in DB
-                cash_out_sum=cash_out,
-                in_game=in_game,
-                net=net,
-                names=names or [display_name],
-            ))
-        else:
-            sps.buy_in_sum = buy_in
-            sps.cash_out_sum = cash_out
-            sps.in_game = in_game
-            sps.net = net
-            sps.names = names or [display_name]
+        # Add summary (we cleared all existing ones above)
+        db.add(SessionPlayerSummary(
+            session_id=sess.id,
+            player_id=player.id,
+            buy_in_sum=buy_in,       # chips in DB
+            cash_out_sum=cash_out,
+            in_game=in_game,
+            net=net,
+            names=names or [display_name],
+        ))
         affected += 1
 
     return str(sess.id), affected
@@ -296,7 +293,7 @@ def _write_audit(
 
 
 # ---------- public API ----------
-def upload_game_dual_write(
+def ingest_session(
     *,
     public_code: str,
     admin_code: str,
@@ -309,11 +306,10 @@ def upload_game_dual_write(
     """
     End-to-end:
       1) Validate admin for game
-      2) Validate all players have mapping in Name Validation sheet (hard fail on any missing)  (#9)
+      2) Validate all players using database mappings (with fallbacks)
       3) Begin DB txn and upsert everything
-      4) Compute next game number and append to ledger (Sheets is source for that)
-      5) If Sheets append fails, rollback DB and raise
-      6) Commit DB; write audit; return result
+      4) Compute next game number from database
+      5) Commit DB; write audit; return result
     """
     # ----- Step 0: normalize inputs -----
     players = _players_dict_to_list(game_data.get("playersInfos", {}))
@@ -360,10 +356,15 @@ def upload_game_dual_write(
         # For Sheets date formatting
         date_for_sheet = _format_mmddyyyy(when)
 
-        # We will only commit after Sheets append succeeds
-        # Use a SAVEPOINT-like flow: flush changes, then call Sheets, then commit; on Sheets failure -> rollback.
         # Extract session name from game data for live games
         session_name_from_data = game_data.get("sessionName") if session_type == "live" else None
+        
+        # Use manual game number if provided, otherwise compute from database
+        if manual_game_number is not None:
+            game_number = manual_game_number
+        else:
+            # Get next game number from database
+            game_number = _compute_next_game_number(db, str(game.id))
         
         sess_id, affected_rows = _upsert_db_for_session(
             db=db,
@@ -372,20 +373,13 @@ def upload_game_dual_write(
             when=when,
             payload_json=game_data,
             validated_players=validated_players,
-            game_number_for_meta=0,  # temp, will set real number after we peek at sheet
+            game_number_for_meta=game_number,
             manual_game_number=manual_game_number,
             session_type=session_type,
             session_name=session_name_from_data,
         )
 
-        # Use manual game number if provided, otherwise compute from sheet
-        if manual_game_number is not None:
-            game_number = manual_game_number
-        else:
-            # Peek next game number from sheet (source of truth for numbering)
-            game_number = _compute_next_game_number()
-
-        # Update the stored JSON with ledger number before committing
+        # Update the stored JSON with ledger number
         try:
             srow = db.execute(select(SessionModel).where(SessionModel.id == sess_id)).scalar_one()
             ej = dict(srow.end_session_json or {})
@@ -394,15 +388,7 @@ def upload_game_dual_write(
         except Exception:
             pass
 
-        # ----- Step 4: append to Sheets (unrecoverable) -----
-        try:
-            append_result = _append_ledger_rows(game_number, date_for_sheet, validated_players)
-        except Exception as e:
-            db.rollback()
-            log.error(f"Sheets append failed; DB rolled back. Error: {e}")
-            raise
-
-        # ----- Step 5: commit DB and write audit -----
+        # ----- Step 4: commit DB and write audit -----
         _write_audit(
             db=db,
             game=game,
@@ -425,8 +411,6 @@ def upload_game_dual_write(
             "session_id": sess_id,
             "ledger": {
                 "game_number": game_number,
-                "updatedRange": append_result.get("updates", {}).get("updatedRange"),
-                "rows_appended": append_result.get("updates", {}).get("updatedRows"),
             },
             "affected_player_summaries": affected_rows,
         }

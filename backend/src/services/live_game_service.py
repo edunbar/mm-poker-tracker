@@ -91,7 +91,7 @@ def create_live_game_session_data(
     """
     Create session data structure that mimics PokerNow format but for live games.
     
-    This allows us to reuse existing dual_write_service.py logic.
+    This allows us to reuse existing session_ingestion_service.py logic.
     """
     if session_date is None:
         session_date = datetime.now(timezone.utc)

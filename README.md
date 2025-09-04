@@ -1,4 +1,4 @@
-# 🃏 Poker Analytics Application
+# 🃏 HomeGame
 
 A comprehensive web application for analyzing poker games from both PokerNow sessions and live home games. Built with Flask backend, React frontend, PostgreSQL database, and Google Sheets integration.
 

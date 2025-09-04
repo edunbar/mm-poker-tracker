@@ -163,7 +163,7 @@ export default function LandingPage() {
       <div className="max-w-md w-full">
         <div className="bg-white rounded-lg border shadow-sm p-8">
           <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-gray-900">🃏 Poker Analytics</h1>
+            <h1 className="text-3xl font-bold text-gray-900">🃏 HomeGame</h1>
             <p className="mt-2 text-gray-600">Create a new game or join an existing one</p>
           </div>
           

@@ -19,7 +19,7 @@ const GameStatusCard: React.FC<GameStatusCardProps> = ({
           <CheckCircle2 className="h-5 w-5 text-green-600 mr-3" />
           <div>
             <div className="text-green-800 font-medium">Success!</div>
-            <div className="text-green-700">Game has been saved to the database and synced to your sheet.</div>
+            <div className="text-green-700">Game has been saved to the database successfully.</div>
           </div>
         </div>
       </div>

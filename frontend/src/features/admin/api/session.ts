@@ -11,10 +11,3 @@ export const fetchGameData = async (gameUrl: string) => {
   return response.data;
 };
 
-export const uploadGameToSheets = async (playersInfos: any[]) => {
-  const response = await axios.post(
-    "http://localhost:8000/api/games/upload_to_sheets",
-    { playersInfos }
-  );
-  return response.data;
-};

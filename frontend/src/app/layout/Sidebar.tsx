@@ -24,9 +24,13 @@ function extractPublicCodeFromPath(pathname: string): string | null {
     return null;
   }
   
-  // For routes like /ingest/ABC123, /summary/ABC123, etc.
+  // For routes like /ingest/ABC123, /summary/ABC123, /payments/ABC123, etc.
   if (pathParts.length >= 2) {
-    return pathParts[1];
+    const potentialCode = pathParts[1];
+    // Check if it looks like a public code (6 chars, alphanumeric)
+    if (potentialCode.length === 6 && /^[A-Z0-9]+$/.test(potentialCode)) {
+      return potentialCode;
+    }
   }
   
   // For routes like /ABC123 (direct game access)
@@ -47,8 +51,9 @@ export default function Sidebar() {
   const [adminCode, setAdminCode] = useState('');
   const location = useLocation();
 
-  // Get public code from URL or admin session context
-  const currentPublicCode = contextPublicCode || extractPublicCodeFromPath(location.pathname);
+  // Get public code from URL first (prioritize current page), then fall back to admin session context
+  const urlPublicCode = extractPublicCodeFromPath(location.pathname);
+  const currentPublicCode = urlPublicCode || contextPublicCode;
 
   const handleAdminLogin = (e: React.FormEvent) => {
     e.preventDefault();
