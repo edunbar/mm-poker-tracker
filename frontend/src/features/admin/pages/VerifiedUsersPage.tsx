@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import axios from 'axios';
 import { useAdminSession } from '../../../contexts/AdminSessionContext';
-import AdminSessionStatus from '../../../components/AdminSessionStatus';
+import { useToast } from '../../../contexts/ToastContext';
+import { useGameTitle } from '../../../shared/hooks/useGameTitle';
 
 interface UnverifiedPlayer {
   player_id: string;
@@ -55,6 +56,8 @@ interface DuplicateDetection {
 export default function VerifiedUsersPage() {
   const { publicCode } = useParams<{ publicCode: string }>();
   const { adminCode: sessionAdminCode, hasAdminSession } = useAdminSession();
+  const { showSuccess, showError } = useToast();
+  const { title } = useGameTitle(publicCode || '');
   const [data, setData] = useState<VerificationData | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'unverified' | 'verified'>('unverified');
@@ -179,7 +182,7 @@ export default function VerifiedUsersPage() {
       fetchVerificationData();
     } catch (error) {
       console.error('Error merging players:', error);
-      alert('Failed to merge players. Please check your admin code.');
+      showError('Merge Failed', 'Failed to merge players. Please check your admin code.');
     } finally {
       setModalLoading(false);
     }
@@ -225,7 +228,7 @@ export default function VerifiedUsersPage() {
       fetchVerificationData();
     } catch (error) {
       console.error('Error saving player:', error);
-      alert('Failed to save player. Please check your admin code.');
+      showError('Save Failed', 'Failed to save player. Please check your admin code.');
     } finally {
       setModalLoading(false);
     }
@@ -252,7 +255,7 @@ export default function VerifiedUsersPage() {
           <div className="mb-8">
             <h1 className="text-3xl font-bold text-gray-900">Player Verification</h1>
             <p className="mt-2 text-gray-600">
-              Game <span className="font-mono bg-gray-100 px-2 py-1 rounded">{publicCode}</span>
+              Game <span className="font-mono bg-gray-100 px-2 py-1 rounded">{title}</span>
             </p>
           </div>
           <div className="bg-white rounded-lg border shadow-sm p-12 text-center">
@@ -266,12 +269,11 @@ export default function VerifiedUsersPage() {
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-6xl mx-auto px-4">
-        <AdminSessionStatus className="mb-4" compact />
         
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900">Player Verification</h1>
           <p className="mt-2 text-gray-600">
-            Manage and verify player identities for game <span className="font-mono bg-gray-100 px-2 py-1 rounded">{publicCode}</span>
+            Manage and verify player identities for game <span className="font-mono bg-gray-100 px-2 py-1 rounded">{title}</span>
           </p>
         </div>
       

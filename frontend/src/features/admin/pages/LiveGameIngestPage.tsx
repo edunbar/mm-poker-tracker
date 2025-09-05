@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import LiveGameForm from '../components/LiveGameForm';
 import { useAdminSession } from '../../../contexts/AdminSessionContext';
+import { useGameTitle } from '../../../shared/hooks/useGameTitle';
 
 interface LiveGameData {
   sessionName: string;
@@ -18,6 +19,7 @@ export default function LiveGameIngestPage() {
   const { publicCode } = useParams<{ publicCode: string }>();
   const navigate = useNavigate();
   const { adminCode } = useAdminSession();
+  const { title } = useGameTitle(publicCode || '');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -80,7 +82,7 @@ export default function LiveGameIngestPage() {
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900">Submit Live Game Results</h1>
           <p className="mt-2 text-gray-600">
-            Enter the results from your live poker game for game <span className="font-mono bg-gray-100 px-2 py-1 rounded">{publicCode}</span>
+            Enter the results from your live poker game for <span className="font-mono bg-gray-100 px-2 py-1 rounded">{title}</span>
           </p>
         </div>
 
@@ -100,16 +102,6 @@ export default function LiveGameIngestPage() {
         )}
 
         <LiveGameForm onSubmit={handleSubmit} isLoading={isLoading} />
-
-        <div className="mt-8 p-4 bg-blue-50 border-l-4 border-blue-400 rounded">
-          <h3 className="font-medium text-blue-800 mb-2">Tips for Live Game Entry</h3>
-          <ul className="text-blue-700 text-sm space-y-1">
-            <li>• Enter buy-ins and cash-outs in dollars (e.g., 100.00)</li>
-            <li>• The balance should equal 0 if all money is accounted for</li>
-            <li>• Player names should match previous sessions for consistent tracking</li>
-            <li>• Game number will be auto-assigned if left empty</li>
-          </ul>
-        </div>
       </div>
     </div>
   );

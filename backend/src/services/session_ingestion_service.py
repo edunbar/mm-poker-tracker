@@ -200,10 +200,27 @@ def _upsert_db_for_session(
         names = p.get("names") or []
         display_name = (p.get("validated_name") or (names[0] if names else "Unknown")).strip()
 
-        # Find player by external_id first, then by display_name within this game only (to maintain game isolation)
+        # Find player by display_name FIRST (admin input is most trusted), then by external_id
         player = None
-        if ext_pid:
-            # First try to find by external_id
+        
+        # FIRST: Try to find by display_name (admin-corrected name is authoritative)
+        players = db.execute(
+            select(Player)
+            .join(GamePlayer, Player.id == GamePlayer.player_id)
+            .where(
+                GamePlayer.game_id == game.id,
+                func.lower(Player.display_name) == display_name.lower()
+            )
+        ).scalars().all()
+        
+        if len(players) == 1:
+            player = players[0]
+        elif len(players) > 1:
+            # Multiple players with same display name - pick the one with external_id if available
+            player = next((p for p in players if p.external_id), players[0])
+        
+        # SECOND: Only if no display_name match found, try external_id
+        if not player and ext_pid:
             player = db.execute(
                 select(Player)
                 .join(GamePlayer, Player.id == GamePlayer.player_id)
@@ -212,34 +229,24 @@ def _upsert_db_for_session(
                     Player.external_id == ext_pid
                 )
             ).scalar_one_or_none()
-        
-        if not player:
-            # Fall back to finding by display_name, but handle multiple results gracefully
-            players = db.execute(
-                select(Player)
-                .join(GamePlayer, Player.id == GamePlayer.player_id)
-                .where(
-                    GamePlayer.game_id == game.id,
-                    func.lower(Player.display_name) == display_name.lower()
-                )
-            ).scalars().all()
-            
-            if len(players) == 1:
-                player = players[0]
-            elif len(players) > 1:
-                # Multiple players with same display name - pick the one with external_id if available
-                player = next((p for p in players if p.external_id), players[0])
         if not player:
             player = Player(display_name=display_name, external_id=ext_pid)
             db.add(player)
             db.flush()
         else:
-            # If display name changed to the validated name, update it
+            # Update player with latest information
             if display_name and player.display_name != display_name:
                 player.display_name = display_name
-            # If we have an external_id and the player doesn't, set it
-            if ext_pid and not player.external_id:
-                player.external_id = ext_pid
+            
+            # Handle external_id updates carefully
+            if ext_pid:
+                if not player.external_id:
+                    # Player has no external_id, set it
+                    player.external_id = ext_pid
+                elif player.external_id != ext_pid:
+                    # Player has different external_id - this indicates PokerNow ID change
+                    # Keep existing external_id (could be enhanced to track multiple IDs)
+                    pass
 
         # Link to game
         link = db.execute(

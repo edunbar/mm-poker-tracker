@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Button } from '../../../shared/ui/button';
 import { Plus, Trash2, Calculator } from 'lucide-react';
+import { HelpTooltip } from '../../../shared/ui/help-tooltip';
 
 interface Player {
   id: string;
@@ -144,8 +145,9 @@ export default function LiveGameForm({ onSubmit, isLoading }: LiveGameFormProps)
               />
             </div>
             <div>
-              <label htmlFor="gameNumber" className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="gameNumber" className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
                 Game Number (optional)
+                <HelpTooltip content="Game number will be auto-assigned if left empty" />
               </label>
               <input
                 id="gameNumber"
@@ -174,7 +176,10 @@ export default function LiveGameForm({ onSubmit, isLoading }: LiveGameFormProps)
 
       <div className="bg-white rounded-lg border shadow-sm">
         <div className="border-b p-4 flex flex-row items-center justify-between">
-          <h3 className="text-lg font-semibold">Players</h3>
+          <h3 className="text-lg font-semibold flex items-center gap-2">
+            Players
+            <HelpTooltip content="Player names should match previous sessions for consistent tracking" />
+          </h3>
           <Button type="button" onClick={addPlayer} variant="outline" size="sm">
             <Plus className="h-4 w-4 mr-2" />
             Add Player
@@ -184,8 +189,14 @@ export default function LiveGameForm({ onSubmit, isLoading }: LiveGameFormProps)
           <div className="space-y-4">
             <div className="grid grid-cols-4 gap-2 font-medium text-sm text-gray-600">
               <div>Player Name</div>
-              <div>Buy In ($)</div>
-              <div>Cash Out ($)</div>
+              <div className="flex items-center gap-2">
+                Buy In ($)
+                <HelpTooltip content="Enter buy-ins in dollars (e.g., 100.00)" />
+              </div>
+              <div className="flex items-center gap-2">
+                Cash Out ($)
+                <HelpTooltip content="Enter cash-outs in dollars (e.g., 100.00)" />
+              </div>
               <div>Net</div>
             </div>
             
@@ -258,7 +269,10 @@ export default function LiveGameForm({ onSubmit, isLoading }: LiveGameFormProps)
               <div className="font-mono text-lg">${totals.totalCashOut.toFixed(2)}</div>
             </div>
             <div>
-              <div className="text-gray-600">Balance</div>
+              <div className="text-gray-600 flex items-center gap-2">
+                Balance
+                <HelpTooltip content="The balance should equal 0 if all money is accounted for" />
+              </div>
               <div className={`font-mono text-lg ${isBalanced ? 'text-green-600' : 'text-red-600'}`}>
                 {totals.balance >= 0 ? '+' : ''}${totals.balance.toFixed(2)}
               </div>

@@ -8,7 +8,7 @@ from db.models import Game
 
 logger = logging.getLogger(__name__)
 
-def generate_short_code(length=6):
+def generate_short_code(length=5):
     """Generate a short, URL-safe code for public game access."""
     return base64.b32encode(secrets.token_bytes(length)).decode().strip("=").upper()[:length]
 
@@ -36,7 +36,7 @@ def create_game(title=None):
         try:
             with SessionLocal() as db:
                 # Generate codes
-                public_code = generate_short_code(6)
+                public_code = generate_short_code(5)
                 admin_code = generate_admin_token(32)
                 
                 # Create game record

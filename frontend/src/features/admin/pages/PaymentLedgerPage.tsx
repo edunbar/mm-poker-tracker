@@ -2,8 +2,9 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import axios from 'axios';
 import { useAdminSession } from '../../../contexts/AdminSessionContext';
-import AdminSessionStatus from '../../../components/AdminSessionStatus';
-import { DollarSign, Users, TrendingUp, Plus, History, Target, ChevronUp, ChevronDown, HelpCircle } from 'lucide-react';
+import { useToast } from '../../../contexts/ToastContext';
+import { useGameTitle } from '../../../shared/hooks/useGameTitle';
+import { DollarSign, Users, TrendingUp, Plus, History, Target, ChevronUp, ChevronDown, HelpCircle, Edit, Trash2, X } from 'lucide-react';
 
 interface PlayerPaymentSummary {
   player_id: string;
@@ -47,7 +48,9 @@ interface RecordPaymentForm {
 
 export default function PaymentLedgerPage() {
   const { publicCode } = useParams<{ publicCode: string }>();
+  const { title } = useGameTitle(publicCode || '');
   const { adminCode: sessionAdminCode, hasAdminSession } = useAdminSession();
+  const { showSuccess, showError } = useToast();
   const [paymentSummary, setPaymentSummary] = useState<PlayerPaymentSummary[]>([]);
   const [settlements, setSettlements] = useState<SettlementSuggestion[]>([]);
   const [paymentHistory, setPaymentHistory] = useState<PaymentTransaction[]>([]);
@@ -72,6 +75,20 @@ export default function PaymentLedgerPage() {
   const [manualAdminCode, setManualAdminCode] = useState('');
   const [showAdminInput, setShowAdminInput] = useState(false);
   const [submitLoading, setSubmitLoading] = useState(false);
+  
+  // Edit payment state
+  const [editingPayment, setEditingPayment] = useState<PaymentTransaction | null>(null);
+  const [editForm, setEditForm] = useState<RecordPaymentForm>({
+    payer_id: '',
+    recipient_id: '',
+    amount: '',
+    payment_method: '',
+    notes: '',
+    reference_id: ''
+  });
+  
+  // Delete confirmation modal state
+  const [paymentToDelete, setPaymentToDelete] = useState<PaymentTransaction | null>(null);
 
   const getAdminCode = () => {
     return hasAdminSession ? sessionAdminCode : manualAdminCode;
@@ -97,12 +114,13 @@ export default function PaymentLedgerPage() {
 
   const fetchPaymentHistory = async () => {
     try {
-      const response = await axios.get(`http://localhost:8000/api/games/${publicCode}/payments/history?limit=20`);
+      const response = await axios.get(`http://localhost:8000/api/games/${publicCode}/payments/history`);
       setPaymentHistory(response.data.transactions);
     } catch (error) {
       console.error('Error fetching payment history:', error);
     }
   };
+
 
   useEffect(() => {
     if (publicCode) {
@@ -127,7 +145,7 @@ export default function PaymentLedgerPage() {
     }
 
     if (!recordForm.payer_id || !recordForm.recipient_id || !recordForm.amount) {
-      alert('Please fill in all required fields');
+      showError('Validation Error', 'Please fill in all required fields');
       return;
     }
 
@@ -168,11 +186,176 @@ export default function PaymentLedgerPage() {
         fetchPaymentHistory()
       ]);
 
-      alert('Payment recorded successfully!');
+      showSuccess('Payment Recorded', 'Payment recorded successfully!');
     } catch (error: any) {
       console.error('Error recording payment:', error);
       const errorMsg = error.response?.data?.error || 'Failed to record payment';
-      alert(`Error: ${errorMsg}`);
+      showError('Payment Error', errorMsg);
+    } finally {
+      setSubmitLoading(false);
+    }
+  };
+
+  const handleEditPayment = (payment: PaymentTransaction) => {
+    // Find the payer and recipient from paymentSummary
+    const payer = paymentSummary.find(p => p.player_name === payment.payer_name);
+    const recipient = paymentSummary.find(p => p.player_name === payment.recipient_name);
+    
+    setEditingPayment(payment);
+    setEditForm({
+      payer_id: payer?.player_id || '',
+      recipient_id: recipient?.player_id || '',
+      amount: payment.amount.toString(),
+      payment_method: payment.payment_method || '',
+      notes: payment.notes || '',
+      reference_id: payment.reference_id || ''
+    });
+  };
+
+  const handleUpdatePayment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!editingPayment) return;
+    
+    const adminCode = getAdminCode();
+    if (!adminCode) {
+      setShowAdminInput(true);
+      return;
+    }
+
+    if (!editForm.payer_id || !editForm.recipient_id || !editForm.amount) {
+      showError('Validation Error', 'Please fill in all required fields');
+      return;
+    }
+
+    setSubmitLoading(true);
+
+    try {
+      const paymentData = {
+        payer_id: editForm.payer_id,
+        recipient_id: editForm.recipient_id,
+        amount: parseFloat(editForm.amount),
+        payment_method: editForm.payment_method || null,
+        notes: editForm.notes || null,
+        reference_id: editForm.reference_id || null,
+        payment_date: editingPayment.payment_date
+      };
+
+      await axios.put(`http://localhost:8000/api/games/${publicCode}/payments/${editingPayment.id}`, paymentData, {
+        headers: {
+          'X-Admin-Code': adminCode,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      // Reset form and refresh data
+      setEditingPayment(null);
+      setEditForm({
+        payer_id: '',
+        recipient_id: '',
+        amount: '',
+        payment_method: '',
+        notes: '',
+        reference_id: ''
+      });
+
+      // Refresh all data
+      await Promise.all([
+        fetchPaymentSummary(),
+        fetchSettlements(),
+        fetchPaymentHistory()
+      ]);
+
+      showSuccess('Payment Updated', 'Payment updated successfully!');
+    } catch (error: any) {
+      console.error('Error updating payment:', error);
+      const errorMsg = error.response?.data?.error || 'Failed to update payment';
+      showError('Update Error', errorMsg);
+    } finally {
+      setSubmitLoading(false);
+    }
+  };
+
+  const handleDeletePayment = (payment: PaymentTransaction) => {
+    setPaymentToDelete(payment);
+  };
+
+  const confirmDeletePayment = async () => {
+    if (!paymentToDelete) return;
+
+    const adminCode = getAdminCode();
+    if (!adminCode) {
+      setShowAdminInput(true);
+      return;
+    }
+
+    setSubmitLoading(true);
+
+    try {
+      await axios.delete(`http://localhost:8000/api/games/${publicCode}/payments/${paymentToDelete.id}`, {
+        headers: {
+          'X-Admin-Code': adminCode
+        }
+      });
+
+      // Close modal and refresh data
+      setPaymentToDelete(null);
+      await Promise.all([
+        fetchPaymentSummary(),
+        fetchSettlements(),
+        fetchPaymentHistory()
+      ]);
+
+      showSuccess('Payment Deleted', 'Payment deleted successfully!');
+    } catch (error: any) {
+      console.error('Error deleting payment:', error);
+      const errorMsg = error.response?.data?.error || 'Failed to delete payment';
+      showError('Delete Error', errorMsg);
+    } finally {
+      setSubmitLoading(false);
+    }
+  };
+
+  const handleMarkSettlementPaid = async (settlement: SettlementSuggestion) => {
+    const adminCode = getAdminCode();
+    if (!adminCode) {
+      setShowAdminInput(true);
+      return;
+    }
+
+    setSubmitLoading(true);
+
+    try {
+      const paymentData = {
+        payer_id: settlement.payer_id,
+        recipient_id: settlement.recipient_id,
+        amount: settlement.amount,
+        payment_method: 'Settlement',
+        notes: `Optimal settlement: ${settlement.payer_name} → ${settlement.recipient_name}`
+      };
+
+      await axios.post(`http://localhost:8000/api/games/${publicCode}/payments/record`, paymentData, {
+        headers: {
+          'X-Admin-Code': adminCode,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      // Refresh all data
+      await Promise.all([
+        fetchPaymentSummary(),
+        fetchSettlements(),
+        fetchPaymentHistory()
+      ]);
+
+      showSuccess(
+        'Settlement Recorded', 
+        `Payment recorded: ${settlement.payer_name} paid ${settlement.recipient_name} ${formatCurrency(settlement.amount)}`
+      );
+    } catch (error: any) {
+      console.error('Error recording settlement:', error);
+      const errorMsg = error.response?.data?.error || 'Failed to record settlement payment';
+      showError('Settlement Error', errorMsg);
     } finally {
       setSubmitLoading(false);
     }
@@ -243,10 +426,9 @@ export default function PaymentLedgerPage() {
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-6">
-          <AdminSessionStatus className="mb-4" compact />
           <div className="flex items-center justify-between">
             <h1 className="text-3xl font-bold text-gray-900">Payment Ledger</h1>
-            <p className="text-sm text-gray-600">Game: {publicCode}</p>
+            <p className="text-sm text-gray-600">Game: <span className="font-mono bg-gray-100 px-2 py-1 rounded">{title}</span></p>
           </div>
         </div>
 
@@ -453,22 +635,35 @@ export default function PaymentLedgerPage() {
             </div>
             {settlements.length > 0 ? (
               <div className="p-6">
-                <div className="space-y-4">
+                <div className="space-y-2">
                   {settlements.map((settlement, index) => (
-                    <div key={index} className="flex items-center justify-between p-4 bg-blue-50 rounded-lg">
+                    <div key={index} className="flex items-center justify-between p-4 hover:bg-gray-50 border-b border-gray-100 last:border-b-0">
                       <div className="flex items-center space-x-4">
-                        <div className="flex-shrink-0">
-                          <TrendingUp className="w-5 h-5 text-blue-600" />
+                        <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                          <span className="text-xs font-medium text-blue-600">{index + 1}</span>
                         </div>
                         <div>
-                          <p className="text-sm font-medium text-gray-900">
-                            <span className="text-blue-600">{settlement.payer_name}</span> should pay{' '}
-                            <span className="text-green-600">{settlement.recipient_name}</span>
-                          </p>
+                          <div className="text-sm font-medium text-gray-900">
+                            <span className="font-bold text-blue-700">{settlement.payer_name}</span> pays{' '}
+                            <span className="font-bold text-green-700">{settlement.recipient_name}</span>
+                          </div>
                         </div>
                       </div>
-                      <div className="text-lg font-bold text-green-600">
-                        {formatCurrency(settlement.amount)}
+                      <div className="flex items-center space-x-4">
+                        <div className="text-right">
+                          <div className="text-lg font-semibold text-green-600">
+                            {formatCurrency(settlement.amount)}
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => handleMarkSettlementPaid(settlement)}
+                          disabled={submitLoading}
+                          className="px-2 py-1 text-xs font-medium text-white bg-green-600 border border-transparent rounded hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-1"
+                          title="Record this settlement as paid"
+                        >
+                          <DollarSign className="w-4 h-4" />
+                          <span>Mark as Paid</span>
+                        </button>
                       </div>
                     </div>
                   ))}
@@ -489,7 +684,7 @@ export default function PaymentLedgerPage() {
             <div className="px-6 py-4 border-b border-gray-200">
               <h2 className="text-lg font-medium text-gray-900">Payment History</h2>
               <p className="text-sm text-gray-500">
-                Recent payment transactions
+                All payment transactions
               </p>
             </div>
             {paymentHistory.length > 0 ? (
@@ -512,6 +707,9 @@ export default function PaymentLedgerPage() {
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Notes
                       </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Actions
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
@@ -531,6 +729,25 @@ export default function PaymentLedgerPage() {
                         </td>
                         <td className="px-6 py-4 text-sm text-gray-900">
                           {payment.notes || '-'}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          <div className="flex space-x-2">
+                            <button
+                              onClick={() => handleEditPayment(payment)}
+                              className="text-blue-600 hover:text-blue-900 p-1"
+                              title="Edit payment"
+                            >
+                              <Edit className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => handleDeletePayment(payment)}
+                              className="text-red-600 hover:text-red-900 p-1"
+                              title="Delete payment"
+                              disabled={submitLoading}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -704,6 +921,316 @@ export default function PaymentLedgerPage() {
                 </button>
               </div>
             </form>
+          </div>
+        )}
+
+        {/* Edit Payment Modal */}
+        {editingPayment && (
+          <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+              <div className="flex items-center justify-between p-6 border-b border-gray-200">
+                <h3 className="text-lg font-medium text-gray-900">Edit Payment</h3>
+                <button
+                  onClick={() => setEditingPayment(null)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+              
+              <form onSubmit={handleUpdatePayment} className="p-6 space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Payer *
+                    </label>
+                    <select
+                      value={editForm.payer_id}
+                      onChange={(e) => setEditForm({...editForm, payer_id: e.target.value})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                      required
+                    >
+                      <option value="">Select payer...</option>
+                      {paymentSummary.map((player) => (
+                        <option key={player.player_id} value={player.player_id}>
+                          {player.player_name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Recipient *
+                    </label>
+                    <select
+                      value={editForm.recipient_id}
+                      onChange={(e) => setEditForm({...editForm, recipient_id: e.target.value})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                      required
+                    >
+                      <option value="">Select recipient...</option>
+                      {paymentSummary
+                        .filter(player => player.player_id !== editForm.payer_id)
+                        .map((player) => (
+                        <option key={player.player_id} value={player.player_id}>
+                          {player.player_name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Amount * ($)
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0.01"
+                      value={editForm.amount}
+                      onChange={(e) => setEditForm({...editForm, amount: e.target.value})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="0.00"
+                      required
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Payment Method
+                    </label>
+                    <select
+                      value={editForm.payment_method}
+                      onChange={(e) => setEditForm({...editForm, payment_method: e.target.value})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                    >
+                      <option value="">Select method...</option>
+                      <option value="Venmo">Venmo</option>
+                      <option value="Zelle">Zelle</option>
+                      <option value="Cash">Cash</option>
+                      <option value="Bank Transfer">Bank Transfer</option>
+                      <option value="PayPal">PayPal</option>
+                      <option value="Other">Other</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Notes
+                  </label>
+                  <input
+                    type="text"
+                    value={editForm.notes}
+                    onChange={(e) => setEditForm({...editForm, notes: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Optional notes about the payment"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Reference ID
+                  </label>
+                  <input
+                    type="text"
+                    value={editForm.reference_id}
+                    onChange={(e) => setEditForm({...editForm, reference_id: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Venmo/Zelle transaction ID"
+                  />
+                </div>
+
+                {!hasAdminSession && showAdminInput && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Admin Code *
+                    </label>
+                    <input
+                      type="password"
+                      value={manualAdminCode}
+                      onChange={(e) => setManualAdminCode(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="Enter admin code"
+                      required
+                    />
+                  </div>
+                )}
+
+                <div className="flex justify-end space-x-3 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => setEditingPayment(null)}
+                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={submitLoading}
+                    className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 disabled:opacity-50"
+                  >
+                    {submitLoading ? 'Updating...' : 'Update Payment'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* Admin Code Input Modal */}
+        {!hasAdminSession && showAdminInput && (
+          <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+              <div className="flex items-center justify-between p-6 border-b border-gray-200">
+                <h3 className="text-lg font-medium text-gray-900">Admin Access Required</h3>
+                <button
+                  onClick={() => setShowAdminInput(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+              
+              <div className="p-6">
+                <p className="text-sm text-gray-600 mb-4">
+                  Please enter your admin code to record this settlement payment.
+                </p>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Admin Code *
+                  </label>
+                  <input
+                    type="password"
+                    value={manualAdminCode}
+                    onChange={(e) => setManualAdminCode(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Enter admin code"
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter') {
+                        setShowAdminInput(false);
+                      }
+                    }}
+                  />
+                </div>
+                <div className="flex justify-end space-x-3 mt-4">
+                  <button
+                    onClick={() => setShowAdminInput(false)}
+                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => setShowAdminInput(false)}
+                    disabled={!manualAdminCode}
+                    className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 disabled:opacity-50"
+                  >
+                    Continue
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Delete Confirmation Modal */}
+        {paymentToDelete && (
+          <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+              <div className="flex items-center justify-between p-6 border-b border-gray-200">
+                <h3 className="text-lg font-medium text-gray-900">Confirm Delete</h3>
+                <button
+                  onClick={() => setPaymentToDelete(null)}
+                  className="text-gray-400 hover:text-gray-600"
+                  disabled={submitLoading}
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+              
+              <div className="p-6">
+                <div className="flex items-center mb-4">
+                  <div className="flex-shrink-0 w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
+                    <Trash2 className="w-6 h-6 text-red-600" />
+                  </div>
+                  <div className="ml-4">
+                    <h4 className="text-lg font-medium text-gray-900">Delete Payment</h4>
+                    <p className="text-sm text-gray-500">This action cannot be undone.</p>
+                  </div>
+                </div>
+                
+                <div className="bg-gray-50 rounded-lg p-4 mb-4">
+                  <div className="text-sm text-gray-700">
+                    <div className="font-medium mb-1">Payment Details:</div>
+                    <div className="flex items-center justify-between">
+                      <span>
+                        <span className="font-medium text-blue-600">{paymentToDelete.payer_name}</span>
+                        <span className="mx-2 text-gray-400">→</span>
+                        <span className="font-medium text-green-600">{paymentToDelete.recipient_name}</span>
+                      </span>
+                      <span className="font-bold text-lg">{formatCurrency(paymentToDelete.amount)}</span>
+                    </div>
+                    {paymentToDelete.payment_method && (
+                      <div className="text-xs text-gray-500 mt-1">
+                        via {paymentToDelete.payment_method}
+                      </div>
+                    )}
+                    {paymentToDelete.notes && (
+                      <div className="text-xs text-gray-500 mt-1">
+                        Note: {paymentToDelete.notes}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {!hasAdminSession && showAdminInput && (
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Admin Code *
+                    </label>
+                    <input
+                      type="password"
+                      value={manualAdminCode}
+                      onChange={(e) => setManualAdminCode(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="Enter admin code"
+                      required
+                    />
+                  </div>
+                )}
+
+                <div className="flex justify-end space-x-3">
+                  <button
+                    type="button"
+                    onClick={() => setPaymentToDelete(null)}
+                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200"
+                    disabled={submitLoading}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={confirmDeletePayment}
+                    disabled={submitLoading}
+                    className="px-4 py-2 text-sm font-medium text-white bg-red-600 border border-transparent rounded-md hover:bg-red-700 disabled:opacity-50 flex items-center"
+                  >
+                    {submitLoading ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                        Deleting...
+                      </>
+                    ) : (
+                      <>
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        Delete Payment
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         )}
       </div>

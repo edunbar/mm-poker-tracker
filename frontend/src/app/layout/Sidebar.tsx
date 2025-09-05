@@ -27,17 +27,17 @@ function extractPublicCodeFromPath(pathname: string): string | null {
   // For routes like /ingest/ABC123, /summary/ABC123, /payments/ABC123, etc.
   if (pathParts.length >= 2) {
     const potentialCode = pathParts[1];
-    // Check if it looks like a public code (6 chars, alphanumeric)
-    if (potentialCode.length === 6 && /^[A-Z0-9]+$/.test(potentialCode)) {
+    // Check if it looks like a public code (5 chars, alphanumeric)
+    if (potentialCode.length === 5 && /^[A-Z0-9]+$/.test(potentialCode)) {
       return potentialCode;
     }
   }
   
   // For routes like /ABC123 (direct game access)
   if (pathParts.length === 1) {
-    // Check if it looks like a public code (6 chars, alphanumeric)
+    // Check if it looks like a public code (5 chars, alphanumeric)
     const potentialCode = pathParts[0];
-    if (potentialCode.length === 6 && /^[A-Z0-9]+$/.test(potentialCode)) {
+    if (potentialCode.length === 5 && /^[A-Z0-9]+$/.test(potentialCode)) {
       return potentialCode;
     }
   }

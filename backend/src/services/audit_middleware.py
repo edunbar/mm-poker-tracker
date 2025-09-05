@@ -1,7 +1,7 @@
 from sqlalchemy import event, text
 from sqlalchemy.orm import Session as SQLSession
 from sqlalchemy.inspection import inspect
-from db.models import Base, AuditLog, Player, SessionPlayerSummary, Session, Game, GamePlayer
+from db.models import Base, AuditLog, Player, SessionPlayerSummary, Session, Game, GamePlayer, PaymentTransaction, PaymentBalance
 from db.database import SessionLocal
 from flask import request, g
 from typing import Dict, Any, Optional
@@ -401,6 +401,380 @@ def audit_game_before_delete(mapper, connection, target):
         after_data=None
     )
 
+# PaymentTransaction audit listeners
+@event.listens_for(PaymentTransaction, 'before_update')
+def audit_payment_before_update(mapper, connection, target):
+    if not _audit_context.enabled:
+        return
+    
+    # Use raw SQL to fetch the current state from database before the update
+    result = connection.execute(text("""
+        SELECT id, game_id, payer_id, recipient_id, amount_cents, payment_method, 
+               payment_date, status, notes, reference_id, created_by, created_at
+        FROM payment_transactions 
+        WHERE id = :payment_id
+    """), {
+        'payment_id': str(target.id)
+    }).fetchone()
+    
+    if result:
+        target._audit_before = {
+            'id': str(result.id),
+            'game_id': str(result.game_id),
+            'payer_id': str(result.payer_id),
+            'recipient_id': str(result.recipient_id),
+            'amount_cents': result.amount_cents,
+            'payment_method': result.payment_method,
+            'payment_date': result.payment_date.isoformat() if result.payment_date else None,
+            'status': result.status,
+            'notes': result.notes,
+            'reference_id': result.reference_id,
+            'created_by': result.created_by,
+            'created_at': result.created_at.isoformat() if result.created_at else None
+        }
+
+@event.listens_for(PaymentTransaction, 'after_update')
+def audit_payment_after_update(mapper, connection, target):
+    if not _audit_context.enabled:
+        return
+    
+    before_data = getattr(target, '_audit_before', None)
+    after_data = _serialize_model(target)
+    
+    _create_audit_log(
+        action="UPDATE",
+        table_name="payment_transactions",
+        target_id=str(target.id),
+        before_data=before_data,
+        after_data=after_data
+    )
+
+@event.listens_for(PaymentTransaction, 'after_insert')
+def audit_payment_after_insert(mapper, connection, target):
+    if not _audit_context.enabled:
+        return
+    
+    after_data = _serialize_model(target)
+    
+    # Add player names for better readability
+    try:
+        payer_result = connection.execute(text("""
+            SELECT display_name FROM players WHERE id = :payer_id
+        """), {'payer_id': str(target.payer_id)}).fetchone()
+        
+        recipient_result = connection.execute(text("""
+            SELECT display_name FROM players WHERE id = :recipient_id
+        """), {'recipient_id': str(target.recipient_id)}).fetchone()
+        
+        if payer_result and recipient_result:
+            after_data['payer_name'] = payer_result.display_name
+            after_data['recipient_name'] = recipient_result.display_name
+            after_data['amount_dollars'] = target.amount_cents / 100
+            
+    except Exception as e:
+        logger.warning(f"Failed to add player names to payment audit: {e}")
+    
+    _create_audit_log(
+        action="INSERT",
+        table_name="payment_transactions",
+        target_id=str(target.id),
+        before_data=None,
+        after_data=after_data
+    )
+
+@event.listens_for(PaymentTransaction, 'before_delete')
+def audit_payment_before_delete(mapper, connection, target):
+    if not _audit_context.enabled:
+        return
+    
+    before_data = _serialize_model(target)
+    
+    # Add player names for better readability
+    try:
+        payer_result = connection.execute(text("""
+            SELECT display_name FROM players WHERE id = :payer_id
+        """), {'payer_id': str(target.payer_id)}).fetchone()
+        
+        recipient_result = connection.execute(text("""
+            SELECT display_name FROM players WHERE id = :recipient_id
+        """), {'recipient_id': str(target.recipient_id)}).fetchone()
+        
+        if payer_result and recipient_result:
+            before_data['payer_name'] = payer_result.display_name
+            before_data['recipient_name'] = recipient_result.display_name
+            before_data['amount_dollars'] = target.amount_cents / 100
+            
+    except Exception as e:
+        logger.warning(f"Failed to add player names to payment audit: {e}")
+    
+    _create_audit_log(
+        action="DELETE",
+        table_name="payment_transactions",
+        target_id=str(target.id),
+        before_data=before_data,
+        after_data=None
+    )
+
+# PaymentBalance audit listeners
+@event.listens_for(PaymentBalance, 'before_update')
+def audit_payment_balance_before_update(mapper, connection, target):
+    if not _audit_context.enabled:
+        return
+    
+    # Use raw SQL to fetch the current state from database before the update
+    result = connection.execute(text("""
+        SELECT id, game_id, player_id, total_paid, total_received, 
+               poker_net_winnings, payment_balance, last_updated
+        FROM payment_balances 
+        WHERE id = :balance_id
+    """), {
+        'balance_id': str(target.id)
+    }).fetchone()
+    
+    if result:
+        target._audit_before = {
+            'id': str(result.id),
+            'game_id': str(result.game_id),
+            'player_id': str(result.player_id),
+            'total_paid': result.total_paid,
+            'total_received': result.total_received,
+            'poker_net_winnings': result.poker_net_winnings,
+            'payment_balance': result.payment_balance,
+            'last_updated': result.last_updated.isoformat() if result.last_updated else None
+        }
+
+@event.listens_for(PaymentBalance, 'after_update')
+def audit_payment_balance_after_update(mapper, connection, target):
+    if not _audit_context.enabled:
+        return
+    
+    before_data = getattr(target, '_audit_before', None)
+    after_data = _serialize_model(target)
+    
+    # Add player name for better readability
+    try:
+        player_result = connection.execute(text("""
+            SELECT display_name FROM players WHERE id = :player_id
+        """), {'player_id': str(target.player_id)}).fetchone()
+        
+        if player_result:
+            after_data['player_name'] = player_result.display_name
+            # Convert cents to dollars for readability
+            after_data['total_paid_dollars'] = target.total_paid / 100
+            after_data['total_received_dollars'] = target.total_received / 100
+            after_data['poker_net_winnings_dollars'] = target.poker_net_winnings / 100
+            after_data['payment_balance_dollars'] = target.payment_balance / 100
+            
+            # Add the same info to before_data if it exists
+            if before_data:
+                before_data['player_name'] = player_result.display_name
+                before_data['total_paid_dollars'] = before_data['total_paid'] / 100
+                before_data['total_received_dollars'] = before_data['total_received'] / 100
+                before_data['poker_net_winnings_dollars'] = before_data['poker_net_winnings'] / 100
+                before_data['payment_balance_dollars'] = before_data['payment_balance'] / 100
+            
+    except Exception as e:
+        logger.warning(f"Failed to add player name to payment balance audit: {e}")
+    
+    _create_audit_log(
+        action="UPDATE",
+        table_name="payment_balances",
+        target_id=str(target.id),
+        before_data=before_data,
+        after_data=after_data
+    )
+
+@event.listens_for(PaymentBalance, 'after_insert')
+def audit_payment_balance_after_insert(mapper, connection, target):
+    if not _audit_context.enabled:
+        return
+    
+    after_data = _serialize_model(target)
+    
+    # Add player name and dollar amounts for better readability
+    try:
+        player_result = connection.execute(text("""
+            SELECT display_name FROM players WHERE id = :player_id
+        """), {'player_id': str(target.player_id)}).fetchone()
+        
+        if player_result:
+            after_data['player_name'] = player_result.display_name
+            after_data['total_paid_dollars'] = target.total_paid / 100
+            after_data['total_received_dollars'] = target.total_received / 100
+            after_data['poker_net_winnings_dollars'] = target.poker_net_winnings / 100
+            after_data['payment_balance_dollars'] = target.payment_balance / 100
+            
+    except Exception as e:
+        logger.warning(f"Failed to add player name to payment balance audit: {e}")
+    
+    _create_audit_log(
+        action="INSERT",
+        table_name="payment_balances",
+        target_id=str(target.id),
+        before_data=None,
+        after_data=after_data
+    )
+
+@event.listens_for(PaymentBalance, 'before_delete')
+def audit_payment_balance_before_delete(mapper, connection, target):
+    if not _audit_context.enabled:
+        return
+    
+    before_data = _serialize_model(target)
+    
+    # Add player name and dollar amounts for better readability
+    try:
+        player_result = connection.execute(text("""
+            SELECT display_name FROM players WHERE id = :player_id
+        """), {'player_id': str(target.player_id)}).fetchone()
+        
+        if player_result:
+            before_data['player_name'] = player_result.display_name
+            before_data['total_paid_dollars'] = target.total_paid / 100
+            before_data['total_received_dollars'] = target.total_received / 100
+            before_data['poker_net_winnings_dollars'] = target.poker_net_winnings / 100
+            before_data['payment_balance_dollars'] = target.payment_balance / 100
+            
+    except Exception as e:
+        logger.warning(f"Failed to add player name to payment balance audit: {e}")
+    
+    _create_audit_log(
+        action="DELETE",
+        table_name="payment_balances",
+        target_id=str(target.id),
+        before_data=before_data,
+        after_data=None
+    )
+
+# GamePlayer audit listeners
+@event.listens_for(GamePlayer, 'before_update')
+def audit_game_player_before_update(mapper, connection, target):
+    if not _audit_context.enabled:
+        return
+    
+    # Use raw SQL to fetch the current state from database before the update
+    result = connection.execute(text("""
+        SELECT game_id, player_id, joined_at
+        FROM game_players 
+        WHERE game_id = :game_id AND player_id = :player_id
+    """), {
+        'game_id': str(target.game_id),
+        'player_id': str(target.player_id)
+    }).fetchone()
+    
+    if result:
+        target._audit_before = {
+            'game_id': str(result.game_id),
+            'player_id': str(result.player_id),
+            'joined_at': result.joined_at.isoformat() if result.joined_at else None
+        }
+
+@event.listens_for(GamePlayer, 'after_update')
+def audit_game_player_after_update(mapper, connection, target):
+    if not _audit_context.enabled:
+        return
+    
+    before_data = getattr(target, '_audit_before', None)
+    after_data = _serialize_model(target)
+    
+    # Add player and game names for better readability
+    try:
+        player_result = connection.execute(text("""
+            SELECT display_name FROM players WHERE id = :player_id
+        """), {'player_id': str(target.player_id)}).fetchone()
+        
+        game_result = connection.execute(text("""
+            SELECT public_code, title FROM games WHERE id = :game_id
+        """), {'game_id': str(target.game_id)}).fetchone()
+        
+        if player_result and game_result:
+            after_data['player_name'] = player_result.display_name
+            after_data['game_public_code'] = game_result.public_code
+            after_data['game_title'] = game_result.title
+            
+            # Add same info to before_data if it exists
+            if before_data:
+                before_data['player_name'] = player_result.display_name
+                before_data['game_public_code'] = game_result.public_code
+                before_data['game_title'] = game_result.title
+            
+    except Exception as e:
+        logger.warning(f"Failed to add names to game player audit: {e}")
+    
+    _create_audit_log(
+        action="UPDATE",
+        table_name="game_players",
+        target_id=f"{target.game_id}:{target.player_id}",
+        before_data=before_data,
+        after_data=after_data
+    )
+
+@event.listens_for(GamePlayer, 'after_insert')
+def audit_game_player_after_insert(mapper, connection, target):
+    if not _audit_context.enabled:
+        return
+    
+    after_data = _serialize_model(target)
+    
+    # Add player and game names for better readability
+    try:
+        player_result = connection.execute(text("""
+            SELECT display_name FROM players WHERE id = :player_id
+        """), {'player_id': str(target.player_id)}).fetchone()
+        
+        game_result = connection.execute(text("""
+            SELECT public_code, title FROM games WHERE id = :game_id
+        """), {'game_id': str(target.game_id)}).fetchone()
+        
+        if player_result and game_result:
+            after_data['player_name'] = player_result.display_name
+            after_data['game_public_code'] = game_result.public_code
+            after_data['game_title'] = game_result.title
+            
+    except Exception as e:
+        logger.warning(f"Failed to add names to game player audit: {e}")
+    
+    _create_audit_log(
+        action="INSERT",
+        table_name="game_players",
+        target_id=f"{target.game_id}:{target.player_id}",
+        before_data=None,
+        after_data=after_data
+    )
+
+@event.listens_for(GamePlayer, 'before_delete')
+def audit_game_player_before_delete(mapper, connection, target):
+    if not _audit_context.enabled:
+        return
+    
+    before_data = _serialize_model(target)
+    
+    # Add player and game names for better readability
+    try:
+        player_result = connection.execute(text("""
+            SELECT display_name FROM players WHERE id = :player_id
+        """), {'player_id': str(target.player_id)}).fetchone()
+        
+        game_result = connection.execute(text("""
+            SELECT public_code, title FROM games WHERE id = :game_id
+        """), {'game_id': str(target.game_id)}).fetchone()
+        
+        if player_result and game_result:
+            before_data['player_name'] = player_result.display_name
+            before_data['game_public_code'] = game_result.public_code
+            before_data['game_title'] = game_result.title
+            
+    except Exception as e:
+        logger.warning(f"Failed to add names to game player audit: {e}")
+    
+    _create_audit_log(
+        action="DELETE",
+        table_name="game_players",
+        target_id=f"{target.game_id}:{target.player_id}",
+        before_data=before_data,
+        after_data=None
+    )
+
 def setup_request_audit_context():
     """Flask request hook to set up audit context from request headers."""
     try:
@@ -425,4 +799,4 @@ def teardown_request_audit_context(exception=None):
     """Flask request hook to clean up audit context."""
     _audit_context.clear()
 
-logger.info("Audit middleware initialized with SQLAlchemy event listeners")
+logger.info("Audit middleware initialized with SQLAlchemy event listeners for Player, SessionPlayerSummary, Session, Game, PaymentTransaction, PaymentBalance, and GamePlayer")

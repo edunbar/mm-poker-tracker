@@ -10,9 +10,9 @@ import GameActionBar from "../components/SessionActionBar";
 import { deriveTotals } from "../lib/deriveTotals";
 import { formatErrorMessage } from "../lib/validation";
 import { useLocation, useParams } from "react-router-dom";
-import AdminSessionStatus from "../../../components/AdminSessionStatus";
 import { useAdminSession } from "../../../contexts/AdminSessionContext";
 import { useToast } from "../../../contexts/ToastContext";
+import { useGameTitle } from "../../../shared/hooks/useGameTitle";
 
 interface GameDataTableProps {
   playersInfos: PlayerInfo[];
@@ -34,6 +34,7 @@ export default function GameIngestPage() {
   const { publicCode } = useParams<{ publicCode: string }>();
   const { adminCode } = useAdminSession();
   const { showSuccess, showError, showInfo } = useToast();
+  const { title } = useGameTitle(publicCode || '');
   
   // Ensure we have required codes
   if (!publicCode) {
@@ -150,12 +151,11 @@ export default function GameIngestPage() {
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-6xl mx-auto px-4">
-        <AdminSessionStatus className="mb-4" compact />
         
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900">Submit Game Session</h1>
           <p className="mt-2 text-gray-600">
-            Import PokerNow session data for game <span className="font-mono bg-gray-100 px-2 py-1 rounded">{PUBLIC_CODE}</span>
+            Import PokerNow session data for game <span className="font-mono bg-gray-100 px-2 py-1 rounded">{title}</span>
           </p>
         </div>
 
@@ -185,7 +185,7 @@ export default function GameIngestPage() {
                 cashOutTotal={totals.cashOutTotal}
                 net={totals.net}
               />
-              <GameDataTable playersInfos={rows} setEditableData={setRows} />
+              <GameDataTable playersInfos={rows} setEditableData={setRows} publicCode={PUBLIC_CODE} />
               
               <div className="bg-white rounded-lg border shadow-sm">
                 <div className="border-b p-4">

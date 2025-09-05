@@ -35,8 +35,8 @@ def get_unverified_players(public_code: str) -> Dict[str, Any]:
                 player = summary.player
                 
                 if player_id not in player_data:
-                    # Player is "unverified" if they don't have an external_id
-                    is_unverified = not player.external_id
+                    # Player is "unverified" if is_verified is False
+                    is_unverified = not player.is_verified
                     
                     player_data[player_id] = {
                         'player_id': player_id,
@@ -75,7 +75,7 @@ def get_unverified_players(public_code: str) -> Dict[str, Any]:
 
 def verify_player(player_id: str, verified_name: str, external_id: str = None) -> Dict[str, Any]:
     """
-    Verify a player by setting their display_name and external_id.
+    Verify a player by setting their display_name, external_id, and is_verified flag.
     """
     with SessionLocal() as db:
         with audit_context(operation_type="PLAYER_VERIFY"):
@@ -87,8 +87,11 @@ def verify_player(player_id: str, verified_name: str, external_id: str = None) -
                 
                 old_name = player.display_name
                 old_external_id = player.external_id
+                old_is_verified = player.is_verified
                 
                 player.display_name = verified_name.strip()
+                player.is_verified = True  # Mark as verified by admin
+                
                 if external_id:
                     external_id_stripped = external_id.strip()
                     # Check if this external_id is already assigned to another player
@@ -110,8 +113,10 @@ def verify_player(player_id: str, verified_name: str, external_id: str = None) -
                     'player_id': player_id,
                     'old_name': old_name,
                     'old_external_id': old_external_id,
+                    'old_is_verified': old_is_verified,
                     'verified_name': verified_name.strip(),
-                    'external_id': external_id.strip() if external_id else None
+                    'external_id': external_id.strip() if external_id else None,
+                    'is_verified': True
                 }
 
             except Exception as e:
@@ -121,7 +126,7 @@ def verify_player(player_id: str, verified_name: str, external_id: str = None) -
 
 def update_verified_player(player_id: str, verified_name: str, external_id: str = None) -> Dict[str, Any]:
     """
-    Update an already verified player's name and external_id.
+    Update an already verified player's name and external_id. Maintains verified status.
     """
     with SessionLocal() as db:
         try:
@@ -196,4 +201,105 @@ def get_player_details(player_id: str) -> Dict[str, Any]:
 
         except Exception as e:
             logger.error(f"Error fetching player details: {e}")
+            raise
+
+def get_player_verification_debug(public_code: str) -> Dict[str, Any]:
+    """
+    Get comprehensive debugging information about player verification issues.
+    Identifies duplicate names, external ID conflicts, and other issues.
+    """
+    with SessionLocal() as db:
+        try:
+            # Get all players for this game
+            players_query = db.query(Player).join(
+                SessionPlayerSummary, Player.id == SessionPlayerSummary.player_id
+            ).join(
+                Session, SessionPlayerSummary.session_id == Session.id
+            ).join(
+                Game, Session.game_id == Game.id
+            ).filter(
+                Game.public_code == public_code
+            ).options(
+                joinedload(Player.summaries)
+            ).distinct()
+
+            players = players_query.all()
+
+            # Build comprehensive player data
+            player_data = {}
+            for player in players:
+                player_id = str(player.id)
+                session_count = len(player.summaries)
+                all_names = set()
+                
+                for summary in player.summaries:
+                    all_names.update(summary.names)
+
+                player_data[player_id] = {
+                    'player_id': player_id,
+                    'display_name': player.display_name,
+                    'external_id': player.external_id,
+                    'session_count': session_count,
+                    'all_names': list(all_names),
+                    'created_at': player.created_at.isoformat() if player.created_at else None,
+                    'is_verified': player.is_verified
+                }
+
+            # Find duplicate display names
+            name_to_players = {}
+            for player_info in player_data.values():
+                name = player_info['display_name'].lower()
+                if name not in name_to_players:
+                    name_to_players[name] = []
+                name_to_players[name].append(player_info)
+
+            duplicate_display_names = []
+            for name, players_list in name_to_players.items():
+                if len(players_list) > 1:
+                    duplicate_display_names.append({
+                        'display_name': players_list[0]['display_name'],  # Use original case
+                        'players': players_list
+                    })
+
+            # Find external ID conflicts
+            external_id_to_players = {}
+            for player_info in player_data.values():
+                if player_info['external_id']:
+                    ext_id = player_info['external_id']
+                    if ext_id not in external_id_to_players:
+                        external_id_to_players[ext_id] = []
+                    external_id_to_players[ext_id].append(player_info)
+
+            external_id_conflicts = []
+            for ext_id, players_list in external_id_to_players.items():
+                if len(players_list) > 1:
+                    external_id_conflicts.append({
+                        'external_id': ext_id,
+                        'players': players_list
+                    })
+
+            # Separate verified and unverified players
+            unverified_players = [p for p in player_data.values() if not p['is_verified']]
+            verified_players = [p for p in player_data.values() if p['is_verified']]
+
+            # Sort by session count (most active first) for unverified
+            unverified_players.sort(key=lambda x: x['session_count'], reverse=True)
+            verified_players.sort(key=lambda x: x['display_name'])
+
+            return {
+                'total_players': len(player_data),
+                'verified_count': len(verified_players),
+                'unverified_count': len(unverified_players),
+                'unverified_players': unverified_players,
+                'verified_players': verified_players,
+                'duplicate_display_names': duplicate_display_names,
+                'external_id_conflicts': external_id_conflicts,
+                'debug_info': {
+                    'duplicate_names_count': len(duplicate_display_names),
+                    'external_id_conflicts_count': len(external_id_conflicts)
+                }
+            }
+
+        except Exception as e:
+            logger.error(f"Error generating player verification debug data: {e}")
             raise

@@ -2,7 +2,9 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import axios from 'axios';
 import { useAdminSession } from '../../../contexts/AdminSessionContext';
-import AdminSessionStatus from '../../../components/AdminSessionStatus';
+import { useToast } from '../../../contexts/ToastContext';
+import { Pagination } from '../../../shared/ui/pagination';
+import { useGameTitle } from '../../../shared/hooks/useGameTitle';
 
 interface AuditEntry {
   id: string;
@@ -40,6 +42,8 @@ interface OperationDetails {
 export default function AuditPage() {
   const { publicCode } = useParams<{ publicCode: string }>();
   const { adminCode: sessionAdminCode, hasAdminSession } = useAdminSession();
+  const { showSuccess, showError } = useToast();
+  const { title } = useGameTitle(publicCode || '');
   const [auditData, setAuditData] = useState<AuditData | null>(null);
   const [loading, setLoading] = useState(true);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
@@ -48,20 +52,29 @@ export default function AuditPage() {
   const [manualAdminCode, setManualAdminCode] = useState('');
   const [showAdminInput, setShowAdminInput] = useState(false);
   const [undoLoading, setUndoLoading] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 25; // 25 items per page
   
   // Use session admin code if available, otherwise manual input
   const effectiveAdminCode = sessionAdminCode || manualAdminCode;
 
   useEffect(() => {
     if (publicCode) {
-      fetchAuditData();
+      fetchAuditData(1);
+      setCurrentPage(1);
     }
   }, [publicCode]);
 
-  const fetchAuditData = async () => {
+  const handlePageChange = async (page: number) => {
+    setCurrentPage(page);
+    await fetchAuditData(page);
+  };
+
+  const fetchAuditData = async (page: number = currentPage) => {
     try {
       setLoading(true);
-      const response = await axios.get(`http://localhost:8000/api/games/${publicCode}/audit`);
+      const offset = (page - 1) * itemsPerPage;
+      const response = await axios.get(`http://localhost:8000/api/games/${publicCode}/audit?limit=${itemsPerPage}&offset=${offset}`);
       setAuditData(response.data);
     } catch (error) {
       console.error('Error fetching audit data:', error);
@@ -77,7 +90,7 @@ export default function AuditPage() {
       setShowDetailsModal(true);
     } catch (error) {
       console.error('Error fetching operation details:', error);
-      alert('Failed to load operation details');
+      showError('Load Failed', 'Failed to load operation details');
     }
   };
 
@@ -109,7 +122,7 @@ export default function AuditPage() {
         { headers: { 'X-Admin-Code': effectiveAdminCode } }
       );
 
-      alert('Operation successfully undone!');
+      showSuccess('Undo Successful', 'Operation successfully undone!');
       setShowUndoConfirm(false);
       setShowAdminInput(false);
       setSelectedOperation(null);
@@ -117,7 +130,7 @@ export default function AuditPage() {
       fetchAuditData(); // Refresh the audit log
     } catch (error) {
       console.error('Error undoing operation:', error);
-      alert('Failed to undo operation. Please check your admin code.');
+      showError('Undo Failed', 'Failed to undo operation. Please check your admin code.');
     } finally {
       setUndoLoading(false);
     }
@@ -203,7 +216,7 @@ export default function AuditPage() {
           <div className="mb-8">
             <h1 className="text-3xl font-bold text-gray-900">Audit Log</h1>
             <p className="mt-2 text-gray-600">
-              Game <span className="font-mono bg-gray-100 px-2 py-1 rounded">{publicCode}</span>
+              Game <span className="font-mono bg-gray-100 px-2 py-1 rounded">{title}</span>
             </p>
           </div>
           <div className="bg-white rounded-lg border shadow-sm p-12 text-center">
@@ -217,17 +230,16 @@ export default function AuditPage() {
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-6xl mx-auto px-4">
-        <AdminSessionStatus className="mb-4" compact />
         
         <div className="mb-8 flex justify-between items-center">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Audit Log</h1>
             <p className="mt-2 text-gray-600">
-              Database operations for game <span className="font-mono bg-gray-100 px-2 py-1 rounded">{publicCode}</span>
+              Database operations for game <span className="font-mono bg-gray-100 px-2 py-1 rounded">{title}</span>
             </p>
           </div>
           <button
-            onClick={fetchAuditData}
+            onClick={() => fetchAuditData(currentPage)}
             className="px-4 py-2 bg-blue-600 text-white font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
           >
             Refresh
@@ -325,6 +337,16 @@ export default function AuditPage() {
             </tbody>
           </table>
         </div>
+        
+        {auditData && auditData.total_count > itemsPerPage && (
+          <Pagination
+            currentPage={currentPage}
+            totalPages={Math.ceil(auditData.total_count / itemsPerPage)}
+            onPageChange={handlePageChange}
+            itemsPerPage={itemsPerPage}
+            totalItems={auditData.total_count}
+          />
+        )}
       </div>
 
       {/* Details Modal */}

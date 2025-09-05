@@ -239,7 +239,7 @@ class PaymentService:
     def get_payment_history(
         self, 
         game_id: str, 
-        limit: int = 50,
+        limit: int = 1000,
         offset: int = 0
     ) -> List[Dict]:
         """Get payment transaction history for a game"""
