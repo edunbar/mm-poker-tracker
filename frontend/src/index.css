@@ -1,10 +1,241 @@
 /* stylelint-disable at-rule-no-unknown */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 /* stylelint-enable at-rule-no-unknown */
 
-/* shadcn/ui-ish defaults */
+/* Custom sophisticated gold utilities */
+.bg-sophisticated-gold {
+  background-color: hsl(var(--sophisticated-gold));
+}
+
+.bg-sophisticated-gold-deep {
+  background-color: hsl(var(--sophisticated-gold-deep));
+}
+
+.bg-sophisticated-gold-light {
+  background-color: hsl(var(--sophisticated-gold-light));
+}
+
+.bg-sophisticated-gold-extralight {
+  background-color: hsl(var(--sophisticated-gold-extralight));
+}
+
+.text-sophisticated-gold {
+  color: hsl(var(--sophisticated-gold));
+}
+
+.text-sophisticated-gold-deep {
+  color: hsl(var(--sophisticated-gold-deep));
+}
+
+.border-sophisticated-gold {
+  border-color: hsl(var(--sophisticated-gold));
+}
+
+.border-sophisticated-gold-deep {
+  border-color: hsl(var(--sophisticated-gold-deep));
+}
+
+/* Enhanced theme system inspired by Airtable, Stripe, Linear, and GitHub */
+
+/* Custom warm color palette */
 :root {
-  --radius: 0.75rem;
+  /* Background system - warm off-white base */
+  --background: 28 25% 96%; /* #F9F3EF warm off-white */
+  --foreground: 208 60% 18%; /* #1B3C53 dark navy for text */
+  
+  /* Card system - clean white cards on warm background */
+  --card: 0 0% 100%; /* Pure white for cards */
+  --card-foreground: 208 60% 18%; /* #1B3C53 dark navy */
+  
+  /* Muted backgrounds - warm beige tones */
+  --muted: 28 15% 83%; /* #D2C1B6 warm beige */
+  --muted-foreground: 208 30% 35%; /* Muted version of navy */
+  
+  /* Border system - soft warm borders */
+  --border: 28 15% 85%; /* Lighter version of #D2C1B6 */
+  --input: 28 15% 85%; /* Same as border for consistency */
+  
+  /* Primary system - slate blue accent */
+  --primary: 208 30% 45%; /* #456882 slate blue */
+  --primary-foreground: 0 0% 100%;
+  
+  /* Secondary system - warm beige */
+  --secondary: 28 15% 83%; /* #D2C1B6 warm beige */
+  --secondary-foreground: 208 60% 18%; /* #1B3C53 dark navy */
+  
+  /* Accent system - slate blue tones */
+  --accent: 208 25% 92%; /* Light slate blue */
+  --accent-foreground: 208 60% 18%; /* #1B3C53 dark navy */
+  
+  /* Status colors - Dark Gold theme */
+  --destructive: 0 70% 50%; /* #DC2626 */
+  --destructive-foreground: 0 0% 100%;
+  --success: 162 89% 40%; /* #059669 */
+  --success-foreground: 0 0% 100%;
+  --warning: 45 50% 64%; /* #D4B574 - True Gold */
+  --warning-foreground: 0 0% 26%; /* #434343 - Dark gray */
+  --info: 0 0% 42%; /* #6B6B6B - Medium gray */
+  --info-foreground: 0 0% 100%;
+
+  /* Custom sophisticated gold colors - more gold, less brown */
+  --sophisticated-gold: 45 50% 64%; /* #D4B574 - True gold tone */
+  --sophisticated-gold-deep: 45 50% 54%; /* #B89C5A - Deeper gold */
+  --sophisticated-gold-light: 45 50% 84%; /* #E8D4A0 - Light gold */
+  --sophisticated-gold-extralight: 45 50% 94%; /* #F5EDD8 - Very light gold */
+
+  /* Focus rings - slate blue */
+  --ring: 208 30% 45%; /* #456882 slate blue */
+  
+  /* Popover system */
+  --popover: 0 0% 100%;
+  --popover-foreground: 0 0% 9%;
+  
+  /* Border radius - Linear inspired */
+  --radius: 0.5rem;
+  
+  /* Legacy component-specific variables - now use theme colors */
+  
+  /* Table system - uses theme colors */
+  --table-header-bg: var(--muted);
+  --table-row-hover: var(--accent);
+  --table-row-selected: var(--accent);
+  --table-border: var(--border);
+  
+  /* Navigation - uses theme colors */
+  --nav-background: var(--card);
+  --nav-border: var(--border);
+  --nav-item-hover: var(--muted);
+  --nav-item-active: var(--accent);
+  --nav-item-active-border: var(--primary);
+  
+  /* Status badges - uses theme colors */
+  --badge-success-bg: var(--success);
+  --badge-success-text: var(--success-foreground);
+  --badge-warning-bg: var(--warning);
+  --badge-warning-text: var(--warning-foreground);
+  --badge-error-bg: var(--destructive);
+  --badge-error-text: var(--destructive-foreground);
+  --badge-info-bg: var(--info);
+  --badge-info-text: var(--info-foreground);
+  
+  /* Form elements - uses theme colors */
+  --input-bg: var(--background);
+  --input-border: var(--input);
+  --input-border-focus: var(--ring);
+  --input-placeholder: var(--muted-foreground);
+}
+
+
+/* Base styles */
+* {
+  border-color: hsl(var(--border));
+}
+
+body {
+  font-feature-settings: 'rlig' 1, 'calt' 1;
+  font-optical-sizing: auto;
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
+  overscroll-behavior: none;
+}
+
+/* Component utility classes */
+@layer components {
+  /* Airtable-inspired table */
+  .table-airtable {
+    @apply w-full border-collapse;
+  }
+  
+  .table-airtable th {
+    @apply bg-[hsl(var(--table-header-bg))] border-[hsl(var(--table-border))] border text-left text-xs font-medium text-muted-foreground uppercase tracking-wide px-3 py-2.5;
+  }
+  
+  .table-airtable td {
+    @apply border-[hsl(var(--table-border))] border-t px-3 py-3 text-sm;
+  }
+  
+  .table-airtable tr:hover td {
+    @apply bg-[hsl(var(--table-row-hover))];
+  }
+  
+  .table-airtable tr.selected td {
+    @apply bg-[hsl(var(--table-row-selected))];
+  }
+  
+  /* Stripe-inspired cards */
+  .card-stripe {
+    @apply bg-card border border-border rounded-lg shadow-stripe transition-shadow duration-200;
+  }
+  
+  .card-stripe:hover {
+    @apply shadow-stripe-lg;
+  }
+  
+  /* Linear-inspired buttons */
+  .btn-linear-primary {
+    @apply inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-9 px-4;
+  }
+  
+  .btn-linear-secondary {
+    @apply inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-9 px-4;
+  }
+  
+  /* GitHub-inspired badges */
+  .badge-github {
+    @apply inline-flex items-center rounded-full px-2 py-1 text-xs font-medium transition-colors;
+  }
+  
+  .badge-success {
+    @apply bg-[hsl(var(--badge-success-bg))] text-[hsl(var(--badge-success-text))];
+  }
+  
+  .badge-warning {
+    @apply bg-[hsl(var(--badge-warning-bg))] text-[hsl(var(--badge-warning-text))];
+  }
+  
+  .badge-error {
+    @apply bg-[hsl(var(--badge-error-bg))] text-[hsl(var(--badge-error-text))];
+  }
+  
+  .badge-info {
+    @apply bg-[hsl(var(--badge-info-bg))] text-[hsl(var(--badge-info-text))];
+  }
+  
+  /* Enhanced form inputs */
+  .input-enhanced {
+    @apply flex h-9 w-full rounded-md border border-[hsl(var(--input-border))] bg-[hsl(var(--input-bg))] px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-[hsl(var(--input-placeholder))] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[hsl(var(--input-border-focus))] focus-visible:border-[hsl(var(--input-border-focus))] disabled:cursor-not-allowed disabled:opacity-50;
+  }
+  
+  /* Navigation items */
+  .nav-item {
+    @apply flex items-center rounded-md px-3 py-2 text-sm font-medium transition-colors hover:bg-[hsl(var(--nav-item-hover))] hover:text-foreground;
+  }
+  
+  .nav-item.active {
+    @apply bg-[hsl(var(--nav-item-active))] text-foreground border-l-2 border-[hsl(var(--nav-item-active-border))];
+  }
+  
+  /* Theme-aware utility classes - these automatically adapt to current theme */
+  .bg-theme-primary { background-color: hsl(var(--primary)); }
+  .bg-theme-secondary { background-color: hsl(var(--secondary)); }
+  .bg-theme-accent { background-color: hsl(var(--accent)); }
+  .bg-theme-muted { background-color: hsl(var(--muted)); }
+  
+  .text-theme-primary { color: hsl(var(--primary)); }
+  .text-theme-secondary { color: hsl(var(--secondary)); }  
+  .text-theme-accent { color: hsl(var(--accent)); }
+  .text-theme-muted { color: hsl(var(--muted-foreground)); }
+  
+  .border-theme-primary { border-color: hsl(var(--primary)); }
+  .border-theme-secondary { border-color: hsl(var(--secondary)); }
+  .border-theme-accent { border-color: hsl(var(--accent)); }
+  
+  /* Ensure theme colors override any defaults */
+  .text-foreground { color: hsl(var(--foreground)) !important; }
+  .text-muted-foreground { color: hsl(var(--muted-foreground)) !important; }
+  .bg-background { background-color: hsl(var(--background)) !important; }
 }

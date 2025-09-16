@@ -1,10 +1,10 @@
-import { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
 import axios from 'axios';
+import { useEffect, useState } from 'react';
+import { useParams } from 'react-router-dom';
 import { useAdminSession } from '../../../contexts/AdminSessionContext';
 import { useToast } from '../../../contexts/ToastContext';
-import { Pagination } from '../../../shared/ui/pagination';
 import { useGameTitle } from '../../../shared/hooks/useGameTitle';
+import { Pagination } from '../../../shared/ui/pagination';
 
 interface AuditEntry {
   id: string;
@@ -43,7 +43,7 @@ export default function AuditPage() {
   const { publicCode } = useParams<{ publicCode: string }>();
   const { adminCode: sessionAdminCode, hasAdminSession } = useAdminSession();
   const { showSuccess, showError } = useToast();
-  const { title } = useGameTitle(publicCode || '');
+  const { title: _title } = useGameTitle(publicCode || '');
   const [auditData, setAuditData] = useState<AuditData | null>(null);
   const [loading, setLoading] = useState(true);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
@@ -77,7 +77,6 @@ export default function AuditPage() {
       const response = await axios.get(`http://localhost:8000/api/games/${publicCode}/audit?limit=${itemsPerPage}&offset=${offset}`);
       setAuditData(response.data);
     } catch (error) {
-      console.error('Error fetching audit data:', error);
     } finally {
       setLoading(false);
     }
@@ -89,7 +88,6 @@ export default function AuditPage() {
       setSelectedOperation(response.data);
       setShowDetailsModal(true);
     } catch (error) {
-      console.error('Error fetching operation details:', error);
       showError('Load Failed', 'Failed to load operation details');
     }
   };
@@ -129,7 +127,6 @@ export default function AuditPage() {
       setManualAdminCode('');
       fetchAuditData(); // Refresh the audit log
     } catch (error) {
-      console.error('Error undoing operation:', error);
       showError('Undo Failed', 'Failed to undo operation. Please check your admin code.');
     } finally {
       setUndoLoading(false);
@@ -153,8 +150,8 @@ export default function AuditPage() {
     
     return (
       <div className="mb-4">
-        <h4 className="font-medium text-gray-900 mb-2">{title}</h4>
-        <div className="bg-gray-50 p-3 rounded">
+        <h4 className="font-medium text-foreground mb-2">{title}</h4>
+        <div className="bg-muted p-3 rounded">
           <div><strong>Name:</strong> {playerData.display_name}</div>
           <div><strong>External ID:</strong> {playerData.external_id || 'None'}</div>
           <div><strong>Sessions:</strong> {playerData.sessions?.length || 0}</div>
@@ -163,7 +160,7 @@ export default function AuditPage() {
               <strong>Session Details:</strong>
               <div className="max-h-32 overflow-y-auto mt-1">
                 {playerData.sessions.map((session: any, idx: number) => (
-                  <div key={idx} className="text-sm text-gray-600 border-b pb-1 mb-1">
+                  <div key={idx} className="text-sm text-muted-foreground border-b border-border pb-1 mb-1">
                     Session {session.session_external_id || session.session_id}: 
                     Buy-in: ${(session.buy_in_sum / 100).toFixed(2)}, 
                     Cash-out: ${(session.cash_out_sum / 100).toFixed(2)}, 
@@ -197,8 +194,8 @@ export default function AuditPage() {
 
     return (
       <div className="mb-4">
-        <h4 className="font-medium text-gray-900 mb-2">{title}</h4>
-        <div className="bg-gray-50 p-3 rounded">
+        <h4 className="font-medium text-foreground mb-2">{title}</h4>
+        <div className="bg-muted p-3 rounded">
           {Object.entries(data).map(([key, value]) => (
             <div key={key} className="mb-1">
               <strong className="capitalize">{key.replace(/_/g, ' ')}:</strong> {formatValue(key, value)}
@@ -211,15 +208,15 @@ export default function AuditPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 py-8">
+      <div className="min-h-screen bg-background py-8">
         <div className="max-w-6xl mx-auto px-4">
           <div className="mb-8">
-            <h1 className="text-3xl font-bold text-gray-900">Audit Log</h1>
-            <p className="mt-2 text-gray-600">
-              Game <span className="font-mono bg-gray-100 px-2 py-1 rounded">{title}</span>
+            <h1 className="text-3xl font-bold text-foreground">Audit Log</h1>
+            <p className="mt-2 text-muted-foreground">
+              View all database operations
             </p>
           </div>
-          <div className="bg-white rounded-lg border shadow-sm p-12 text-center">
+          <div className="bg-card text-card-foreground rounded-lg border border-border shadow-sm p-12 text-center">
             Loading audit data...
           </div>
         </div>
@@ -228,104 +225,104 @@ export default function AuditPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
+    <div className="min-h-screen bg-background py-8">
       <div className="max-w-6xl mx-auto px-4">
         
         <div className="mb-8 flex justify-between items-center">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Audit Log</h1>
-            <p className="mt-2 text-gray-600">
-              Database operations for game <span className="font-mono bg-gray-100 px-2 py-1 rounded">{title}</span>
+            <h1 className="text-3xl font-bold text-foreground">Audit Log</h1>
+            <p className="mt-2 text-muted-foreground">
+              Database operations and audit trail
             </p>
           </div>
           <button
             onClick={() => fetchAuditData(currentPage)}
-            className="px-4 py-2 bg-blue-600 text-white font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+            className="px-4 py-2 bg-black text-white font-medium rounded-2xl hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2"
           >
             Refresh
           </button>
         </div>
 
-      <div className="bg-white rounded-lg border shadow-sm">
+      <div className="bg-card text-card-foreground rounded-lg border border-border shadow-sm">
         <div className="border-b p-4">
           <h3 className="text-lg font-semibold">All Database Operations</h3>
-          <p className="text-sm text-gray-600 mt-1">
+          <p className="text-sm text-muted-foreground mt-1">
             {auditData?.total_count || 0} operations found
           </p>
         </div>
 
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
+            <thead className="bg-card border-b border-border">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                   Timestamp
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                   Action
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                   Actor
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                   Details
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                   Actions
                 </th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+            <tbody className="bg-card divide-y divide-border">
               {auditData?.audit_logs.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-12 text-center text-gray-500">
+                  <td colSpan={5} className="px-6 py-12 text-center text-muted-foreground">
                     No audit entries found
                   </td>
                 </tr>
               ) : (
                 auditData?.audit_logs.map((entry) => (
-                  <tr key={entry.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  <tr key={entry.id} className="hover:bg-accent hover:text-accent-foreground">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-foreground">
                       {formatTimestamp(entry.timestamp)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`px-2 py-1 text-xs font-medium rounded-full ${
                         entry.action === 'PLAYER_MERGE' 
-                          ? 'bg-blue-100 text-blue-800'
+                          ? 'bg-primary/10 text-primary'
                           : entry.action === 'PLAYER_MERGE_UNDO'
-                          ? 'bg-green-100 text-green-800'
+                          ? 'bg-success/10 text-success'
                           : entry.action.includes('VERIFY')
-                          ? 'bg-purple-100 text-purple-800'
+                          ? 'bg-info/10 text-info'
                           : entry.action.includes('UPDATE')
-                          ? 'bg-yellow-100 text-yellow-800'
+                          ? 'bg-warning/10 text-warning'
                           : entry.action.includes('INSERT')
-                          ? 'bg-green-100 text-green-800'
+                          ? 'bg-success/10 text-success'
                           : entry.action.includes('DELETE')
-                          ? 'bg-red-100 text-red-800'
+                          ? 'bg-destructive/10 text-destructive'
                           : entry.action.includes('IMPORT')
-                          ? 'bg-indigo-100 text-indigo-800'
-                          : 'bg-gray-100 text-gray-800'
+                          ? 'bg-primary/10 text-primary'
+                          : 'bg-muted text-muted-foreground'
                       }`}>
                         {entry.action.replace('_', ' ')}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
                       {entry.actor_id}
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-600">
+                    <td className="px-6 py-4 text-sm text-muted-foreground">
                       {entry.description || 'No description available'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
                       <button
                         onClick={() => handleViewDetails(entry.id)}
-                        className="text-blue-600 hover:text-blue-900"
+                        className="text-primary hover:text-primary/80"
                       >
                         View Details
                       </button>
                       {entry.can_undo && (
                         <button
                           onClick={() => handleUndoClick(entry)}
-                          className="text-red-600 hover:text-red-900 ml-3"
+                          className="text-destructive hover:text-destructive/80 ml-3"
                         >
                           Undo
                         </button>
@@ -352,8 +349,8 @@ export default function AuditPage() {
       {/* Details Modal */}
       {showDetailsModal && selectedOperation && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-start justify-center z-50 p-4 overflow-y-auto">
-          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-4xl my-8">
-            <h3 className="text-lg font-medium text-gray-900 mb-6">
+          <div className="bg-card text-card-foreground rounded-lg shadow-xl border border-border p-6 w-full max-w-4xl my-8">
+            <h3 className="text-lg font-medium text-foreground mb-6">
               Operation Details
             </h3>
             
@@ -370,7 +367,7 @@ export default function AuditPage() {
                   {selectedOperation.action === 'PLAYER_MERGE' ? (
                     // Render player merge data structure
                     <div>
-                      <h4 className="font-medium text-gray-900 mb-4">Before State</h4>
+                      <h4 className="font-medium text-foreground mb-4">Before State</h4>
                       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                         {renderPlayerInfo(selectedOperation.before_state.target_player, "Target Player")}
                         <div>
@@ -395,7 +392,7 @@ export default function AuditPage() {
                   {selectedOperation.action === 'PLAYER_MERGE' ? (
                     // Render player merge data structure
                     <div>
-                      <h4 className="font-medium text-gray-900 mb-4">After State</h4>
+                      <h4 className="font-medium text-foreground mb-4">After State</h4>
                       {renderPlayerInfo(selectedOperation.after_state.target_player, "Merged Player")}
                     </div>
                   ) : (
@@ -409,7 +406,7 @@ export default function AuditPage() {
             <div className="flex justify-end gap-3 mt-6">
               <button
                 onClick={handleCancel}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+                className="px-4 py-2 text-sm font-medium text-foreground bg-background border border-input rounded-lg hover:bg-accent"
               >
                 Close
               </button>
@@ -421,18 +418,18 @@ export default function AuditPage() {
       {/* Undo Confirmation Modal */}
       {showUndoConfirm && selectedOperation && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">
+          <div className="bg-card text-card-foreground rounded-lg shadow-xl border border-border p-6 w-full max-w-md">
+            <h3 className="text-lg font-medium text-foreground mb-4">
               Confirm Undo Operation
             </h3>
             
-            <p className="text-sm text-gray-600 mb-4">
+            <p className="text-sm text-muted-foreground mb-4">
               This will undo the merge operation and restore all players to their original state. 
               This action cannot be undone.
             </p>
 
-            <div className="bg-yellow-50 border border-yellow-200 rounded p-3 mb-4">
-              <div className="text-sm text-yellow-800">
+            <div className="bg-sophisticated-gold-extralight border border-sophisticated-gold rounded p-3 mb-4">
+              <div className="text-sm text-sophisticated-gold-deep">
                 <strong>Operation:</strong> {selectedOperation.action}<br/>
                 <strong>Date:</strong> {formatTimestamp(selectedOperation.timestamp)}<br/>
                 <strong>Players affected:</strong> {selectedOperation.before_state?.source_players?.length + 1}
@@ -441,7 +438,7 @@ export default function AuditPage() {
 
             {(showAdminInput && !hasAdminSession) && (
               <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-foreground mb-2">
                   Admin Code *
                 </label>
                 <input
@@ -449,14 +446,14 @@ export default function AuditPage() {
                   value={manualAdminCode}
                   onChange={(e) => setManualAdminCode(e.target.value)}
                   placeholder="Enter admin code..."
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                  className="w-full px-3 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring bg-background text-foreground"
                 />
               </div>
             )}
             
             {hasAdminSession && (
               <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
-                <div className="text-sm text-green-800">
+                <div className="text-sm text-success">
                   <strong>Using stored admin session</strong><br/>
                   Game: {publicCode}<br/>
                   Admin code is automatically applied for this session.
@@ -468,14 +465,14 @@ export default function AuditPage() {
               <button
                 onClick={handleCancel}
                 disabled={undoLoading}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+                className="px-4 py-2 text-sm font-medium text-foreground bg-background border border-input rounded-lg hover:bg-accent disabled:opacity-50"
               >
                 Cancel
               </button>
               <button
                 onClick={executeUndo}
                 disabled={undoLoading}
-                className="px-4 py-2 text-sm font-medium text-white bg-red-600 border border-transparent rounded-lg hover:bg-red-700 disabled:opacity-50"
+                className="px-4 py-2 text-sm font-medium text-white bg-red-600 border border-transparent rounded-2xl hover:bg-red-700 disabled:opacity-50"
               >
                 {undoLoading ? 'Undoing...' : 'Confirm Undo'}
               </button>

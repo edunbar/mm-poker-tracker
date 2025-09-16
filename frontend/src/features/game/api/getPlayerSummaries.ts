@@ -1,5 +1,5 @@
-import { useQuery } from "react-query";
 import axios from "axios";
+import { useQuery } from "react-query";
 
 export const fetchPlayerSummaries = async (publicCode: string) => {
   const response = await axios.get(

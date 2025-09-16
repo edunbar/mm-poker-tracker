@@ -1,18 +1,53 @@
 from flask import Flask
 from flask_cors import CORS
 from routes.game import game_bp
+from routes.health import health_bp
 from services.audit_middleware import setup_request_audit_context, teardown_request_audit_context
 import services.audit_middleware  # Initialize the event listeners
 import os
+import logging
+from logging.handlers import RotatingFileHandler
 
 def create_app():
     app = Flask(__name__)
 
-    # CORS for local FE
-    CORS(app, resources={r"/*": {"origins": ["http://localhost:3000"]}})
+    # Environment-based configuration
+    flask_env = os.getenv("FLASK_ENV", "development")
+
+    # Configure CORS based on environment
+    allowed_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000").split(",")
+    CORS(app, resources={r"/*": {"origins": [origin.strip() for origin in allowed_origins]}})
+
+    # Security headers for production
+    @app.after_request
+    def security_headers(response):
+        if flask_env == "production":
+            response.headers['X-Content-Type-Options'] = 'nosniff'
+            response.headers['X-Frame-Options'] = 'DENY'
+            response.headers['X-XSS-Protection'] = '1; mode=block'
+            response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
+            response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+        return response
+
+    # Production logging configuration
+    if flask_env == "production":
+        if not app.debug and not app.testing:
+            # File logging
+            if not os.path.exists('logs'):
+                os.mkdir('logs')
+            file_handler = RotatingFileHandler('logs/poker_analytics.log', maxBytes=10240000, backupCount=10)
+            file_handler.setFormatter(logging.Formatter(
+                '%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]'
+            ))
+            file_handler.setLevel(logging.INFO)
+            app.logger.addHandler(file_handler)
+
+            app.logger.setLevel(logging.INFO)
+            app.logger.info('Poker Analytics startup')
 
     # Register routes
     app.register_blueprint(game_bp, url_prefix="/api/games")
+    app.register_blueprint(health_bp, url_prefix="/api")
 
     # Set up audit middleware
     app.before_request(setup_request_audit_context)
@@ -23,4 +58,7 @@ def create_app():
 if __name__ == "__main__":
     app = create_app()
     port = int(os.getenv("PORT", "8000"))
-    app.run(host="0.0.0.0", port=port, debug=True)
+    flask_env = os.getenv("FLASK_ENV", "development")
+    debug_mode = flask_env == "development"
+
+    app.run(host="0.0.0.0", port=port, debug=debug_mode)

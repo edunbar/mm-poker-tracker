@@ -1,4 +1,5 @@
 import React, { useMemo } from "react";
+import { PlayerSummaryRow } from "../../../entities/game/types";
 import {
   Table,
   TableBody,
@@ -7,7 +8,6 @@ import {
   TableHeader,
   TableRow,
 } from "../../../shared/ui/table";
-import { PlayerSummaryRow } from "../../../entities/game/types";
 
 interface GameDataTableProps {
   playersInfos: PlayerSummaryRow[];
@@ -16,25 +16,17 @@ interface GameDataTableProps {
     | (() => void);
 }
 
-const numericCols: Array<keyof PlayerSummaryRow> = [
-  "rank",
-  "buyIn",
-  "cashOut",
-  "net",
-  "gamesPlayed",
-];
 
 function formatNumber(n: number | null | undefined) {
   return new Intl.NumberFormat().format(n ?? 0);
 }
 
 const GameDataTable: React.FC<GameDataTableProps> = ({ playersInfos = [] }) => {
-  if (!Array.isArray(playersInfos) || playersInfos.length === 0) {
-    return <div>No player summary data available.</div>;
-  }
-
   // derive totals similar to IngestDataTable's deriveTotals
   const derived = useMemo(() => {
+    if (!Array.isArray(playersInfos) || playersInfos.length === 0) {
+      return { buyInTotal: 0, cashOutTotal: 0, net: 0 };
+    }
     const buyInTotal = playersInfos.reduce(
       (s, p) => s + (Number(p.buyIn) || 0),
       0
@@ -48,11 +40,15 @@ const GameDataTable: React.FC<GameDataTableProps> = ({ playersInfos = [] }) => {
     return { buyInTotal, cashOutTotal, net, balanced };
   }, [playersInfos]);
 
+  if (!Array.isArray(playersInfos) || playersInfos.length === 0) {
+    return <div>No player summary data available.</div>;
+  }
+
   return (
     <div>
-      <div className="overflow-auto rounded-xl border">
+      <div className="overflow-auto rounded-xl border border-border bg-card">
         <Table className="table-auto w-full">
-          <TableHeader className="bg-gray-50">
+          <TableHeader className="bg-muted">
             <TableRow>
               <TableHead className="min-w-0">Player</TableHead>
               <TableHead className="text-right">Rank</TableHead>
@@ -65,7 +61,7 @@ const GameDataTable: React.FC<GameDataTableProps> = ({ playersInfos = [] }) => {
           </TableHeader>
           <TableBody>
             {playersInfos.map((row, idx) => (
-              <TableRow key={row.player + idx} className="hover:bg-gray-50">
+              <TableRow key={row.player + idx}>
                 <TableCell className="px-3 py-2">{row.player}</TableCell>
                 <TableCell className="px-3 py-2 text-right">
                   {row.rank}
@@ -79,10 +75,10 @@ const GameDataTable: React.FC<GameDataTableProps> = ({ playersInfos = [] }) => {
                 <TableCell
                   className={`px-3 py-2 text-right font-medium ${
                     row.net === 0
-                      ? "text-gray-700"
+                      ? "text-muted-foreground"
                       : row.net > 0
-                      ? "text-emerald-600"
-                      : "text-red-600"
+                      ? "text-green-600 dark:text-green-400"
+                      : "text-red-600 dark:text-red-400"
                   }`}
                 >
                   {formatNumber(row.net)}
@@ -94,7 +90,7 @@ const GameDataTable: React.FC<GameDataTableProps> = ({ playersInfos = [] }) => {
               </TableRow>
             ))}
 
-            <TableRow className="bg-gray-50">
+            <TableRow className="bg-muted">
               <TableCell colSpan={2} className="font-medium">
                 Totals
               </TableCell>
@@ -107,10 +103,10 @@ const GameDataTable: React.FC<GameDataTableProps> = ({ playersInfos = [] }) => {
               <TableCell
                 className={`text-right font-semibold ${
                   derived.net === 0
-                    ? "text-gray-700"
+                    ? "text-muted-foreground"
                     : derived.net > 0
-                    ? "text-emerald-700"
-                    : "text-red-700"
+                    ? "text-green-600 dark:text-green-400"
+                    : "text-red-600 dark:text-red-400"
                 }`}
               >
                 {formatNumber(derived.net)}

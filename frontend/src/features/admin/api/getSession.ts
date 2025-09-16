@@ -1,6 +1,5 @@
-export {};
-import { useQuery } from "react-query";
 import axios from "axios";
+import { useQuery } from "react-query";
 
 export const fetchGameData = async (gameUrl: string) => {
   const response = await axios.get(

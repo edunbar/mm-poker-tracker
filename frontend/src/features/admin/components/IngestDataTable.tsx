@@ -1,5 +1,6 @@
-import React, { useMemo, useEffect, useState } from "react";
-import { CheckCircle2, AlertTriangle, Trash2 } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Trash2 } from "lucide-react";
+import React, { useEffect, useMemo, useState } from "react";
+import { PlayerInfo } from "../../../entities/game/types";
 import {
   Table,
   TableBody,
@@ -8,7 +9,6 @@ import {
   TableHeader,
   TableRow,
 } from "../../../shared/ui/table";
-import { PlayerInfo } from "../../../entities/game/types";
 import { deriveTotals } from "../lib/deriveTotals";
 import { isNumeric } from "../lib/validation";
 
@@ -56,8 +56,8 @@ const GameDataTable: React.FC<GameDataTableProps> = ({
           const data = await response.json();
           setVerificationStatus(data);
         }
-      } catch (error) {
-        console.error('Error fetching verification status:', error);
+      } catch {
+        // Silently handle verification status fetch errors
       }
     };
 
@@ -72,7 +72,6 @@ const GameDataTable: React.FC<GameDataTableProps> = ({
   // Use shared deriveTotals/validation utilities
   const derived = useMemo(() => deriveTotals(playersInfos), [playersInfos]);
 
-  const balanced = derived.balanced;
 
   const handleChange = (
     index: number,
@@ -138,9 +137,9 @@ const GameDataTable: React.FC<GameDataTableProps> = ({
   return (
     <div>
       {/* Editable Table */}
-      <div className="overflow-auto rounded-xl border">
+      <div className="overflow-auto rounded-xl border border-border bg-card">
         <Table>
-          <TableHeader className="bg-gray-50">
+          <TableHeader className="bg-muted">
             <TableRow>
               <TableHead className="min-w-[120px]">ID</TableHead>
               <TableHead className="min-w-[170px]">Name</TableHead>
@@ -156,13 +155,13 @@ const GameDataTable: React.FC<GameDataTableProps> = ({
             {sortedPlayers.map((player) => (
               <TableRow
                 key={player.id || player.originalIdx}
-                className="hover:bg-gray-50"
+                className=""
               >
                 <TableCell>
                   <input
                     type="text"
                     value={player.id}
-                    className="w-full bg-transparent outline-none border border-transparent focus:border-gray-300 rounded-lg px-2 py-1 text-sm"
+                    className="w-full bg-transparent text-foreground outline-none border border-transparent focus:border-input rounded-lg px-2 py-1 text-sm"
                     onChange={(e) =>
                       handleChange(player.originalIdx, "id", e.target.value)
                     }
@@ -172,7 +171,7 @@ const GameDataTable: React.FC<GameDataTableProps> = ({
                   <input
                     type="text"
                     value={player.validated_name || ""}
-                    className="w-full bg-transparent outline-none border border-transparent focus:border-gray-300 rounded-lg px-2 py-1 text-sm"
+                    className="w-full bg-transparent text-foreground outline-none border border-transparent focus:border-input rounded-lg px-2 py-1 text-sm"
                     onChange={(e) =>
                       handleChange(
                         player.originalIdx,
@@ -191,16 +190,16 @@ const GameDataTable: React.FC<GameDataTableProps> = ({
                     {(() => {
                       const status = verificationStatus[player.id];
                       if (status?.is_verified) {
-                        return <CheckCircle2 className="h-4 w-4 text-green-600" />;
+                        return <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-400" />;
                       } else if (status && !status.is_verified) {
-                        return <AlertTriangle className="h-4 w-4 text-yellow-600" />;
+                        return <AlertTriangle className="h-4 w-4 text-sophisticated-gold dark:text-sophisticated-gold" />;
                       } else {
-                        return <div className="h-4 w-4 rounded-full bg-gray-300"></div>;
+                        return <div className="h-4 w-4 rounded-full bg-muted" />;
                       }
                     })()}
                     
                     {hoveredPlayer === player.id && (
-                      <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg shadow-lg whitespace-nowrap z-10">
+                      <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-popover text-popover-foreground text-xs rounded-lg shadow-lg whitespace-nowrap z-10 border border-border">
                         {(() => {
                           const status = verificationStatus[player.id];
                           if (status?.is_verified) {
@@ -211,7 +210,7 @@ const GameDataTable: React.FC<GameDataTableProps> = ({
                             return "New player - Will be created on import";
                           }
                         })()}
-                        <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"></div>
+                        <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-popover" />
                       </div>
                     )}
                   </div>
@@ -224,7 +223,7 @@ const GameDataTable: React.FC<GameDataTableProps> = ({
                         ? player.names.join(", ")
                         : player.names
                     }
-                    className="w-full bg-transparent outline-none border border-transparent focus:border-gray-300 rounded-lg px-2 py-1 text-sm"
+                    className="w-full bg-transparent text-foreground outline-none border border-transparent focus:border-input rounded-lg px-2 py-1 text-sm"
                     onChange={(e) =>
                       handleChange(player.originalIdx, "names", e.target.value)
                     }
@@ -234,10 +233,10 @@ const GameDataTable: React.FC<GameDataTableProps> = ({
                   <input
                     type="number"
                     value={player.buyInSum as any}
-                    className={`w-full text-right bg-transparent outline-none border rounded-lg px-2 py-1 text-sm ${
+                    className={`w-full text-right bg-transparent text-foreground outline-none border rounded-lg px-2 py-1 text-sm ${
                       !isNumeric(player.buyInSum)
-                        ? "border-red-300 focus:border-red-400"
-                        : "border-transparent focus:border-gray-300"
+                        ? "border-destructive focus:border-destructive"
+                        : "border-transparent focus:border-input"
                     }`}
                     onChange={(e) =>
                       handleChange(
@@ -254,14 +253,14 @@ const GameDataTable: React.FC<GameDataTableProps> = ({
                     value={
                       player.buyOutSum === 0 ? player.inGame : player.buyOutSum
                     }
-                    className={`w-full text-right bg-transparent outline-none border rounded-lg px-2 py-1 text-sm ${
+                    className={`w-full text-right bg-transparent text-foreground outline-none border rounded-lg px-2 py-1 text-sm ${
                       !isNumeric(
                         player.buyOutSum === 0
                           ? player.inGame
                           : player.buyOutSum
                       )
-                        ? "border-red-300 focus:border-red-400"
-                        : "border-transparent focus:border-gray-300"
+                        ? "border-destructive focus:border-destructive"
+                        : "border-transparent focus:border-input"
                     }`}
                     onChange={(e) =>
                       handleChange(
@@ -275,16 +274,16 @@ const GameDataTable: React.FC<GameDataTableProps> = ({
                 <TableCell
                   className={`text-right font-medium ${
                     player.net === 0
-                      ? "text-gray-700"
+                      ? "text-muted-foreground"
                       : player.net > 0
-                      ? "text-emerald-600"
-                      : "text-red-600"
+                      ? "text-green-600 dark:text-green-400"
+                      : "text-red-600 dark:text-red-400"
                   }`}
                 >
                   <input
                     type="number"
                     value={player.net as any}
-                    className="w-full text-right bg-transparent outline-none border border-transparent focus:border-gray-300 rounded-lg px-2 py-1 text-sm"
+                    className="w-full text-right bg-transparent text-foreground outline-none border border-transparent focus:border-input rounded-lg px-2 py-1 text-sm"
                     onChange={(e) =>
                       handleChange(player.originalIdx, "net", e.target.value)
                     }
@@ -293,7 +292,7 @@ const GameDataTable: React.FC<GameDataTableProps> = ({
                 <TableCell className="text-center">
                   <button
                     onClick={() => handleDelete(player.originalIdx)}
-                    className="p-1 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-md transition-colors"
+                    className="p-1 text-destructive hover:text-destructive hover:bg-destructive/10 rounded-md transition-colors"
                     title="Delete this player row"
                   >
                     <Trash2 size={16} />
@@ -302,7 +301,7 @@ const GameDataTable: React.FC<GameDataTableProps> = ({
               </TableRow>
             ))}
             {/* Totals Row uses shared deriveTotals */}
-            <TableRow className="bg-gray-50">
+            <TableRow className="bg-muted">
               <TableCell colSpan={4} className="font-medium">
                 Totals
               </TableCell>
@@ -315,10 +314,10 @@ const GameDataTable: React.FC<GameDataTableProps> = ({
               <TableCell
                 className={`text-right font-semibold ${
                   derived.net === 0
-                    ? "text-gray-700"
+                    ? "text-muted-foreground"
                     : derived.net > 0
-                    ? "text-emerald-700"
-                    : "text-red-700"
+                    ? "text-green-600 dark:text-green-400"
+                    : "text-red-600 dark:text-red-400"
                 }`}
               >
                 {formatNumber(derived.net)}

@@ -1,10 +1,10 @@
-import { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
 import axios from 'axios';
+import { Edit, MoreVertical, Plus, Save, Trash2, X } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { useParams } from 'react-router-dom';
 import { useAdminSession } from '../../../contexts/AdminSessionContext';
-import { Pagination, usePagination } from '../../../shared/ui/pagination';
 import { useGameTitle } from '../../../shared/hooks/useGameTitle';
-import { MoreVertical, Plus, Trash2, Edit, Save, X } from 'lucide-react';
+import { Pagination, usePagination } from '../../../shared/ui/pagination';
 
 interface SessionPlayerSummary {
   session_id: string;
@@ -42,7 +42,7 @@ interface SessionGroup {
 export default function GameLedgerPage() {
   const { publicCode } = useParams<{ publicCode: string }>();
   const { adminCode: sessionAdminCode, hasAdminSession } = useAdminSession();
-  const { title } = useGameTitle(publicCode || '');
+  const { title: _title } = useGameTitle(publicCode || '');
   const [summaries, setSummaries] = useState<SessionPlayerSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingRow, setEditingRow] = useState<EditingRow | null>(null);
@@ -76,10 +76,12 @@ export default function GameLedgerPage() {
   useEffect(() => {
     // Reserve space for scrollbar to prevent layout shift
     document.documentElement.style.overflowY = 'scroll';
+    document.documentElement.style.overscrollBehavior = 'none';
     
     return () => {
       // Reset on unmount
       document.documentElement.style.overflowY = 'auto';
+      document.documentElement.style.overscrollBehavior = 'auto';
     };
   }, []);
 
@@ -89,7 +91,6 @@ export default function GameLedgerPage() {
       const response = await axios.get(`http://localhost:8000/api/games/${publicCode}/ledger`);
       setSummaries(response.data.summaries || []);
     } catch (error) {
-      console.error('Error fetching ledger data:', error);
     } finally {
       setLoading(false);
     }
@@ -112,7 +113,7 @@ export default function GameLedgerPage() {
       const inGame = parseFloat(newRowData.inGame || '0') * 100;
       
       // Create a simple POST request - we'll handle this with existing endpoint for now
-      const response = await axios.put(`http://localhost:8000/api/games/${publicCode}/ledger/manual/new`, {
+      await axios.put(`http://localhost:8000/api/games/${publicCode}/ledger/manual/new`, {
         session_external_id: newRowData.sessionId,
         player_name: newRowData.playerName,
         buy_in_sum: buyIn,
@@ -139,7 +140,6 @@ export default function GameLedgerPage() {
       // Refresh data
       fetchLedgerData();
     } catch (error: any) {
-      console.error('Error adding row:', error);
       setErrorMessage(
         error.response?.data?.error || 
         'Failed to add row. Please try again.'
@@ -191,7 +191,6 @@ export default function GameLedgerPage() {
       setManualAdminCode('');
       fetchLedgerData();
     } catch (error) {
-      console.error('Error updating record:', error);
       setErrorMessage('Failed to update record. Please check your admin code.');
       setTimeout(() => setErrorMessage(null), 5000);
     }
@@ -226,7 +225,6 @@ export default function GameLedgerPage() {
       setPendingDelete(null);
       fetchLedgerData();
     } catch (error) {
-      console.error('Error deleting record:', error);
       setErrorMessage('Failed to delete record. Please check your admin code.');
       setTimeout(() => setErrorMessage(null), 5000);
     }
@@ -259,7 +257,6 @@ export default function GameLedgerPage() {
       setShowAdminInput(false);
       fetchLedgerData();
     } catch (error) {
-      console.error('Error deleting session:', error);
       setErrorMessage('Failed to delete session. Please check your admin code.');
       setTimeout(() => setErrorMessage(null), 5000);
     }
@@ -345,27 +342,27 @@ export default function GameLedgerPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
+    <div className="min-h-screen bg-background py-8">
       <div className="max-w-6xl mx-auto px-4">
         
         <div className="mb-8 flex justify-between items-center">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Game Ledger</h1>
-            <p className="mt-2 text-gray-600">
-              Session and player data for game <span className="font-mono bg-gray-100 px-2 py-1 rounded">{title}</span>
+            <h1 className="text-3xl font-bold text-foreground">Game Ledger</h1>
+            <p className="mt-2 text-muted-foreground">
+              Session and player data
             </p>
           </div>
           <button
             onClick={fetchLedgerData}
-            className="px-4 py-2 bg-blue-600 text-white font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+            className="px-4 py-2 bg-primary text-primary-foreground font-medium rounded-2xl hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
           >
             Refresh
           </button>
         </div>
 
       {showAdminInput && (
-        <div className="bg-white rounded-lg border shadow-sm p-4 mb-6">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+        <div className="bg-card text-card-foreground rounded-lg border border-border shadow-sm p-4 mb-6">
+          <label className="block text-sm font-medium text-foreground mb-2">
             Admin Code:
           </label>
           <div className="flex gap-2">
@@ -373,20 +370,20 @@ export default function GameLedgerPage() {
               type="password"
               value={manualAdminCode}
               onChange={(e) => setManualAdminCode(e.target.value)}
-              className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="flex-1 px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring bg-background text-foreground"
               placeholder="Enter admin code"
             />
             {editingRow ? (
               <>
                 <button
                   onClick={handleSave}
-                  className="px-4 py-2 bg-green-600 text-white font-medium rounded-md hover:bg-green-700"
+                  className="px-4 py-2 bg-black text-white font-medium rounded-2xl hover:opacity-90"
                 >
                   Save
                 </button>
                 <button
                   onClick={handleCancel}
-                  className="px-4 py-2 bg-gray-500 text-white font-medium rounded-md hover:bg-gray-600"
+                  className="px-4 py-2 border border-input bg-background text-muted-foreground font-medium rounded-2xl hover:bg-accent"
                 >
                   Cancel
                 </button>
@@ -407,13 +404,13 @@ export default function GameLedgerPage() {
                     });
                     setShowDeleteModal(true);
                   }}
-                  className="px-4 py-2 bg-red-600 text-white font-medium rounded-md hover:bg-red-700"
+                  className="px-4 py-2 bg-red-600 text-white font-medium rounded-2xl hover:bg-red-700"
                 >
                   Delete
                 </button>
                 <button
                   onClick={handleCancel}
-                  className="px-4 py-2 bg-gray-500 text-white font-medium rounded-md hover:bg-gray-600"
+                  className="px-4 py-2 border border-input bg-background text-muted-foreground font-medium rounded-2xl hover:bg-accent"
                 >
                   Cancel
                 </button>
@@ -421,7 +418,7 @@ export default function GameLedgerPage() {
             ) : (
               <button
                 onClick={handleCancel}
-                className="px-4 py-2 bg-gray-500 text-white font-medium rounded-md hover:bg-gray-600"
+                className="px-4 py-2 border border-gray-300 bg-transparent text-gray-700 font-medium rounded-2xl hover:bg-gray-50"
               >
                 Cancel
               </button>
@@ -430,64 +427,60 @@ export default function GameLedgerPage() {
         </div>
       )}
 
-      <div className="bg-white rounded-lg border shadow-sm">
-        <div className="overflow-x-auto">
-          <table className="min-w-full table-fixed w-full">
-          <thead className="bg-gray-50">
+      <div className="overflow-auto rounded-xl border border-border bg-card">
+          <table className="min-w-full">
+          <thead className="bg-card border-b border-border">
             <tr>
-              <th className="w-8 px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                
-              </th>
-              <th className="w-40 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-4 py-4 text-left text-sm font-semibold text-muted-foreground" />
+              <th className="px-6 py-4 text-left text-sm font-semibold text-muted-foreground">
                 Session/Player
               </th>
-              <th className="w-24 px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-4 text-right text-sm font-semibold text-muted-foreground">
                 Buy In
               </th>
-              <th className="w-24 px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-4 text-right text-sm font-semibold text-muted-foreground">
                 Cash Out
               </th>
-              <th className="w-24 px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-4 text-right text-sm font-semibold text-muted-foreground">
                 Net
               </th>
-              <th className="w-16 px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-4 text-left text-sm font-semibold text-muted-foreground">
                 Names
               </th>
               {hasAdminSession && (
-                <th className="w-32 px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  
+                <th className="px-6 py-4 text-center text-sm font-semibold text-muted-foreground">
+                  Actions
                 </th>
               )}
             </tr>
           </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
+          <tbody className="bg-card">
             {loading ? (
               // Create multiple skeleton rows to maintain table height
               Array.from({ length: 10 }).map((_, index) => (
-                <tr key={`loading-${index}`} className="animate-pulse">
-                  <td className="w-8 px-3 py-4 whitespace-nowrap">
-                    <div className="h-5 bg-gray-200 rounded w-4"></div>
+                <tr key={`loading-${index}`} className="animate-pulse border-b border-border">
+                  <td className="px-4 py-4">
+                    <div className="h-5 bg-muted rounded w-4" />
                   </td>
-                  <td className="w-40 px-6 py-4 whitespace-nowrap">
-                    <div className="h-5 bg-gray-200 rounded w-28"></div>
+                  <td className="px-6 py-4">
+                    <div className="h-5 bg-muted rounded w-32" />
                   </td>
-                  <td className="w-24 px-6 py-4 whitespace-nowrap text-right">
-                    <div className="h-5 bg-gray-200 rounded w-16 ml-auto"></div>
+                  <td className="px-6 py-4 text-right">
+                    <div className="h-5 bg-muted rounded w-20 ml-auto" />
                   </td>
-                  <td className="w-24 px-6 py-4 whitespace-nowrap text-right">
-                    <div className="h-5 bg-gray-200 rounded w-16 ml-auto"></div>
+                  <td className="px-6 py-4 text-right">
+                    <div className="h-5 bg-muted rounded w-20 ml-auto" />
                   </td>
-                  <td className="w-24 px-6 py-4 whitespace-nowrap text-right">
-                    <div className="h-5 bg-gray-200 rounded w-16 ml-auto"></div>
+                  <td className="px-6 py-4 text-right">
+                    <div className="h-5 bg-muted rounded w-20 ml-auto" />
                   </td>
-                  <td className="w-32 px-2 py-4">
-                    <div className="h-5 bg-gray-200 rounded w-24 truncate"></div>
+                  <td className="px-6 py-4">
+                    <div className="h-5 bg-muted rounded w-24" />
                   </td>
                   {hasAdminSession && (
-                    <td className="w-32 px-6 py-4 whitespace-nowrap text-center">
+                    <td className="px-6 py-4 text-center">
                       <div className="flex gap-2 justify-center">
-                        <div className="h-5 bg-gray-200 rounded w-10"></div>
-                        <div className="h-5 bg-gray-200 rounded w-12"></div>
+                        <div className="h-5 bg-muted rounded w-12" />
                       </div>
                     </td>
                   )}
@@ -496,39 +489,39 @@ export default function GameLedgerPage() {
             ) : paginatedSessions.map((sessionGroup) => (
               <>
                 {/* Session Header Row */}
-                <tr key={`session-${sessionGroup.session_id}`} className="bg-blue-50 hover:bg-blue-100 border-l-4 border-blue-500">
-                  <td className="px-3 py-4 whitespace-nowrap w-8">
+                <tr key={`session-${sessionGroup.session_id}`} className="bg-accent hover:bg-accent/80 border-l-4 border-primary border-b border-border">
+                  <td className="px-4 py-4">
                     <button
                       onClick={() => toggleSession(sessionGroup.session_id)}
-                      className="flex items-center justify-center w-6 h-6 bg-blue-500 text-white rounded hover:bg-blue-600"
+                      className="flex items-center justify-center w-6 h-6 bg-primary text-primary-foreground rounded-full hover:bg-primary/90"
                     >
                       {expandedSessions.has(sessionGroup.session_id) ? '−' : '+'}
                     </button>
                   </td>
-                  <td className="px-6 py-4 text-sm font-semibold text-blue-900 w-40">
-                    <div>Game #{sessionGroup.game_number}</div>
-                    <div className="text-xs text-blue-600">
+                  <td className="px-6 py-4">
+                    <div className="text-sm font-semibold text-accent-foreground">Game #{sessionGroup.game_number}</div>
+                    <div className="text-xs text-accent-foreground opacity-80">
                       {formatDate(sessionGroup.session_started_at)} • ({sessionGroup.players.length} players)
                     </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-blue-800 text-right w-24">
+                  <td className="px-6 py-4 text-sm text-accent-foreground text-right font-medium">
                     ${formatCurrency(sessionGroup.players.reduce((sum, p) => sum + p.buy_in_sum, 0))}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-blue-800 text-right w-24">
+                  <td className="px-6 py-4 text-sm text-accent-foreground text-right font-medium">
                     ${formatCurrency(sessionGroup.players.reduce((sum, p) => sum + p.cash_out_sum + p.in_game, 0))}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-right w-24">
-                    <span className={sessionGroup.players.reduce((sum, p) => sum + p.net, 0) >= 0 ? 'text-green-600' : 'text-red-600'}>
+                  <td className="px-6 py-4 text-sm font-semibold text-right">
+                    <span className={sessionGroup.players.reduce((sum, p) => sum + p.net, 0) >= 0 ? 'text-success' : 'text-destructive'}>
                       ${formatCurrency(sessionGroup.players.reduce((sum, p) => sum + p.net, 0))}
                     </span>
                   </td>
-                  <td className="px-2 py-4 text-sm text-blue-800 w-16 max-w-16 overflow-hidden">
-                    <div className="truncate text-xs w-full" title={sessionGroup.session_external_id || 'N/A'}>
+                  <td className="px-6 py-4 text-sm text-accent-foreground opacity-75">
+                    <div className="truncate max-w-32" title={sessionGroup.session_external_id || 'N/A'}>
                       {sessionGroup.session_external_id || 'N/A'}
                     </div>
                   </td>
                   {hasAdminSession && (
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium w-32">
+                    <td className="px-6 py-4 text-sm font-medium text-center">
                       <div className="flex justify-end">
                         <div className="relative" data-dropdown>
                           <button
@@ -538,7 +531,7 @@ export default function GameLedgerPage() {
                           <MoreVertical className="h-4 w-4" />
                         </button>
                         {activeDropdown === `session-${sessionGroup.session_id}` && (
-                          <div className="absolute right-0 top-8 bg-white border border-gray-200 rounded-md shadow-lg z-10 min-w-[120px]">
+                          <div className="absolute right-0 top-8 bg-popover border border-border rounded-md shadow-lg z-10 min-w-[120px]">
                             <button
                               onClick={() => {
                                 setNewRowData({
@@ -548,7 +541,7 @@ export default function GameLedgerPage() {
                                 setShowAddRowModal(true);
                                 setActiveDropdown(null);
                               }}
-                              className="flex items-center gap-2 w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                              className="flex items-center gap-2 w-full px-3 py-2 text-sm text-popover-foreground hover:bg-accent"
                             >
                               <Plus className="h-3 w-3" />
                               Add Row
@@ -558,7 +551,7 @@ export default function GameLedgerPage() {
                                 handleSessionDelete(sessionGroup.session_id, sessionGroup.game_number, sessionGroup.players.length);
                                 setActiveDropdown(null);
                               }}
-                              className="flex items-center gap-2 w-full px-3 py-2 text-sm text-red-600 hover:bg-gray-100"
+                              className="flex items-center gap-2 w-full px-3 py-2 text-sm text-destructive hover:bg-accent"
                             >
                               <Trash2 className="h-3 w-3" />
                               Delete Session
@@ -573,24 +566,24 @@ export default function GameLedgerPage() {
                 
                 {/* Player Rows (expandable) */}
                 {expandedSessions.has(sessionGroup.session_id) && sessionGroup.players.map((summary) => (
-                  <tr key={`${summary.session_id}-${summary.player_id}`} className="hover:bg-gray-50 bg-gray-25">
-                    <td className="px-3 py-4"></td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 pl-12">
+                  <tr key={`${summary.session_id}-${summary.player_id}`} className="hover:bg-muted/50 bg-card border-b border-border">
+                    <td className="px-4 py-3" />
+                    <td className="px-6 py-3 text-sm text-foreground pl-12">
                       {summary.player_name}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">
+                    <td className="px-6 py-3 text-sm text-foreground text-right">
                       {editingRow?.session_id === summary.session_id && editingRow?.player_id === summary.player_id ? (
                         <input
                           type="number"
                           value={editingRow.buy_in_sum}
                           onChange={(e) => setEditingRow({ ...editingRow, buy_in_sum: parseInt(e.target.value) || 0 })}
-                          className="w-16 px-1 py-1 border rounded text-xs"
+                          className="w-20 px-2 py-1 border border-input rounded text-sm bg-background"
                         />
                       ) : (
                         `$${formatCurrency(summary.buy_in_sum)}`
                       )}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">
+                    <td className="px-6 py-3 text-sm text-foreground text-right">
                       {editingRow?.session_id === summary.session_id && editingRow?.player_id === summary.player_id ? (
                         <input
                           type="number"
@@ -603,41 +596,41 @@ export default function GameLedgerPage() {
                               in_game: 0
                             });
                           }}
-                          className="w-16 px-1 py-1 border rounded text-xs"
+                          className="w-20 px-2 py-1 border border-input rounded text-sm bg-background"
                           title="Total cash out + in game"
                         />
                       ) : (
                         `$${formatCurrency(summary.cash_out_sum + summary.in_game)}`
                       )}
                     </td>
-                    <td className={`px-6 py-4 whitespace-nowrap text-sm font-medium text-right ${summary.net >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    <td className={`px-6 py-3 text-sm font-medium text-right ${summary.net >= 0 ? 'text-success' : 'text-destructive'}`}>
                       {editingRow?.session_id === summary.session_id && editingRow?.player_id === summary.player_id ? (
                         <input
                           type="number"
                           value={editingRow.net}
                           onChange={(e) => setEditingRow({ ...editingRow, net: parseInt(e.target.value) || 0 })}
-                          className="w-16 px-1 py-1 border rounded text-xs"
+                          className="w-20 px-2 py-1 border border-input rounded text-sm bg-background"
                         />
                       ) : (
                         `$${formatCurrency(summary.net)}`
                       )}
                     </td>
-                    <td className="px-2 py-4 text-sm text-gray-900 w-32 max-w-32 overflow-hidden">
+                    <td className="px-6 py-3 text-sm text-foreground">
                       {editingRow?.session_id === summary.session_id && editingRow?.player_id === summary.player_id ? (
                         <input
                           type="text"
                           value={editingRow.names.join(', ')}
                           onChange={(e) => setEditingRow({ ...editingRow, names: e.target.value.split(', ') })}
-                          className="w-full px-1 py-1 border rounded text-xs"
+                          className="w-full px-2 py-1 border border-input rounded text-sm bg-background"
                         />
                       ) : (
-                        <div className="truncate text-xs w-full" title={summary.names.join(', ')}>
+                        <div className="truncate max-w-32" title={summary.names.join(', ')}>
                           {summary.names.join(', ')}
                         </div>
                       )}
                     </td>
                     {hasAdminSession && (
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                      <td className="px-6 py-3 text-sm font-medium text-center">
                         <div className="flex justify-end">
                           {editingRow?.session_id === summary.session_id && editingRow?.player_id === summary.player_id ? (
                             <div className="flex gap-2">
@@ -669,7 +662,7 @@ export default function GameLedgerPage() {
                                     handleEdit(summary);
                                     setActiveDropdown(null);
                                   }}
-                                  className="flex items-center gap-2 w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                                  className="flex items-center gap-2 w-full px-3 py-2 text-sm text-popover-foreground hover:bg-accent"
                                 >
                                   <Edit className="h-3 w-3" />
                                   Edit
@@ -679,7 +672,7 @@ export default function GameLedgerPage() {
                                     handleDelete(summary.session_id, summary.player_id, summary.player_name);
                                     setActiveDropdown(null);
                                   }}
-                                  className="flex items-center gap-2 w-full px-3 py-2 text-sm text-red-600 hover:bg-gray-100"
+                                  className="flex items-center gap-2 w-full px-3 py-2 text-sm text-destructive hover:bg-accent"
                                 >
                                   <Trash2 className="h-3 w-3" />
                                   Delete
@@ -697,7 +690,7 @@ export default function GameLedgerPage() {
             ))}
           </tbody>
         </table>
-        </div>
+      </div>
         
         <Pagination
           currentPage={currentPage}
@@ -710,7 +703,7 @@ export default function GameLedgerPage() {
 
       {!loading && summaries.length === 0 && (
         <div className="bg-white rounded-lg border shadow-sm p-12 text-center">
-          <p className="text-gray-500">No game ledger entries found.</p>
+          <p className="text-muted-foreground">No game ledger entries found.</p>
         </div>
       )}
 
@@ -721,7 +714,7 @@ export default function GameLedgerPage() {
             <svg className="w-4 h-4 mr-2 text-red-600" fill="currentColor" viewBox="0 0 20 20">
               <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
             </svg>
-            <span className="text-red-800">{errorMessage}</span>
+            <span className="text-destructive">{errorMessage}</span>
           </div>
         </div>
       )}
@@ -774,7 +767,7 @@ export default function GameLedgerPage() {
                   setShowDeleteModal(false);
                   setDeleteTarget(null);
                 }}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+                className="px-4 py-2 text-sm font-medium text-gray-700 border border-gray-300 bg-transparent rounded-2xl hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
               >
                 Cancel
               </button>
@@ -784,7 +777,7 @@ export default function GameLedgerPage() {
                   setShowDeleteModal(false);
                   setDeleteTarget(null);
                 }}
-                className="px-4 py-2 text-sm font-medium text-white bg-red-600 border border-transparent rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                className="px-4 py-2 text-sm font-medium text-white bg-red-600 border border-transparent rounded-2xl hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
               >
                 Delete Record
               </button>
@@ -841,7 +834,7 @@ export default function GameLedgerPage() {
                   setShowSessionDeleteModal(false);
                   setSessionDeleteTarget(null);
                 }}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+                className="px-4 py-2 text-sm font-medium text-gray-700 border border-gray-300 bg-transparent rounded-2xl hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
               >
                 Cancel
               </button>
@@ -851,7 +844,7 @@ export default function GameLedgerPage() {
                   setShowSessionDeleteModal(false);
                   setSessionDeleteTarget(null);
                 }}
-                className="px-4 py-2 text-sm font-medium text-white bg-red-600 border border-transparent rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                className="px-4 py-2 text-sm font-medium text-white bg-red-600 border border-transparent rounded-2xl hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
               >
                 Delete Session
               </button>
@@ -976,13 +969,13 @@ export default function GameLedgerPage() {
                   });
                   setErrorMessage(null);
                 }}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+                className="px-4 py-2 text-sm font-medium text-gray-700 border border-gray-300 bg-transparent rounded-2xl hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
               >
                 Cancel
               </button>
               <button
                 onClick={handleAddRow}
-                className="px-4 py-2 text-sm font-medium text-white bg-green-600 border border-transparent rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                className="px-4 py-2 text-sm font-medium text-white bg-black border border-transparent rounded-2xl hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
               >
                 Add Row
               </button>
@@ -990,7 +983,6 @@ export default function GameLedgerPage() {
           </div>
         </div>
       )}
-      </div>
     </div>
   );
 }

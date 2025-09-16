@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import LiveGameForm from '../components/LiveGameForm';
+import { useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useAdminSession } from '../../../contexts/AdminSessionContext';
 import { useGameTitle } from '../../../shared/hooks/useGameTitle';
+import LiveGameForm from '../components/LiveGameForm';
 
 interface LiveGameData {
   sessionName: string;
@@ -19,7 +19,7 @@ export default function LiveGameIngestPage() {
   const { publicCode } = useParams<{ publicCode: string }>();
   const navigate = useNavigate();
   const { adminCode } = useAdminSession();
-  const { title } = useGameTitle(publicCode || '');
+  const { title: _title } = useGameTitle(publicCode || '');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -69,7 +69,6 @@ export default function LiveGameIngestPage() {
       }, 2000);
 
     } catch (err) {
-      console.error('Error submitting live game:', err);
       setError(err instanceof Error ? err.message : 'An unexpected error occurred');
     } finally {
       setIsLoading(false);
@@ -77,12 +76,12 @@ export default function LiveGameIngestPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
+    <div className="min-h-screen bg-background py-8">
       <div className="max-w-6xl mx-auto px-4">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Submit Live Game Results</h1>
-          <p className="mt-2 text-gray-600">
-            Enter the results from your live poker game for <span className="font-mono bg-gray-100 px-2 py-1 rounded">{title}</span>
+          <h1 className="text-3xl font-bold text-foreground">Submit Live Game Results</h1>
+          <p className="mt-2 text-muted-foreground">
+            Enter the results from your live poker game
           </p>
         </div>
 

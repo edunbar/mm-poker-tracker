@@ -1,4 +1,3 @@
-import React from 'react';
 import { useAdminSession } from '../contexts/AdminSessionContext';
 import { useNavigate, useLocation } from 'react-router-dom';
 
@@ -8,7 +7,7 @@ interface AdminSessionStatusProps {
 }
 
 export default function AdminSessionStatus({ className = '', compact = false }: AdminSessionStatusProps) {
-  const { adminCode, publicCode, hasAdminSession, clearAdminSession } = useAdminSession();
+  const { publicCode, hasAdminSession, clearAdminSession } = useAdminSession();
   const navigate = useNavigate();
   const location = useLocation();
 

@@ -1,10 +1,43 @@
+import {
+  BarChart3,
+  CreditCard,
+  Download,
+  FileText,
+  Home,
+  Receipt,
+  Shield,
+  Users,
+  Zap
+} from "lucide-react";
 import React, { useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
-import { adminNav, publicNav } from "../../features/admin/nav";
 import { useAdminSession } from "../../contexts/AdminSessionContext";
+import { adminNav, publicNav } from "../../features/admin/nav";
+import { useGameTitle } from "../../shared/hooks/useGameTitle";
 
-const ACTIVE = "bg-emerald-600 text-white";
-const INACTIVE = "text-gray-700 hover:bg-gray-50";
+// Icon mapping for navigation items
+const getNavIcon = (label: string) => {
+  switch (label) {
+    case "Game Summary":
+      return <BarChart3 className="w-4 h-4" />;
+    case "Game Ledger":
+      return <Receipt className="w-4 h-4" />;
+    case "PokerNow Import":
+      return <Download className="w-4 h-4" />;
+    case "Live Game Entry":
+      return <Zap className="w-4 h-4" />;
+    case "Player Verification":
+      return <Users className="w-4 h-4" />;
+    case "Payment Ledger":
+      return <CreditCard className="w-4 h-4" />;
+    case "Ledger Analysis":
+      return <BarChart3 className="w-4 h-4" />;
+    case "Audit Log":
+      return <FileText className="w-4 h-4" />;
+    default:
+      return <Home className="w-4 h-4" />;
+  }
+};
 
 function renderPath(path: string, currentPublicCode: string | null) {
   // Replace :publicCode with actual public code from URL or context
@@ -28,7 +61,7 @@ function extractPublicCodeFromPath(pathname: string): string | null {
   if (pathParts.length >= 2) {
     const potentialCode = pathParts[1];
     // Check if it looks like a public code (5 chars, alphanumeric)
-    if (potentialCode.length === 5 && /^[A-Z0-9]+$/.test(potentialCode)) {
+    if (potentialCode && potentialCode.length === 5 && /^[A-Z0-9]+$/.test(potentialCode)) {
       return potentialCode;
     }
   }
@@ -37,7 +70,7 @@ function extractPublicCodeFromPath(pathname: string): string | null {
   if (pathParts.length === 1) {
     // Check if it looks like a public code (5 chars, alphanumeric)
     const potentialCode = pathParts[0];
-    if (potentialCode.length === 5 && /^[A-Z0-9]+$/.test(potentialCode)) {
+    if (potentialCode && potentialCode.length === 5 && /^[A-Z0-9]+$/.test(potentialCode)) {
       return potentialCode;
     }
   }
@@ -54,6 +87,7 @@ export default function Sidebar() {
   // Get public code from URL first (prioritize current page), then fall back to admin session context
   const urlPublicCode = extractPublicCodeFromPath(location.pathname);
   const currentPublicCode = urlPublicCode || contextPublicCode;
+  const { title } = useGameTitle(currentPublicCode || '');
 
   const handleAdminLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -65,92 +99,132 @@ export default function Sidebar() {
   };
 
   return (
-    <nav className="shadow-sm ring-1 ring-gray-100 rounded-lg bg-white p-3">
-      <div className="text-sm font-semibold mb-3">Game Views</div>
-
-      <ul className="space-y-2">
-        {publicNav.map((item) => {
-          const path = renderPath(item.path, currentPublicCode);
-          const isDisabled = !currentPublicCode && item.path.includes(':publicCode');
-          
-          return (
-            <li key={item.path}>
-              {isDisabled ? (
-                <div className="block px-3 py-2 rounded-lg text-sm font-medium text-gray-400 cursor-not-allowed">
-                  {item.label}
+    <nav className="h-full bg-card flex flex-col">
+      {/* Header */}
+      <div className="px-6 py-5">
+        <div className="text-lg font-semibold text-foreground mb-2">{title}</div>
+        {currentPublicCode && (
+          <div className="flex items-center text-sm text-muted-foreground">
+            <span className="font-mono text-primary">{currentPublicCode}</span>
+            {hasAdminSession && (
+              <>
+                <span className="mx-2">•</span>
+                <div className="flex items-center px-2 py-1 bg-primary text-primary-foreground text-xs font-medium rounded-md hover:bg-primary/90 transition-colors duration-150">
+                  <Shield className="w-3 h-3 mr-1" />
+                  Admin
                 </div>
-              ) : (
-                <NavLink
-                  to={path}
-                  className={({ isActive }) =>
-                    `block px-3 py-2 rounded-lg text-sm font-medium ${
-                      isActive ? ACTIVE : INACTIVE
-                    }`
-                  }
-                >
-                  {item.label}
-                </NavLink>
-              )}
-            </li>
-          );
-        })}
-      </ul>
+              </>
+            )}
+          </div>
+        )}
+      </div>
 
-      {hasAdminSession ? (
-        <>
-          <div className="text-sm font-semibold mb-3 mt-6">Admin</div>
-          <ul className="space-y-2">
-            {adminNav.map((item) => {
+      {/* Navigation Content */}
+      <div className="flex-1 overflow-y-auto">
+        <div className="px-3 py-4">
+          
+          {/* Public Navigation */}
+          <div className="space-y-1">
+            {publicNav.map((item) => {
               const path = renderPath(item.path, currentPublicCode);
               const isDisabled = !currentPublicCode && item.path.includes(':publicCode');
+              const icon = getNavIcon(item.label);
               
               return (
-                <li key={item.path}>
+                <div key={item.path}>
                   {isDisabled ? (
-                    <div className="block px-3 py-2 rounded-lg text-sm font-medium text-gray-400 cursor-not-allowed">
+                    <div className="flex items-center px-3 py-2 text-sm text-muted-foreground cursor-not-allowed">
+                      <span className="mr-3 opacity-50">{icon}</span>
                       {item.label}
                     </div>
                   ) : (
                     <NavLink
                       to={path}
-                      className={({ isActive }) =>
-                        `block px-3 py-2 rounded-lg text-sm font-medium ${
-                          isActive ? ACTIVE : INACTIVE
-                        }`
+                      className={({ isActive }) => 
+                        isActive 
+                          ? "flex items-center px-3 py-2 text-sm font-medium text-accent-foreground bg-accent rounded-md"
+                          : "flex items-center px-3 py-2 text-sm font-medium text-foreground rounded-md hover:text-accent-foreground hover:bg-muted transition-colors duration-150"
                       }
                     >
+                      <span className="mr-3">{icon}</span>
                       {item.label}
                     </NavLink>
                   )}
-                </li>
+                </div>
               );
             })}
-          </ul>
-        </>
-      ) : (
-        <div className="mt-6">
+          </div>
+
+          {/* Admin Navigation */}
+          {hasAdminSession && (
+            <>
+              <div className="mt-10 mb-4">
+                <div className="px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                  Admin Tools
+                </div>
+              </div>
+              
+              <div className="space-y-1">
+                {adminNav.map((item) => {
+                  const path = renderPath(item.path, currentPublicCode);
+                  const isDisabled = !currentPublicCode && item.path.includes(':publicCode');
+                  const icon = getNavIcon(item.label);
+                  
+                  return (
+                    <div key={item.path}>
+                      {isDisabled ? (
+                        <div className="flex items-center px-3 py-2 text-sm text-muted-foreground cursor-not-allowed">
+                          <span className="mr-3 opacity-50">{icon}</span>
+                          {item.label}
+                        </div>
+                      ) : (
+                        <NavLink
+                          to={path}
+                          className={({ isActive }) => 
+                            isActive 
+                              ? "flex items-center px-3 py-2 text-sm font-medium text-accent-foreground bg-accent rounded-md"
+                              : "flex items-center px-3 py-2 text-sm font-medium text-foreground rounded-md hover:text-accent-foreground hover:bg-muted transition-colors duration-150"
+                          }
+                        >
+                          <span className="mr-3">{icon}</span>
+                          {item.label}
+                        </NavLink>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Bottom Admin Login Section */}
+      {!hasAdminSession && (
+        <div className="px-3 py-5 border-t border-border bg-muted">
           {!showAdminLogin ? (
             <button
               onClick={() => setShowAdminLogin(true)}
-              className="w-full px-3 py-2 text-sm font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100"
+              className="w-full flex items-center px-3 py-2 text-sm font-medium text-foreground rounded-md hover:text-accent-foreground hover:bg-card transition-colors duration-150"
             >
-              Admin Login
+              <Shield className="w-4 h-4 mr-3" />
+              Admin Access
             </button>
           ) : (
-            <form onSubmit={handleAdminLogin} className="space-y-2">
-              <div className="text-sm font-semibold">Admin Login</div>
+            <form onSubmit={handleAdminLogin} className="space-y-3">
+              <div className="text-sm font-medium text-foreground">Admin Login</div>
               <input
                 type="password"
                 value={adminCode}
                 onChange={(e) => setAdminCode(e.target.value)}
                 placeholder="Enter admin code"
-                className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 text-sm border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring bg-background text-foreground"
                 autoFocus
               />
-              <div className="flex gap-1">
+              <div className="flex space-x-2">
                 <button
                   type="submit"
-                  className="flex-1 px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
+                  className="flex-1 px-3 py-2 text-xs font-medium text-primary-foreground bg-primary rounded-md hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-ring"
                 >
                   Login
                 </button>
@@ -160,7 +234,7 @@ export default function Sidebar() {
                     setShowAdminLogin(false);
                     setAdminCode('');
                   }}
-                  className="flex-1 px-2 py-1 text-xs bg-gray-500 text-white rounded hover:bg-gray-600"
+                  className="flex-1 px-3 py-2 text-xs font-medium text-muted-foreground bg-background border border-input rounded-md hover:bg-accent focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-ring"
                 >
                   Cancel
                 </button>

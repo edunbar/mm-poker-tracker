@@ -15,13 +15,6 @@ const GameSummaryTiles: React.FC<GameSummaryTilesProps> = ({
   cashOutTotal,
   net,
 }) => {
-  const accent = net === 0 ? "ok" : net > 0 ? "pos" : "neg";
-  const accentMap: Record<string, string> = {
-    ok: "bg-emerald-50 text-emerald-700 ring-emerald-200",
-    pos: "bg-emerald-50 text-emerald-700 ring-emerald-200",
-    neg: "bg-red-50 text-red-700 ring-red-200",
-    base: "bg-white text-gray-900 ring-gray-200",
-  };
 
   return (
     <div className="bg-white rounded-lg border shadow-sm">

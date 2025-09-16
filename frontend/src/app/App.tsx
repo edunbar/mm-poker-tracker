@@ -1,8 +1,7 @@
-import React from "react";
 import { BrowserRouter as Router } from "react-router-dom";
+import { AdminSessionProvider } from "../contexts/AdminSessionContext";
 import MainLayout from "./layout/MainLayout";
 import AppRoutes from "./routes";
-import { AdminSessionProvider } from "../contexts/AdminSessionContext";
 
 export default function App() {
   return (

@@ -4,7 +4,7 @@ from flask import Blueprint, request, jsonify
 import logging
 from services.transaction_service import get_game_transactions
 from services.session_ingestion_service import ingest_session
-from services.game_summary_service import get_player_summaries
+from services.game_summary_service import get_player_summaries, get_player_analytics, get_session_extremes
 from services.ledger_service import (
     get_all_session_summaries,
     get_session_summary,
@@ -255,6 +255,30 @@ def players_summary(public_code: str):
     title = result.get("title")
     rows = result.get("rows", [])
     return jsonify({"game": public_code, "title": title, "rows": rows})
+
+@game_bp.get("/<public_code>/analytics")
+def players_analytics(public_code: str):
+    """
+    Get advanced player analytics including streak calculations.
+    """
+    try:
+        result = get_player_analytics(public_code)
+        return jsonify(result)
+    except Exception as e:
+        logging.error(f"Error fetching player analytics: {e}")
+        return jsonify({"error": "Failed to fetch analytics"}), 500
+
+@game_bp.get("/<public_code>/session-extremes")
+def players_session_extremes(public_code: str):
+    """
+    Get the actual best and worst single session performances.
+    """
+    try:
+        result = get_session_extremes(public_code)
+        return jsonify(result)
+    except Exception as e:
+        logging.error(f"Error fetching session extremes: {e}")
+        return jsonify({"error": "Failed to fetch session extremes"}), 500
 
 @game_bp.get("/<public_code>/ledger")
 def get_ledger(public_code: str):
@@ -1056,7 +1080,7 @@ def update_session_player_values(public_code: str, session_id: str, player_id: s
                 return jsonify({"error": "Invalid admin code"}), 403
 
             # Verify the session exists and belongs to this game
-            session = db.query(Session).filter_by(
+            session = db.query(SessionModel).filter_by(
                 id=session_id,
                 game_id=game.id
             ).first()

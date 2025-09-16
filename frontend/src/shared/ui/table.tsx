@@ -1,5 +1,5 @@
 import * as React from "react";
-import { cn } from "../lib/cn";
+import { cn } from "../../lib/utils";
 
 /**
  * Minimal shadcn-style table primitives for CRA + React 17.
@@ -12,7 +12,7 @@ export function Table({
 }: React.HTMLAttributes<HTMLTableElement>) {
   return (
     <table
-      className={cn("w-full caption-bottom text-sm", className)}
+      className={cn("w-full caption-bottom text-sm text-foreground", className)}
       {...props}
     />
   );
@@ -23,7 +23,7 @@ export function TableHeader({
   ...props
 }: React.HTMLAttributes<HTMLTableSectionElement>) {
   return (
-    <thead className={cn("[&_tr]:border-b bg-gray-50", className)} {...props} />
+    <thead className={cn("[&_tr]:border-b bg-muted", className)} {...props} />
   );
 }
 
@@ -41,7 +41,7 @@ export function TableFooter({
   ...props
 }: React.HTMLAttributes<HTMLTableSectionElement>) {
   return (
-    <tfoot className={cn("bg-gray-50 font-medium", className)} {...props} />
+    <tfoot className={cn("bg-muted font-medium", className)} {...props} />
   );
 }
 
@@ -51,7 +51,7 @@ export function TableRow({
 }: React.HTMLAttributes<HTMLTableRowElement>) {
   return (
     <tr
-      className={cn("border-b transition-colors hover:bg-gray-50", className)}
+      className={cn("border-b border-border transition-colors hover:bg-accent hover:text-accent-foreground", className)}
       {...props}
     />
   );
@@ -64,7 +64,7 @@ export function TableHead({
   return (
     <th
       className={cn(
-        "h-10 px-3 text-left align-middle font-medium text-gray-600",
+        "h-10 px-3 text-left align-middle font-medium text-muted-foreground",
         className
       )}
       {...props}
@@ -78,7 +78,7 @@ export function TableCell({
 }: React.TdHTMLAttributes<HTMLTableCellElement>) {
   return (
     <td
-      className={cn("p-3 align-middle text-gray-900", className)}
+      className={cn("p-3 align-middle text-foreground", className)}
       {...props}
     />
   );
@@ -90,7 +90,7 @@ export function TableCaption({
 }: React.HTMLAttributes<HTMLTableCaptionElement>) {
   return (
     <caption
-      className={cn("mt-2 text-xs text-gray-500", className)}
+      className={cn("mt-2 text-xs text-muted-foreground", className)}
       {...props}
     />
   );

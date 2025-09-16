@@ -1,6 +1,6 @@
+import { Calculator, Plus, Trash2 } from 'lucide-react';
 import React, { useState } from 'react';
 import { Button } from '../../../shared/ui/button';
-import { Plus, Trash2, Calculator } from 'lucide-react';
 import { HelpTooltip } from '../../../shared/ui/help-tooltip';
 
 interface Player {
@@ -125,47 +125,47 @@ export default function LiveGameForm({ onSubmit, isLoading }: LiveGameFormProps)
 
   return (
     <div className="space-y-6">
-      <div className="bg-white rounded-lg border shadow-sm">
+      <div className="bg-card text-card-foreground rounded-lg border border-border shadow-sm">
         <div className="border-b p-4">
           <h3 className="text-lg font-semibold">Live Game Details</h3>
         </div>
         <div className="p-4 space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
-              <label htmlFor="sessionName" className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="sessionName" className="block text-sm font-medium text-foreground mb-1">
                 Session Name *
               </label>
               <input
                 id="sessionName"
                 type="text"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring bg-background text-foreground"
                 value={sessionName}
                 onChange={(e) => setSessionName(e.target.value)}
                 placeholder="e.g., Thursday Night Game #15"
               />
             </div>
             <div>
-              <label htmlFor="gameNumber" className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
+              <label htmlFor="gameNumber" className="block text-sm font-medium text-foreground mb-1 flex items-center gap-2">
                 Game Number (optional)
                 <HelpTooltip content="Game number will be auto-assigned if left empty" />
               </label>
               <input
                 id="gameNumber"
                 type="number"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring bg-background text-foreground"
                 value={gameNumber}
                 onChange={(e) => setGameNumber(e.target.value)}
                 placeholder="Auto-assigned if empty"
               />
             </div>
             <div>
-              <label htmlFor="date" className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="date" className="block text-sm font-medium text-foreground mb-1">
                 Date (optional)
               </label>
               <input
                 id="date"
                 type="datetime-local"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring bg-background text-foreground"
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
               />
@@ -174,7 +174,7 @@ export default function LiveGameForm({ onSubmit, isLoading }: LiveGameFormProps)
         </div>
       </div>
 
-      <div className="bg-white rounded-lg border shadow-sm">
+      <div className="bg-card text-card-foreground rounded-lg border border-border shadow-sm">
         <div className="border-b p-4 flex flex-row items-center justify-between">
           <h3 className="text-lg font-semibold flex items-center gap-2">
             Players
@@ -187,7 +187,7 @@ export default function LiveGameForm({ onSubmit, isLoading }: LiveGameFormProps)
         </div>
         <div className="p-4">
           <div className="space-y-4">
-            <div className="grid grid-cols-4 gap-2 font-medium text-sm text-gray-600">
+            <div className="grid grid-cols-4 gap-2 font-medium text-sm text-muted-foreground">
               <div>Player Name</div>
               <div className="flex items-center gap-2">
                 Buy In ($)
@@ -231,13 +231,13 @@ export default function LiveGameForm({ onSubmit, isLoading }: LiveGameFormProps)
                     placeholder="0.00"
                   />
                   <div className="flex items-center gap-2">
-                    <span className={`font-mono ${net >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    <span className={`font-mono ${net >= 0 ? 'text-success' : 'text-destructive'}`}>
                       {net >= 0 ? '+' : ''}${net.toFixed(2)}
                     </span>
                     {players.length > 2 && (
                       <button
                         type="button"
-                        className="p-1 text-gray-400 hover:text-red-600 transition-colors"
+                        className="p-1 text-muted-foreground hover:text-destructive transition-colors"
                         onClick={() => removePlayer(player.id)}
                       >
                         <Trash2 className="h-4 w-4" />
@@ -251,7 +251,7 @@ export default function LiveGameForm({ onSubmit, isLoading }: LiveGameFormProps)
         </div>
       </div>
 
-      <div className="bg-white rounded-lg border shadow-sm">
+      <div className="bg-card text-card-foreground rounded-lg border border-border shadow-sm">
         <div className="border-b p-4">
           <h3 className="text-lg font-semibold flex items-center gap-2">
             <Calculator className="h-5 w-5" />
@@ -261,27 +261,27 @@ export default function LiveGameForm({ onSubmit, isLoading }: LiveGameFormProps)
         <div className="p-4">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
             <div>
-              <div className="text-gray-600">Total Buy-ins</div>
+              <div className="text-muted-foreground">Total Buy-ins</div>
               <div className="font-mono text-lg">${totals.totalBuyIn.toFixed(2)}</div>
             </div>
             <div>
-              <div className="text-gray-600">Total Cash-outs</div>
+              <div className="text-muted-foreground">Total Cash-outs</div>
               <div className="font-mono text-lg">${totals.totalCashOut.toFixed(2)}</div>
             </div>
             <div>
-              <div className="text-gray-600 flex items-center gap-2">
+              <div className="text-muted-foreground flex items-center gap-2">
                 Balance
                 <HelpTooltip content="The balance should equal 0 if all money is accounted for" />
               </div>
-              <div className={`font-mono text-lg ${isBalanced ? 'text-green-600' : 'text-red-600'}`}>
+              <div className={`font-mono text-lg ${isBalanced ? 'text-success' : 'text-destructive'}`}>
                 {totals.balance >= 0 ? '+' : ''}${totals.balance.toFixed(2)}
               </div>
             </div>
           </div>
           
           {!isBalanced && (
-            <div className="mt-4 p-4 bg-yellow-50 border-l-4 border-yellow-400 rounded">
-              <p className="text-yellow-800">
+            <div className="mt-4 p-4 bg-sophisticated-gold-extralight border-l-4 border-sophisticated-gold rounded">
+              <p className="text-sophisticated-gold-deep">
                 ⚠️ Session doesn't balance. Total cash-outs should equal total buy-ins.
                 {Math.abs(totals.balance) > 0.01 && ` Difference: $${Math.abs(totals.balance).toFixed(2)}`}
               </p>
@@ -292,7 +292,7 @@ export default function LiveGameForm({ onSubmit, isLoading }: LiveGameFormProps)
 
       {errors.length > 0 && (
         <div className="p-4 bg-red-50 border-l-4 border-red-400 rounded">
-          <ul className="list-disc list-inside space-y-1 text-red-800">
+          <ul className="list-disc list-inside space-y-1 text-destructive">
             {errors.map((error, index) => (
               <li key={index}>{error}</li>
             ))}

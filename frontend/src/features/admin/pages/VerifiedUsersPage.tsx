@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
 import axios from 'axios';
+import { useEffect, useState } from 'react';
+import { useParams } from 'react-router-dom';
 import { useAdminSession } from '../../../contexts/AdminSessionContext';
 import { useToast } from '../../../contexts/ToastContext';
 import { useGameTitle } from '../../../shared/hooks/useGameTitle';
@@ -55,9 +55,9 @@ interface DuplicateDetection {
 
 export default function VerifiedUsersPage() {
   const { publicCode } = useParams<{ publicCode: string }>();
-  const { adminCode: sessionAdminCode, hasAdminSession } = useAdminSession();
-  const { showSuccess, showError } = useToast();
-  const { title } = useGameTitle(publicCode || '');
+  const { adminCode: sessionAdminCode, hasAdminSession: _hasAdminSession } = useAdminSession();
+  const { showSuccess: _showSuccess, showError } = useToast();
+  const { title: _title } = useGameTitle(publicCode || '');
   const [data, setData] = useState<VerificationData | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'unverified' | 'verified'>('unverified');
@@ -87,7 +87,6 @@ export default function VerifiedUsersPage() {
       const response = await axios.get(`http://localhost:8000/api/games/${publicCode}/players/verification`);
       setData(response.data);
     } catch (error) {
-      console.error('Error fetching verification data:', error);
     } finally {
       setLoading(false);
     }
@@ -128,7 +127,6 @@ export default function VerifiedUsersPage() {
         setDuplicateDetection(null);
       }
     } catch (error) {
-      console.error('Error checking for duplicates:', error);
       setDuplicateDetection(null);
     }
   };
@@ -181,7 +179,6 @@ export default function VerifiedUsersPage() {
       setSelectedMergeTargets([]);
       fetchVerificationData();
     } catch (error) {
-      console.error('Error merging players:', error);
       showError('Merge Failed', 'Failed to merge players. Please check your admin code.');
     } finally {
       setModalLoading(false);
@@ -227,7 +224,6 @@ export default function VerifiedUsersPage() {
       setSelectedMergeTargets([]);
       fetchVerificationData();
     } catch (error) {
-      console.error('Error saving player:', error);
       showError('Save Failed', 'Failed to save player. Please check your admin code.');
     } finally {
       setModalLoading(false);
@@ -250,16 +246,17 @@ export default function VerifiedUsersPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 py-8">
+      <div className="min-h-screen bg-background py-8">
         <div className="max-w-6xl mx-auto px-4">
           <div className="mb-8">
-            <h1 className="text-3xl font-bold text-gray-900">Player Verification</h1>
-            <p className="mt-2 text-gray-600">
-              Game <span className="font-mono bg-gray-100 px-2 py-1 rounded">{title}</span>
+            <h1 className="text-3xl font-semibold text-foreground">Player Verification</h1>
+            <p className="mt-2 text-muted-foreground">
+              Manage and verify player identities
             </p>
           </div>
-          <div className="bg-white rounded-lg border shadow-sm p-12 text-center">
-            Loading verification data...
+          <div className="card-stripe p-12 text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4" />
+            <p className="text-muted-foreground">Loading verification data...</p>
           </div>
         </div>
       </div>
@@ -267,36 +264,36 @@ export default function VerifiedUsersPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
+    <div className="min-h-screen bg-background py-8">
       <div className="max-w-6xl mx-auto px-4">
         
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Player Verification</h1>
-          <p className="mt-2 text-gray-600">
-            Manage and verify player identities for game <span className="font-mono bg-gray-100 px-2 py-1 rounded">{title}</span>
+          <h1 className="text-3xl font-semibold text-foreground">Player Verification</h1>
+          <p className="mt-2 text-muted-foreground">
+            Manage and verify player identities
           </p>
         </div>
       
       <div className="space-y-6">
         {/* Tabs */}
-        <div className="border-b border-gray-200">
+        <div className="border-b border-border">
           <nav className="-mb-px flex space-x-8">
             <button
               onClick={() => setActiveTab('unverified')}
-              className={`py-2 px-1 border-b-2 font-medium text-sm ${
+              className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
                 activeTab === 'unverified'
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  ? 'border-primary text-primary'
+                  : 'border-transparent text-muted-foreground hover:text-foreground hover:border-muted-foreground'
               }`}
             >
               Unverified Players ({data?.unverified_count || 0})
             </button>
             <button
               onClick={() => setActiveTab('verified')}
-              className={`py-2 px-1 border-b-2 font-medium text-sm ${
+              className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
                 activeTab === 'verified'
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  ? 'border-primary text-primary'
+                  : 'border-transparent text-muted-foreground hover:text-foreground hover:border-muted-foreground'
               }`}
             >
               Verified Players ({data?.verified_count || 0})
@@ -306,47 +303,46 @@ export default function VerifiedUsersPage() {
 
         
         {/* Table */}
-        <div className="bg-white rounded-lg border shadow-sm">
-          <div className="overflow-x-auto">
+        <div className="overflow-auto rounded-xl border border-border bg-card">
             <table className="min-w-full">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <thead className="bg-card border-b border-border">
+              <tr className="border-b border-border">
+                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                   {activeTab === 'unverified' ? 'Display Name' : 'Verified Name'}
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                   External ID
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                   Sessions
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                   Actions
                 </th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+            <tbody className="bg-card">
               {loading ? (
                 <tr>
-                  <td colSpan={4} className="px-6 py-12 text-center text-gray-500">
+                  <td colSpan={4} className="px-6 py-12 text-center text-muted-foreground">
                     Loading players...
                   </td>
                 </tr>
               ) : currentPlayers.map((player) => (
-                <tr key={player.player_id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                <tr key={player.player_id} className="border-b border-border hover:bg-accent/50">
+                  <td className="px-6 py-4 font-medium text-foreground">
                     {player.display_name}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  <td className="px-6 py-4 text-foreground">
                     {player.external_id || '-'}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  <td className="px-6 py-4 text-foreground">
                     {player.session_count}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                  <td className="px-6 py-4">
                     <button
                       onClick={() => handleEdit(player, activeTab === 'verified')}
-                      className="text-blue-600 hover:text-blue-900"
+                      className="px-3 py-1.5 text-sm font-medium bg-secondary text-secondary-foreground rounded-md hover:bg-secondary/80 focus:outline-none focus:ring-2 focus:ring-ring"
                     >
                       Edit
                     </button>
@@ -355,12 +351,11 @@ export default function VerifiedUsersPage() {
               ))}
             </tbody>
           </table>
-          </div>
         </div>
 
         {!loading && currentPlayers.length === 0 && (
-          <div className="bg-white rounded-lg border shadow-sm p-12 text-center">
-            <p className="text-gray-500">
+          <div className="bg-card text-card-foreground rounded-lg border border-border shadow-sm p-12 text-center">
+            <p className="text-muted-foreground">
               No {activeTab} players found.
             </p>
           </div>
@@ -430,14 +425,14 @@ export default function VerifiedUsersPage() {
               
               {/* Duplicate Detection Section */}
               {duplicateDetection && duplicateDetection.match_count > 0 && (
-                <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                <div className="p-4 bg-sophisticated-gold-extralight border border-sophisticated-gold rounded-lg">
                   <div className="flex items-center mb-3">
-                    <div className="text-yellow-600 mr-2">⚠️</div>
-                    <h4 className="font-medium text-yellow-800">
+                    <div className="text-sophisticated-gold mr-2">⚠️</div>
+                    <h4 className="font-medium text-sophisticated-gold-deep">
                       Found {duplicateDetection.match_count} potential match{duplicateDetection.match_count > 1 ? 'es' : ''} for '{duplicateDetection.verified_name}'
                     </h4>
                   </div>
-                  <p className="text-sm text-yellow-700 mb-3">
+                  <p className="text-sm text-sophisticated-gold-deep mb-3">
                     Do you want to merge these players? This will combine all their session data.
                   </p>
                   
@@ -526,7 +521,7 @@ export default function VerifiedUsersPage() {
               <button
                 onClick={handleSave}
                 disabled={modalLoading || !verifiedName.trim() || (!editingPlayer.is_verified && !externalId.trim())}
-                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+                className="px-4 py-2 text-sm font-medium text-white bg-black border border-transparent rounded-2xl hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50"
               >
                 {modalLoading ? (
                   selectedMergeTargets.length > 0 ? 'Merging...' : 'Saving...'
@@ -558,7 +553,7 @@ export default function VerifiedUsersPage() {
               </button>
               <button
                 onClick={executeMerge}
-                className="px-4 py-2 text-sm font-medium text-white bg-red-600 border border-transparent rounded-lg hover:bg-red-700"
+                className="px-4 py-2 text-sm font-medium text-white bg-red-600 border border-transparent rounded-2xl hover:bg-red-700"
               >
                 Confirm Merge
               </button>

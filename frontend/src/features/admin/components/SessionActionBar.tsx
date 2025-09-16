@@ -1,4 +1,3 @@
-import React from "react";
 import { Upload, Loader2, CheckCircle2 } from "lucide-react";
 
 interface GameActionBarProps {

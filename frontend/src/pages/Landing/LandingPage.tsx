@@ -49,11 +49,9 @@ export default function LandingPage() {
 
       setCreatedGame(result);
       // Clear any existing session and set new admin session
-      console.log('Setting new admin session:', result.public_code, result.admin_code.substring(0, 10) + '...');
       setAdminSession(result.admin_code, result.public_code);
 
     } catch (err) {
-      console.error('Error creating game:', err);
       setError(err instanceof Error ? err.message : 'An unexpected error occurred');
     } finally {
       setIsLoading(false);
@@ -77,60 +75,60 @@ export default function LandingPage() {
   // Success modal for game creation
   if (createdGame) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center py-12 px-4">
+      <div className="min-h-screen bg-background flex items-center justify-center py-12 px-4">
         <div className="max-w-lg w-full">
-          <div className="bg-white rounded-lg border shadow-sm p-8">
+          <div className="bg-card text-card-foreground rounded-lg border border-border shadow-sm p-8">
             <div className="text-center mb-6">
               <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100 mb-4">
                 <svg className="h-6 w-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
               </div>
-              <h1 className="text-2xl font-bold text-gray-900">Game Created Successfully! 🎉</h1>
-              <p className="mt-2 text-gray-600">Your new poker game is ready to use</p>
+              <h1 className="text-2xl font-bold text-foreground">Game Created Successfully! 🎉</h1>
+              <p className="mt-2 text-muted-foreground">Your new poker game is ready to use</p>
             </div>
             
             <div className="space-y-4 mb-6">
               <div className="bg-gray-50 p-4 rounded-lg">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-foreground mb-2">
                   Public Code (Share with players)
                 </label>
                 <div className="flex items-center space-x-2">
-                  <code className="flex-1 bg-white px-3 py-2 border border-gray-300 rounded font-mono text-lg font-bold text-center">
+                  <code className="flex-1 bg-background px-3 py-2 border border-input rounded font-mono text-lg font-bold text-center">
                     {createdGame.public_code}
                   </code>
                   <button
                     onClick={() => navigator.clipboard.writeText(createdGame.public_code)}
-                    className="px-3 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
+                    className="px-3 py-2 text-sm bg-black text-white rounded-2xl hover:opacity-90"
                   >
                     Copy
                   </button>
                 </div>
               </div>
               
-              <div className="bg-yellow-50 p-4 rounded-lg">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+              <div className="bg-sophisticated-gold-extralight p-4 rounded-lg">
+                <label className="block text-sm font-medium text-foreground mb-2">
                   Admin Code (Keep secret!)
                 </label>
                 <div className="flex items-center space-x-2">
-                  <code className="flex-1 bg-white px-3 py-2 border border-gray-300 rounded font-mono text-sm break-all">
+                  <code className="flex-1 bg-background px-3 py-2 border border-input rounded font-mono text-sm break-all">
                     {createdGame.admin_code}
                   </code>
                   <button
                     onClick={() => navigator.clipboard.writeText(createdGame.admin_code)}
-                    className="px-3 py-2 text-sm bg-yellow-600 text-white rounded hover:bg-yellow-700"
+                    className="px-3 py-2 text-sm bg-black text-white rounded-2xl hover:opacity-90"
                   >
                     Copy
                   </button>
                 </div>
-                <p className="mt-2 text-xs text-yellow-700">
+                <p className="mt-2 text-xs text-sophisticated-gold-deep">
                   ⚠️ Save this admin code! You'll need it to manage sessions and import data.
                 </p>
               </div>
               
               {createdGame.title && (
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                <div className="bg-muted p-4 rounded-lg">
+                  <label className="block text-sm font-medium text-foreground mb-2">
                     Game Title
                   </label>
                   <p className="text-gray-900">{createdGame.title}</p>
@@ -141,13 +139,13 @@ export default function LandingPage() {
             <div className="flex space-x-3">
               <button
                 onClick={handleGoToGame}
-                className="flex-1 px-4 py-2 bg-blue-600 text-white font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                className="flex-1 px-4 py-2 bg-black text-white font-medium rounded-2xl hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2"
               >
                 Go to Game
               </button>
               <button
                 onClick={handleCreateAnother}
-                className="flex-1 px-4 py-2 bg-gray-200 text-gray-900 font-medium rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
+                className="flex-1 px-4 py-2 border border-gray-300 bg-transparent text-gray-900 font-medium rounded-2xl hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2"
               >
                 Create Another
               </button>
@@ -159,12 +157,12 @@ export default function LandingPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center py-12 px-4">
+    <div className="min-h-screen bg-background flex items-center justify-center py-12 px-4">
       <div className="max-w-md w-full">
         <div className="bg-white rounded-lg border shadow-sm p-8">
           <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-gray-900">🃏 HomeGame</h1>
-            <p className="mt-2 text-gray-600">Create a new game or join an existing one</p>
+            <h1 className="text-3xl font-bold text-foreground">🃏 HomeGame</h1>
+            <p className="mt-2 text-muted-foreground">Create a new game or join an existing one</p>
           </div>
           
           {/* Mode Toggle */}
@@ -211,7 +209,7 @@ export default function LandingPage() {
                   type="text"
                   value={gameId}
                   onChange={(e) => setGameId(e.target.value.toUpperCase())}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono text-center text-lg"
+                  className="w-full px-3 py-2 border border-input bg-background text-foreground rounded-md focus:outline-none focus:ring-2 focus:ring-ring font-mono text-center text-lg"
                   placeholder="e.g., C4QROK"
                   required
                 />
@@ -226,7 +224,7 @@ export default function LandingPage() {
                   type="password"
                   value={adminId}
                   onChange={(e) => setAdminId(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-input bg-background text-foreground rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
                   placeholder="Enter admin code for management access"
                 />
                 <p className="mt-1 text-sm text-gray-500">
@@ -236,7 +234,7 @@ export default function LandingPage() {
               
               <button
                 type="submit"
-                className="w-full px-4 py-2 bg-blue-600 text-white font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                className="w-full px-4 py-2 bg-black text-white font-medium rounded-2xl hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2"
               >
                 Join Game
               </button>
@@ -252,7 +250,7 @@ export default function LandingPage() {
                   type="text"
                   value={gameTitle}
                   onChange={(e) => setGameTitle(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                  className="w-full px-3 py-2 border border-input bg-background text-foreground rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
                   placeholder="e.g., Thursday Night Home Game"
                   maxLength={100}
                 />
@@ -264,7 +262,7 @@ export default function LandingPage() {
               <button
                 type="submit"
                 disabled={isLoading}
-                className="w-full px-4 py-2 bg-green-600 text-white font-medium rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full px-4 py-2 bg-black text-white font-medium rounded-2xl hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isLoading ? 'Creating Game...' : 'Create New Game'}
               </button>

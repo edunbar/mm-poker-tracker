@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
 
 interface AdminSessionContextType {
   adminCode: string | null;
@@ -30,8 +30,7 @@ export function AdminSessionProvider({ children }: AdminSessionProviderProps) {
           setAdminCode(savedAdminCode);
           setPublicCode(savedPublicCode);
         }
-      } catch (error) {
-        console.error('Failed to parse admin session:', error);
+      } catch {
         localStorage.removeItem(ADMIN_SESSION_KEY);
       }
     }

@@ -2,6 +2,7 @@
 // Add new admin pages here with a display label and a route path.
 export const publicNav = [
   { label: "Game Summary", path: "/summary/:publicCode" },
+  { label: "Advanced Analytics", path: "/analytics/:publicCode" },
   { label: "Game Ledger", path: "/ledger/:publicCode" },
 ];
 

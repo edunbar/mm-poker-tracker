@@ -40,15 +40,15 @@ export const ToastProvider: React.FC<ToastProviderProps> = ({ children }) => {
   }, [removeToast]);
 
   const showSuccess = useCallback((title: string, message: string, duration?: number) => {
-    showToast({ type: 'success', title, message, duration });
+    showToast({ type: 'success', title, message, ...(duration !== undefined && { duration }) });
   }, [showToast]);
 
   const showError = useCallback((title: string, message: string, duration?: number) => {
-    showToast({ type: 'error', title, message, duration });
+    showToast({ type: 'error', title, message, ...(duration !== undefined && { duration }) });
   }, [showToast]);
 
   const showInfo = useCallback((title: string, message: string, duration?: number) => {
-    showToast({ type: 'info', title, message, duration });
+    showToast({ type: 'info', title, message, ...(duration !== undefined && { duration }) });
   }, [showToast]);
 
   return (

@@ -1,5 +1,5 @@
+import { AlertCircle, CheckCircle2, Info, X } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
-import { CheckCircle2, AlertCircle, X, Info } from 'lucide-react';
 
 export interface ToastProps {
   id: string;
@@ -44,44 +44,44 @@ export const Toast: React.FC<ToastProps> = ({
   const getIcon = () => {
     switch (type) {
       case 'success':
-        return <CheckCircle2 className="w-5 h-5 text-green-600" />;
+        return <CheckCircle2 className="w-5 h-5 text-success" />;
       case 'error':
-        return <AlertCircle className="w-5 h-5 text-red-600" />;
+        return <AlertCircle className="w-5 h-5 text-destructive" />;
       case 'info':
-        return <Info className="w-5 h-5 text-blue-600" />;
+        return <Info className="w-5 h-5 text-info" />;
     }
   };
 
   const getBackgroundColor = () => {
     switch (type) {
       case 'success':
-        return 'bg-green-50 border-green-200';
+        return 'bg-success/10 border-success/20';
       case 'error':
-        return 'bg-red-50 border-red-200';
+        return 'bg-destructive/10 border-destructive/20';
       case 'info':
-        return 'bg-blue-50 border-blue-200';
+        return 'bg-info/10 border-info/20';
     }
   };
 
   const getTitleColor = () => {
     switch (type) {
       case 'success':
-        return 'text-green-800';
+        return 'text-success';
       case 'error':
-        return 'text-red-800';
+        return 'text-destructive';
       case 'info':
-        return 'text-blue-800';
+        return 'text-info';
     }
   };
 
   const getMessageColor = () => {
     switch (type) {
       case 'success':
-        return 'text-green-700';
+        return 'text-success';
       case 'error':
-        return 'text-red-700';
+        return 'text-destructive';
       case 'info':
-        return 'text-blue-700';
+        return 'text-info';
     }
   };
 
@@ -111,10 +111,10 @@ export const Toast: React.FC<ToastProps> = ({
               <button
                 className={`inline-flex rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 ${
                   type === 'success'
-                    ? 'text-green-400 hover:text-green-500 focus:ring-green-500'
+                    ? 'text-success/60 hover:text-success focus:ring-success'
                     : type === 'error'
-                    ? 'text-red-400 hover:text-red-500 focus:ring-red-500'
-                    : 'text-blue-400 hover:text-blue-500 focus:ring-blue-500'
+                    ? 'text-destructive/60 hover:text-destructive focus:ring-destructive'
+                    : 'text-info/60 hover:text-info focus:ring-info'
                 }`}
                 onClick={handleExit}
               >
