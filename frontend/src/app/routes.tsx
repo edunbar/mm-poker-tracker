@@ -9,6 +9,7 @@ import GameIngestPage from "../features/admin/pages/SessionIngestPage";
 import VerifiedUsersPage from "../features/admin/pages/VerifiedUsersPage";
 import AdvancedAnalyticsPage from "../features/game/pages/AdvancedAnalyticsPage";
 import GameSummaryPage from "../features/game/pages/GameSummaryPage";
+import RuleBookPage from "../features/rules/pages/RuleBookPage";
 import LandingPage from "../pages/Landing/LandingPage";
 
 export default function AppRoutes() {
@@ -33,6 +34,7 @@ export default function AppRoutes() {
         </ProtectedRoute>
       } />
       <Route path="/summary/:publicCode" element={<GameSummaryPageWrapper />} />
+      <Route path="/rules/:publicCode" element={<RuleBookPageWrapper />} />
       <Route path="/analytics/:publicCode" element={<AdvancedAnalyticsPageWrapper />} />
       <Route path="/ledger-analysis/:publicCode" element={
         <ProtectedRoute requireAdmin={true}>
@@ -56,6 +58,11 @@ export default function AppRoutes() {
 function GameSummaryPageWrapper() {
   const { publicCode } = useParams();
   return <GameSummaryPage publicCode={publicCode || ""} />;
+}
+
+function RuleBookPageWrapper() {
+  const { publicCode } = useParams();
+  return <RuleBookPage publicCode={publicCode || ""} />;
 }
 
 function AdvancedAnalyticsPageWrapper() {

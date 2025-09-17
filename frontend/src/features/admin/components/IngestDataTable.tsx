@@ -1,6 +1,9 @@
 import { AlertTriangle, CheckCircle2, Trash2 } from "lucide-react";
 import React, { useEffect, useMemo, useState } from "react";
+import { API_BASE_URL } from "../../../config/api";
 import { PlayerInfo } from "../../../entities/game/types";
+import { Button } from "../../../shared/ui/button";
+import { Input } from "../../../shared/ui/input";
 import {
   Table,
   TableBody,
@@ -42,7 +45,7 @@ const GameDataTable: React.FC<GameDataTableProps> = ({
       if (externalIds.length === 0) return;
 
       try {
-        const response = await fetch(`http://localhost:8000/api/games/${publicCode}/players/check-verification-status`, {
+        const response = await fetch(`${API_BASE_URL}/api/games/${publicCode}/players/check-verification-status`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -158,20 +161,24 @@ const GameDataTable: React.FC<GameDataTableProps> = ({
                 className=""
               >
                 <TableCell>
-                  <input
+                  <Input
                     type="text"
                     value={player.id}
-                    className="w-full bg-transparent text-foreground outline-none border border-transparent focus:border-input rounded-lg px-2 py-1 text-sm"
+                    variant="ghost"
+                    size="sm"
+                    className="w-full bg-transparent"
                     onChange={(e) =>
                       handleChange(player.originalIdx, "id", e.target.value)
                     }
                   />
                 </TableCell>
                 <TableCell>
-                  <input
+                  <Input
                     type="text"
                     value={player.validated_name || ""}
-                    className="w-full bg-transparent text-foreground outline-none border border-transparent focus:border-input rounded-lg px-2 py-1 text-sm"
+                    variant="ghost"
+                    size="sm"
+                    className="w-full bg-transparent"
                     onChange={(e) =>
                       handleChange(
                         player.originalIdx,
@@ -216,28 +223,28 @@ const GameDataTable: React.FC<GameDataTableProps> = ({
                   </div>
                 </TableCell>
                 <TableCell>
-                  <input
+                  <Input
                     type="text"
                     value={
                       Array.isArray(player.names)
                         ? player.names.join(", ")
                         : player.names
                     }
-                    className="w-full bg-transparent text-foreground outline-none border border-transparent focus:border-input rounded-lg px-2 py-1 text-sm"
+                    variant="ghost"
+                    size="sm"
+                    className="w-full bg-transparent"
                     onChange={(e) =>
                       handleChange(player.originalIdx, "names", e.target.value)
                     }
                   />
                 </TableCell>
                 <TableCell className="text-right">
-                  <input
+                  <Input
                     type="number"
                     value={player.buyInSum as any}
-                    className={`w-full text-right bg-transparent text-foreground outline-none border rounded-lg px-2 py-1 text-sm ${
-                      !isNumeric(player.buyInSum)
-                        ? "border-destructive focus:border-destructive"
-                        : "border-transparent focus:border-input"
-                    }`}
+                    variant={!isNumeric(player.buyInSum) ? "error" : "ghost"}
+                    size="sm"
+                    className="w-full text-right bg-transparent"
                     onChange={(e) =>
                       handleChange(
                         player.originalIdx,
@@ -248,20 +255,18 @@ const GameDataTable: React.FC<GameDataTableProps> = ({
                   />
                 </TableCell>
                 <TableCell className="text-right">
-                  <input
+                  <Input
                     type="number"
                     value={
                       player.buyOutSum === 0 ? player.inGame : player.buyOutSum
                     }
-                    className={`w-full text-right bg-transparent text-foreground outline-none border rounded-lg px-2 py-1 text-sm ${
-                      !isNumeric(
-                        player.buyOutSum === 0
-                          ? player.inGame
-                          : player.buyOutSum
-                      )
-                        ? "border-destructive focus:border-destructive"
-                        : "border-transparent focus:border-input"
-                    }`}
+                    variant={!isNumeric(
+                      player.buyOutSum === 0
+                        ? player.inGame
+                        : player.buyOutSum
+                    ) ? "error" : "ghost"}
+                    size="sm"
+                    className="w-full text-right bg-transparent"
                     onChange={(e) =>
                       handleChange(
                         player.originalIdx,
@@ -280,23 +285,27 @@ const GameDataTable: React.FC<GameDataTableProps> = ({
                       : "text-destructive"
                   }`}
                 >
-                  <input
+                  <Input
                     type="number"
                     value={player.net as any}
-                    className="w-full text-right bg-transparent text-foreground outline-none border border-transparent focus:border-input rounded-lg px-2 py-1 text-sm"
+                    variant="ghost"
+                    size="sm"
+                    className="w-full text-right bg-transparent"
                     onChange={(e) =>
                       handleChange(player.originalIdx, "net", e.target.value)
                     }
                   />
                 </TableCell>
                 <TableCell className="text-center">
-                  <button
+                  <Button
                     onClick={() => handleDelete(player.originalIdx)}
-                    className="p-1 text-destructive hover:text-destructive hover:bg-destructive/10 rounded-md transition-colors"
+                    variant="ghost"
+                    size="icon-sm"
+                    className="p-1 text-destructive hover:text-destructive hover:bg-destructive/10"
                     title="Delete this player row"
                   >
                     <Trash2 size={16} />
-                  </button>
+                  </Button>
                 </TableCell>
               </TableRow>
             ))}
@@ -344,18 +353,20 @@ const GameDataTable: React.FC<GameDataTableProps> = ({
               </div>
               <div className="items-center px-4 py-3">
                 <div className="flex space-x-2">
-                  <button
+                  <Button
                     onClick={cancelDelete}
-                    className="flex-1 px-4 py-2 bg-muted text-foreground text-base font-medium rounded-md shadow-sm hover:bg-accent focus:outline-none focus:ring-2 focus:ring-ring"
+                    variant="muted"
+                    className="flex-1"
                   >
                     Cancel
-                  </button>
-                  <button
+                  </Button>
+                  <Button
                     onClick={confirmDelete}
-                    className="flex-1 px-4 py-2 bg-destructive text-destructive-foreground text-base font-medium rounded-md shadow-sm hover:bg-destructive/90 focus:outline-none focus:ring-2 focus:ring-ring"
+                    variant="destructive"
+                    className="flex-1"
                   >
                     Delete
-                  </button>
+                  </Button>
                 </div>
               </div>
             </div>

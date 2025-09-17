@@ -1,9 +1,12 @@
 import axios from 'axios';
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
+import { API_BASE_URL } from '../../../config/api';
 import { useAdminSession } from '../../../contexts/AdminSessionContext';
 import { useToast } from '../../../contexts/ToastContext';
 import { useGameTitle } from '../../../shared/hooks/useGameTitle';
+import { Button } from '../../../shared/ui/button';
+import { Heading, Text } from '../../../shared/ui/typography';
 
 interface SessionAnalysis {
   session_id: string;
@@ -128,7 +131,7 @@ export default function LedgerAnalysisPage() {
     
     setLoading(true);
     try {
-      const response = await axios.get(`http://localhost:8000/api/games/${publicCode}/ledger-analysis`, {
+      const response = await axios.get(`${API_BASE_URL}/api/games/${publicCode}/ledger-analysis`, {
         headers: { 'X-Admin-Code': adminCode || '' }
       });
       
@@ -156,7 +159,7 @@ export default function LedgerAnalysisPage() {
     
     try {
       const response = await axios.get(
-        `http://localhost:8000/api/games/${publicCode}/sessions/${sessionId}/detail`,
+        `${API_BASE_URL}/api/games/${publicCode}/sessions/${sessionId}/detail`,
         { headers: { 'X-Admin-Code': adminCode || '' } }
       );
       setSessionDetail(response.data);
@@ -194,7 +197,7 @@ export default function LedgerAnalysisPage() {
 
     try {
       await axios.put(
-        `http://localhost:8000/api/games/${publicCode}/sessions/${selectedSessionId}/players/${playerId}`,
+        `${API_BASE_URL}/api/games/${publicCode}/sessions/${selectedSessionId}/players/${playerId}`,
         {
           buy_in_sum: Math.round(parseFloat(values.buy_in) * 100),
           cash_out_sum: Math.round(parseFloat(values.cash_out) * 100),
@@ -205,7 +208,7 @@ export default function LedgerAnalysisPage() {
 
       // Refresh the session detail
       const detailResponse = await axios.get(
-        `http://localhost:8000/api/games/${publicCode}/sessions/${selectedSessionId}/detail`,
+        `${API_BASE_URL}/api/games/${publicCode}/sessions/${selectedSessionId}/detail`,
         { headers: { 'X-Admin-Code': adminCode || '' } }
       );
       setSessionDetail(detailResponse.data);
@@ -234,7 +237,7 @@ export default function LedgerAnalysisPage() {
     if (!hasAdminSession || !publicCode) return;
     
     try {
-      const response = await axios.get(`http://localhost:8000/api/games/${publicCode}/players/verification-debug`);
+      const response = await axios.get(`${API_BASE_URL}/api/games/${publicCode}/players/verification-debug`);
       setPlayerDebugData(response.data);
     } catch (error) {
       setPlayerDebugData({ error: 'Failed to load debug data' });
@@ -264,7 +267,7 @@ export default function LedgerAnalysisPage() {
     try {
       setMerging({source: sourcePlayerId, target: targetPlayerId});
       
-      const response = await fetch(`http://localhost:8000/api/games/${publicCode}/players/${sourcePlayerId}/merge-into/${targetPlayerId}`, {
+      const response = await fetch(`${API_BASE_URL}/api/games/${publicCode}/players/${sourcePlayerId}/merge-into/${targetPlayerId}`, {
         method: 'POST',
         headers: {
           'X-Admin-Code': adminCode || '',
@@ -298,7 +301,7 @@ export default function LedgerAnalysisPage() {
 
   const deletePlayer = async (sessionId: string, playerId: string) => {
     try {
-      await axios.delete(`http://localhost:8000/api/games/${publicCode}/ledger/${sessionId}/${playerId}`, {
+      await axios.delete(`${API_BASE_URL}/api/games/${publicCode}/ledger/${sessionId}/${playerId}`, {
         headers: {
           'X-Admin-Code': adminCode || '',
         },
@@ -325,7 +328,7 @@ export default function LedgerAnalysisPage() {
       const cashOut = parseFloat(newPlayerData.cashOutSum || '0') * 100;
       const inGame = parseFloat(newPlayerData.inGame || '0') * 100;
       
-      await axios.put(`http://localhost:8000/api/games/${publicCode}/ledger/manual/new`, {
+      await axios.put(`${API_BASE_URL}/api/games/${publicCode}/ledger/manual/new`, {
         session_external_id: sessionDetail?.external_id || selectedSessionId,
         player_name: newPlayerData.playerName,
         buy_in_sum: buyIn,
@@ -360,7 +363,7 @@ export default function LedgerAnalysisPage() {
       <div className="min-h-screen bg-background py-8">
         <div className="max-w-6xl mx-auto px-4">
                     <div className="bg-card text-card-foreground rounded-lg border border-border shadow-sm p-12 text-center">
-            <p className="text-lg text-muted-foreground">Please log in with admin credentials to view ledger analysis.</p>
+            <Text variant="bodyLarge" color="muted">Please log in with admin credentials to view ledger analysis.</Text>
           </div>
         </div>
       </div>
@@ -373,24 +376,24 @@ export default function LedgerAnalysisPage() {
                 
         <div className="mb-8">
           <div>
-            <h1 className="text-3xl font-bold text-foreground">Game Ledger Analysis</h1>
-            <p className="mt-2 text-muted-foreground">
+            <Heading variant="h1">Game Ledger Analysis</Heading>
+            <Text variant="body" color="muted" className="mt-2">
               Analyze session balances and identify data issues
-            </p>
+            </Text>
           </div>
         </div>
           
         {loading ? (
           <div className="bg-card text-card-foreground rounded-lg border border-border shadow-sm p-12 text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto" />
-            <p className="mt-4 text-muted-foreground">Analyzing game data...</p>
+            <Text variant="body" color="muted" className="mt-4">Analyzing game data...</Text>
           </div>
         ) : sessionAnalysis.length === 0 && mathErrors.length === 0 && !hasPlayerDebugIssues() ? (
           <div className="space-y-8">
             <div className="bg-card text-card-foreground rounded-lg border border-border shadow-sm p-12 text-center">
               <div className="text-success text-6xl mb-4">✓</div>
-              <h3 className="text-xl font-semibold text-foreground mb-2">All Sessions Balanced</h3>
-              <p className="text-muted-foreground">No ledger issues detected in this game.</p>
+              <Heading variant="h3" className="mb-2">All Sessions Balanced</Heading>
+              <Text variant="body" color="muted">No ledger issues detected in this game.</Text>
             </div>
           </div>
         ) : (
@@ -398,29 +401,29 @@ export default function LedgerAnalysisPage() {
             {/* Wall of Fame Section */}
             <div className="bg-card text-card-foreground rounded-lg border border-border shadow-sm">
               <div className="border-b p-4">
-                <h3 className="text-lg font-semibold text-foreground">Wall of Fame</h3>
+                <Heading variant="h3">Wall of Fame</Heading>
               </div>
               <div className="p-6">
                 <div className="grid grid-cols-2 gap-6">
                   <div className="bg-accent p-6 rounded-lg border border-border text-center">
-                    <h4 className="text-sm font-medium text-muted-foreground mb-2">Biggest Winner</h4>
-                    <div className="text-2xl font-bold text-success">Player Name</div>
-                    <div className="text-lg text-success">$1,234.56</div>
+                    <Text variant="bodySmall" weight="medium" color="muted" as="h4" className="mb-2">Biggest Winner</Text>
+                    <Heading variant="h4" color="success">Player Name</Heading>
+                    <Text variant="bodyLarge" color="success">$1,234.56</Text>
                   </div>
                   <div className="bg-accent p-6 rounded-lg border border-border text-center">
-                    <h4 className="text-sm font-medium text-muted-foreground mb-2">Most Consistent</h4>
-                    <div className="text-2xl font-bold text-primary">Player Name</div>
-                    <div className="text-lg text-muted-foreground">98% sessions positive</div>
+                    <Text variant="bodySmall" weight="medium" color="muted" className="mb-2">Most Consistent</Text>
+                    <Heading variant="h4" color="primary">Player Name</Heading>
+                    <Text variant="bodyLarge" color="muted">98% sessions positive</Text>
                   </div>
                   <div className="bg-accent p-6 rounded-lg border border-border text-center">
-                    <h4 className="text-sm font-medium text-muted-foreground mb-2">High Roller</h4>
-                    <div className="text-2xl font-bold text-warning">Player Name</div>
-                    <div className="text-lg text-muted-foreground">$5,000 avg buy-in</div>
+                    <Text variant="bodySmall" weight="medium" color="muted" className="mb-2">High Roller</Text>
+                    <Heading variant="h4" color="warning">Player Name</Heading>
+                    <Text variant="bodyLarge" color="muted">$5,000 avg buy-in</Text>
                   </div>
                   <div className="bg-accent p-6 rounded-lg border border-border text-center">
-                    <h4 className="text-sm font-medium text-muted-foreground mb-2">Longest Hot Streak</h4>
-                    <div className="text-2xl font-bold text-info">Player Name</div>
-                    <div className="text-lg text-muted-foreground">12 sessions</div>
+                    <Text variant="bodySmall" weight="medium" color="muted" className="mb-2">Longest Hot Streak</Text>
+                    <Heading variant="h4" className="text-info">Player Name</Heading>
+                    <Text variant="bodyLarge" color="muted">12 sessions</Text>
                   </div>
                 </div>
               </div>
@@ -430,61 +433,61 @@ export default function LedgerAnalysisPage() {
             {hasPlayerDebugIssues() && (
               <div className="bg-card text-card-foreground rounded-lg border border-border shadow-sm">
                 <div className="border-b p-4">
-                  <h3 className="text-lg font-semibold text-foreground">Player Verification Debug</h3>
-                  <p className="text-sm text-muted-foreground mt-1">
+                  <Heading variant="h3">Player Verification Debug</Heading>
+                  <Text variant="bodySmall" color="muted" className="mt-1">
                     Identify player verification issues and duplicate players
-                  </p>
+                  </Text>
                 </div>
                 <div className="p-6">
                   {playerDebugData ? (
                     <div className="space-y-6">
                       {playerDebugData.error ? (
                         <div className="bg-card border-b border-border border border-red-200 rounded-md p-4">
-                          <p className="text-destructive">{playerDebugData.error}</p>
+                          <Text variant="body" color="destructive">{playerDebugData.error}</Text>
                         </div>
                       ) : (
                         <>
                           {/* Player Name Duplicates */}
                           {playerDebugData.duplicate_display_names && playerDebugData.duplicate_display_names.length > 0 && (
                             <div className="bg-warning/10 border border-warning/20 rounded-lg p-4">
-                              <h4 className="text-lg font-medium text-warning mb-3">
+                              <Text variant="bodyLarge" weight="medium" color="warning" as="h4" className="mb-3">
                                 ⚠️ Duplicate Display Names
-                              </h4>
-                              <p className="text-sm text-warning mb-3">
+                              </Text>
+                              <Text variant="bodySmall" color="warning" className="mb-3">
                                 Players with the same display name but different player IDs. This can cause confusion during imports.
-                              </p>
+                              </Text>
                               {playerDebugData.duplicate_display_names.map((group: any, index: number) => (
                                 <div key={index} className="mb-4 last:mb-0">
-                                  <div className="font-medium text-warning mb-2">
+                                  <Text variant="bodySmall" weight="medium" color="warning" className="mb-2">
                                     Name: "{group.display_name}" ({group.players.length} players)
-                                  </div>
+                                  </Text>
                                   <div className="space-y-2">
                                     {group.players.map((player: any) => (
                                       <div key={player.player_id} className="bg-warning/20 rounded p-3 text-sm text-warning-foreground">
                                         <div className="flex items-center justify-between">
                                           <div>
-                                            <span className="font-mono text-xs bg-muted px-2 py-1 rounded">
+                                            <Text variant="caption" className="font-mono bg-muted px-2 py-1 rounded" as="span">
                                               ID: {player.player_id.slice(0, 8)}...
-                                            </span>
+                                            </Text>
                                             {player.external_id && (
-                                              <span className="ml-2 font-mono text-xs bg-primary/20 text-primary px-2 py-1 rounded">
+                                              <Text variant="caption" className="ml-2 font-mono bg-primary/20 text-primary px-2 py-1 rounded" as="span">
                                                 External: {player.external_id}
-                                              </span>
+                                              </Text>
                                             )}
                                           </div>
                                           <div className="text-right">
-                                            <div className="text-xs text-muted-foreground">
+                                            <Text variant="caption" color="muted">
                                               {player.session_count} session{player.session_count !== 1 ? 's' : ''}
-                                            </div>
-                                            <div className="text-xs text-muted-foreground">
+                                            </Text>
+                                            <Text variant="caption" color="muted">
                                               Created: {new Date(player.created_at).toLocaleDateString()}
-                                            </div>
+                                            </Text>
                                           </div>
                                         </div>
                                         {player.all_names && player.all_names.length > 0 && (
-                                          <div className="mt-2 text-xs">
-                                            <span className="text-muted-foreground">Session names: </span>
-                                            <span className="text-foreground">{player.all_names.join(', ')}</span>
+                                          <div className="mt-2">
+                                            <Text variant="caption" color="muted" as="span">Session names: </Text>
+                                            <Text variant="caption" as="span">{player.all_names.join(', ')}</Text>
                                           </div>
                                         )}
                                       </div>
@@ -494,35 +497,37 @@ export default function LedgerAnalysisPage() {
                                   {/* Merge Controls for Duplicates */}
                                   {group.players.length === 2 && (
                                     <div className="mt-3 p-3 bg-info/10 border border-info/20 rounded">
-                                      <div className="text-sm font-medium text-info mb-2">Merge Players</div>
+                                      <Text variant="bodySmall" weight="medium" color="primary" className="mb-2">Merge Players</Text>
                                       <div className="flex gap-2">
-                                        <button
+                                        <Button
                                           onClick={() => mergePlayer(group.players[1].player_id, group.players[0].player_id)}
                                           disabled={merging !== null}
-                                          className="px-3 py-1 text-xs bg-black text-white rounded-2xl hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+                                          size="sm"
+                                          className="bg-black text-white hover:opacity-90 text-xs px-3 py-1"
                                         >
                                           {merging?.source === group.players[1].player_id ? 'Merging...' : `Merge "${group.players[1].display_name}" → "${group.players[0].display_name}"`}
-                                        </button>
-                                        <button
+                                        </Button>
+                                        <Button
                                           onClick={() => mergePlayer(group.players[0].player_id, group.players[1].player_id)}
                                           disabled={merging !== null}
-                                          className="px-3 py-1 text-xs bg-black text-white rounded-2xl hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+                                          size="sm"
+                                          className="bg-black text-white hover:opacity-90 text-xs px-3 py-1"
                                         >
                                           {merging?.source === group.players[0].player_id ? 'Merging...' : `Merge "${group.players[0].display_name}" → "${group.players[1].display_name}"`}
-                                        </button>
+                                        </Button>
                                       </div>
-                                      <div className="text-xs text-info mt-1">
+                                      <Text variant="caption" color="primary" className="mt-1">
                                         Choose which player to keep. All sessions and payments from the source will be merged into the target.
-                                      </div>
+                                      </Text>
                                     </div>
                                   )}
                                   
                                   {group.players.length > 2 && (
                                     <div className="mt-3 p-3 bg-orange-50 border border-orange-200 rounded">
-                                      <div className="text-sm font-medium text-orange-800 mb-1">Multiple Duplicates</div>
-                                      <div className="text-xs text-orange-700">
+                                      <Text variant="bodySmall" weight="medium" className="text-orange-800 mb-1">Multiple Duplicates</Text>
+                                      <Text variant="caption" className="text-orange-700">
                                         {group.players.length} players with the same name. Consider merging them manually or contact support.
-                                      </div>
+                                      </Text>
                                     </div>
                                   )}
                                 </div>
@@ -533,12 +538,12 @@ export default function LedgerAnalysisPage() {
                           {/* External ID Conflicts */}
                           {playerDebugData.external_id_conflicts && playerDebugData.external_id_conflicts.length > 0 && (
                             <div className="bg-card border-b border-border border border-red-200 rounded-lg p-4">
-                              <h4 className="text-lg font-medium text-destructive mb-3">
+                              <Text variant="bodyLarge" weight="medium" color="destructive" as="h4" className="mb-3">
                                 🚨 External ID Conflicts
-                              </h4>
-                              <p className="text-sm text-destructive mb-3">
+                              </Text>
+                              <Text variant="bodySmall" color="destructive" className="mb-3">
                                 Multiple players sharing the same external ID. This should not happen.
-                              </p>
+                              </Text>
                               {playerDebugData.external_id_conflicts.map((conflict: any, index: number) => (
                                 <div key={index} className="mb-4 last:mb-0">
                                   <div className="font-medium text-destructive mb-2">
@@ -568,7 +573,7 @@ export default function LedgerAnalysisPage() {
 
                           {/* Summary Stats */}
                           <div className="bg-muted rounded-lg p-4">
-                            <h4 className="text-lg font-medium text-foreground mb-3">Summary</h4>
+                            <Text variant="bodyLarge" weight="medium" as="h4" className="mb-3">Summary</Text>
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                               <div className="text-center">
                                 <div className="text-2xl font-bold text-primary">
@@ -598,15 +603,16 @@ export default function LedgerAnalysisPage() {
                           </div>
 
                           <div className="text-sm text-muted-foreground">
-                            <button 
+                            <Button
                               onClick={() => {
                                 setPlayerDebugData(null);
                                 fetchPlayerDebugData();
                               }}
-                              className="text-primary hover:text-primary/80"
+                              variant="ghost"
+                              className="text-primary hover:text-primary/80 p-0 h-auto"
                             >
                               Refresh Debug Data
-                            </button>
+                            </Button>
                           </div>
                         </>
                       )}
@@ -614,7 +620,7 @@ export default function LedgerAnalysisPage() {
                   ) : (
                     <div className="text-center py-8">
                       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2" />
-                      <p className="text-muted-foreground">Loading debug data...</p>
+                      <Text variant="body" color="muted">Loading debug data...</Text>
                     </div>
                   )}
                 </div>
@@ -625,25 +631,43 @@ export default function LedgerAnalysisPage() {
             {sessionAnalysis.length > 0 && (
               <div className="bg-card text-card-foreground rounded-lg border border-border shadow-sm">
                 <div className="border-b p-4">
-                  <h3 className="text-lg font-semibold">Unbalanced Sessions</h3>
-                  <p className="text-sm text-muted-foreground mt-1">
+                  <Heading variant="h3">Unbalanced Sessions</Heading>
+                  <Text variant="bodySmall" color="muted" className="mt-1">
                     Sessions where total buy-ins don't equal total cash-outs plus in-game chips
-                  </p>
+                  </Text>
                 </div>
                 
                 <div className="overflow-x-auto">
                   <table className="min-w-full">
                     <thead className="bg-card border-b border-border rounded-t-lg">
                       <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider rounded-tl-lg">Game #</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">External ID</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Started</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Players</th>
-                        <th className="px-6 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">Buy-ins</th>
-                        <th className="px-6 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">Cash-outs</th>
-                        <th className="px-6 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">In Game</th>
-                        <th className="px-6 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">Balance</th>
-                        <th className="px-6 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider rounded-tr-lg">Actions</th>
+                        <th className="px-6 py-3 text-left uppercase tracking-wider rounded-tl-lg">
+                          <Text variant="caption" weight="medium" color="muted">Game #</Text>
+                        </th>
+                        <th className="px-6 py-3 text-left uppercase tracking-wider">
+                          <Text variant="caption" weight="medium" color="muted">External ID</Text>
+                        </th>
+                        <th className="px-6 py-3 text-left uppercase tracking-wider">
+                          <Text variant="caption" weight="medium" color="muted">Started</Text>
+                        </th>
+                        <th className="px-6 py-3 text-left uppercase tracking-wider">
+                          <Text variant="caption" weight="medium" color="muted">Players</Text>
+                        </th>
+                        <th className="px-6 py-3 text-right uppercase tracking-wider">
+                          <Text variant="caption" weight="medium" color="muted">Buy-ins</Text>
+                        </th>
+                        <th className="px-6 py-3 text-right uppercase tracking-wider">
+                          <Text variant="caption" weight="medium" color="muted">Cash-outs</Text>
+                        </th>
+                        <th className="px-6 py-3 text-right uppercase tracking-wider">
+                          <Text variant="caption" weight="medium" color="muted">In Game</Text>
+                        </th>
+                        <th className="px-6 py-3 text-right uppercase tracking-wider">
+                          <Text variant="caption" weight="medium" color="muted">Balance</Text>
+                        </th>
+                        <th className="px-6 py-3 text-right uppercase tracking-wider rounded-tr-lg">
+                          <Text variant="caption" weight="medium" color="muted">Actions</Text>
+                        </th>
                       </tr>
                     </thead>
                     <tbody className="bg-card">
@@ -670,18 +694,23 @@ export default function LedgerAnalysisPage() {
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-foreground text-right">
                             ${formatCurrency(session.in_game)}
                           </td>
-                          <td className={`px-6 py-4 whitespace-nowrap text-sm font-bold text-right ${
-                            session.balance > 0 ? 'text-destructive' : 'text-primary'
-                          }`}>
-                            ${formatCurrency(Math.abs(session.balance))} {session.balance > 0 ? 'over' : 'under'}
+                          <td className="px-6 py-4 whitespace-nowrap text-right">
+                            <Text
+                              variant="bodySmall"
+                              weight="bold"
+                              color={session.balance > 0 ? 'destructive' : 'primary'}
+                            >
+                              ${formatCurrency(Math.abs(session.balance))} {session.balance > 0 ? 'over' : 'under'}
+                            </Text>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                            <button
+                            <Button
                               onClick={() => openSessionModal(session.session_id)}
-                              className="text-primary hover:text-primary/80"
+                              variant="ghost"
+                              className="text-primary hover:text-primary/80 p-0 h-auto"
                             >
                               View Details
-                            </button>
+                            </Button>
                           </td>
                         </tr>
                       ))}
@@ -695,25 +724,43 @@ export default function LedgerAnalysisPage() {
             {mathErrors.length > 0 && (
               <div className="bg-card text-card-foreground rounded-lg border border-border shadow-sm">
                 <div className="border-b p-4">
-                  <h3 className="text-lg font-semibold">Individual Math Errors</h3>
-                  <p className="text-sm text-muted-foreground mt-1">
+                  <Heading variant="h3">Individual Math Errors</Heading>
+                  <Text variant="bodySmall" color="muted" className="mt-1">
                     Player entries where recorded net doesn't match calculated net (cash-out + in-game - buy-in)
-                  </p>
+                  </Text>
                 </div>
                 
                 <div className="overflow-x-auto">
                   <table className="min-w-full">
                     <thead className="bg-card border-b border-border rounded-t-lg">
                       <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider rounded-tl-lg">Game #</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Player</th>
-                        <th className="px-6 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">Buy-in</th>
-                        <th className="px-6 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">Cash-out</th>
-                        <th className="px-6 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">In Game</th>
-                        <th className="px-6 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">Recorded Net</th>
-                        <th className="px-6 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">Calculated Net</th>
-                        <th className="px-6 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">Difference</th>
-                        <th className="px-6 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider rounded-tr-lg">Actions</th>
+                        <th className="px-6 py-3 text-left uppercase tracking-wider rounded-tl-lg">
+                          <Text variant="caption" weight="medium" color="muted">Game #</Text>
+                        </th>
+                        <th className="px-6 py-3 text-left uppercase tracking-wider">
+                          <Text variant="caption" weight="medium" color="muted">Player</Text>
+                        </th>
+                        <th className="px-6 py-3 text-right uppercase tracking-wider">
+                          <Text variant="caption" weight="medium" color="muted">Buy-in</Text>
+                        </th>
+                        <th className="px-6 py-3 text-right uppercase tracking-wider">
+                          <Text variant="caption" weight="medium" color="muted">Cash-out</Text>
+                        </th>
+                        <th className="px-6 py-3 text-right uppercase tracking-wider">
+                          <Text variant="caption" weight="medium" color="muted">In Game</Text>
+                        </th>
+                        <th className="px-6 py-3 text-right uppercase tracking-wider">
+                          <Text variant="caption" weight="medium" color="muted">Recorded Net</Text>
+                        </th>
+                        <th className="px-6 py-3 text-right uppercase tracking-wider">
+                          <Text variant="caption" weight="medium" color="muted">Calculated Net</Text>
+                        </th>
+                        <th className="px-6 py-3 text-right uppercase tracking-wider">
+                          <Text variant="caption" weight="medium" color="muted">Difference</Text>
+                        </th>
+                        <th className="px-6 py-3 text-right uppercase tracking-wider rounded-tr-lg">
+                          <Text variant="caption" weight="medium" color="muted">Actions</Text>
+                        </th>
                       </tr>
                     </thead>
                     <tbody className="bg-card">
@@ -749,12 +796,13 @@ export default function LedgerAnalysisPage() {
                             ${formatCurrency(Math.abs(error.difference))} {error.difference > 0 ? 'over' : 'under'}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                            <button
+                            <Button
                               onClick={() => openSessionModal(error.session_id)}
-                              className="text-primary hover:text-primary/80"
+                              variant="ghost"
+                              className="text-primary hover:text-primary/80 p-0 h-auto"
                             >
                               View Session
-                            </button>
+                            </Button>
                           </td>
                         </tr>
                       ))}
@@ -772,22 +820,25 @@ export default function LedgerAnalysisPage() {
           <div className="fixed inset-0 bg-black bg-opacity-50 overflow-y-auto h-full w-full z-40">
             <div className="relative top-20 mx-auto p-5 border border-border w-11/12 max-w-6xl shadow-lg rounded-md bg-card text-card-foreground">
               <div className="flex items-center justify-between border-b pb-3">
-                <h3 className="text-2xl font-semibold text-foreground">Session Details</h3>
+                <Heading variant="h2">Session Details</Heading>
                 <div className="flex items-center space-x-3">
-                  <button
+                  <Button
                     onClick={() => setShowAddPlayerModal(true)}
-                    className="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md text-white bg-black hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2"
+                    size="sm"
+                    className="bg-black text-white hover:opacity-90"
                   >
                     Add Player
-                  </button>
-                  <button
+                  </Button>
+                  <Button
                     onClick={closeSessionModal}
+                    variant="ghost"
+                    size="icon-sm"
                     className="text-muted-foreground hover:text-foreground"
                   >
                     <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                     </svg>
-                  </button>
+                  </Button>
                 </div>
               </div>
 
@@ -841,8 +892,8 @@ export default function LedgerAnalysisPage() {
                     {/* Player Details */}
                     <div className="bg-card text-card-foreground border border-border rounded-lg">
                       <div className="border-b border-border p-4">
-                        <h4 className="text-lg font-semibold text-foreground">Player Details</h4>
-                        <p className="text-sm text-muted-foreground mt-1">Click on a player's values to edit them</p>
+                        <Text variant="bodyLarge" weight="semibold" as="h4">Player Details</Text>
+                        <Text variant="bodySmall" color="muted" className="mt-1">Click on a player's values to edit them</Text>
                       </div>
                       <div className="overflow-x-auto">
                         <table className="min-w-full">
@@ -940,28 +991,34 @@ export default function LedgerAnalysisPage() {
                                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                     {isEditing ? (
                                       <div className="space-x-2">
-                                        <button
+                                        <Button
                                           onClick={() => savePlayerChanges(player.player_id)}
-                                          className="text-success hover:text-success/80"
+                                          variant="ghost"
+                                          size="sm"
+                                          className="text-success hover:text-success/80 p-0 h-auto"
                                         >
                                           Save
-                                        </button>
-                                        <button
+                                        </Button>
+                                        <Button
                                           onClick={() => cancelEditing(player.player_id)}
-                                          className="text-muted-foreground hover:text-foreground"
+                                          variant="ghost"
+                                          size="sm"
+                                          className="text-muted-foreground hover:text-foreground p-0 h-auto"
                                         >
                                           Cancel
-                                        </button>
+                                        </Button>
                                       </div>
                                     ) : (
                                       <div className="space-x-2">
-                                        <button
+                                        <Button
                                           onClick={() => startEditingPlayer(player.player_id, player)}
-                                          className="text-primary hover:text-primary/80"
+                                          variant="ghost"
+                                          size="sm"
+                                          className="text-primary hover:text-primary/80 p-0 h-auto"
                                         >
                                           Edit
-                                        </button>
-                                        <button
+                                        </Button>
+                                        <Button
                                           onClick={() => {
                                             setDeleteTarget({
                                               sessionId: selectedSessionId!,
@@ -970,10 +1027,12 @@ export default function LedgerAnalysisPage() {
                                             });
                                             setShowDeleteModal(true);
                                           }}
-                                          className="text-destructive hover:text-destructive/80"
+                                          variant="ghost"
+                                          size="sm"
+                                          className="text-destructive hover:text-destructive/80 p-0 h-auto"
                                         >
                                           Delete
-                                        </button>
+                                        </Button>
                                       </div>
                                     )}
                                   </td>
@@ -989,7 +1048,7 @@ export default function LedgerAnalysisPage() {
                     {sessionDetail.audit_logs && sessionDetail.audit_logs.length > 0 && (
                       <div className="bg-card text-card-foreground border border-border rounded-lg">
                         <div className="border-b border-border p-4">
-                          <h4 className="text-lg font-semibold text-foreground">Audit Log</h4>
+                          <Text variant="bodyLarge" weight="semibold" as="h4">Audit Log</Text>
                         </div>
                         <div className="max-h-64 overflow-y-auto">
                           <div className="space-y-2 p-4">
@@ -1006,12 +1065,14 @@ export default function LedgerAnalysisPage() {
                                 <div className="text-sm text-muted-foreground mt-1">
                                   {audit.description}
                                 </div>
-                                <button
+                                <Button
                                   onClick={() => setExpandedAuditId(expandedAuditId === audit.id ? null : audit.id)}
-                                  className="text-xs text-primary hover:text-primary/80 mt-2"
+                                  variant="ghost"
+                                  size="sm"
+                                  className="text-xs text-primary hover:text-primary/80 mt-2 p-0 h-auto"
                                 >
                                   {expandedAuditId === audit.id ? 'Hide Details' : 'Show Details'}
-                                </button>
+                                </Button>
                                 {expandedAuditId === audit.id && (
                                   <div className="mt-2 text-xs bg-accent p-2 rounded border border-border">
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1039,7 +1100,7 @@ export default function LedgerAnalysisPage() {
 
                   </div>
                 ) : (
-                  <div className="text-center text-destructive py-8">Failed to load session details</div>
+                  <div className="text-center py-8"><Text variant="body" color="destructive">Failed to load session details</Text></div>
                 )}
               </div>
             </div>
@@ -1056,30 +1117,32 @@ export default function LedgerAnalysisPage() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.5 0L3.354 16.5c-.77.833.192 2.5 1.732 2.5z" />
                   </svg>
                 </div>
-                <h3 className="text-lg leading-6 font-medium text-foreground mt-2">Delete Player</h3>
+                <Heading variant="h3" className="mt-2">Delete Player</Heading>
                 <div className="mt-2 px-7 py-3">
-                  <p className="text-sm text-muted-foreground">
-                    Are you sure you want to delete <strong>{deleteTarget.playerName}</strong> from this session? 
+                  <Text variant="bodySmall" color="muted">
+                    Are you sure you want to delete <strong>{deleteTarget.playerName}</strong> from this session?
                     This action cannot be undone and will permanently remove all their data from this session.
-                  </p>
+                  </Text>
                 </div>
                 <div className="items-center px-4 py-3">
                   <div className="flex space-x-2">
-                    <button
+                    <Button
                       onClick={() => {
                         setShowDeleteModal(false);
                         setDeleteTarget(null);
                       }}
-                      className="flex-1 px-4 py-2 bg-secondary text-secondary-foreground text-base font-medium rounded-md shadow-sm hover:bg-secondary/80 focus:outline-none focus:ring-2 focus:ring-ring"
+                      variant="secondary"
+                      className="flex-1"
                     >
                       Cancel
-                    </button>
-                    <button
+                    </Button>
+                    <Button
                       onClick={() => deletePlayer(deleteTarget.sessionId, deleteTarget.playerId)}
-                      className="flex-1 px-4 py-2 bg-destructive text-destructive-foreground text-base font-medium rounded-2xl shadow-sm hover:bg-destructive/90 focus:outline-none focus:ring-2 focus:ring-ring"
+                      variant="destructive"
+                      className="flex-1"
                     >
                       Delete Player
-                    </button>
+                    </Button>
                   </div>
                 </div>
               </div>
@@ -1092,8 +1155,8 @@ export default function LedgerAnalysisPage() {
           <div className="fixed inset-0 bg-black bg-opacity-50 overflow-y-auto h-full w-full z-50">
             <div className="relative top-20 mx-auto p-5 border border-border w-96 shadow-lg rounded-md bg-card text-card-foreground">
               <div className="flex items-center justify-between border-b pb-3 mb-4">
-                <h3 className="text-lg font-semibold text-foreground">Add Player to Session</h3>
-                <button
+                <Heading variant="h3">Add Player to Session</Heading>
+                <Button
                   onClick={() => {
                     setShowAddPlayerModal(false);
                     setNewPlayerData({
@@ -1103,17 +1166,19 @@ export default function LedgerAnalysisPage() {
                       inGame: ''
                     });
                   }}
+                  variant="ghost"
+                  size="icon-sm"
                   className="text-muted-foreground hover:text-foreground"
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                   </svg>
-                </button>
+                </Button>
               </div>
               
               <div className="space-y-4">
                 <div>
-                  <label htmlFor="playerName" className="block text-sm font-medium text-foreground">Player Name</label>
+                  <Text variant="bodySmall" weight="medium" as="label" htmlFor="playerName" className="block">Player Name</Text>
                   <input
                     type="text"
                     id="playerName"
@@ -1126,7 +1191,7 @@ export default function LedgerAnalysisPage() {
                 </div>
                 
                 <div>
-                  <label htmlFor="buyInSum" className="block text-sm font-medium text-foreground">Buy In Amount</label>
+                  <Text variant="bodySmall" weight="medium" as="label" htmlFor="buyInSum" className="block">Buy In Amount</Text>
                   <input
                     type="number"
                     id="buyInSum"
@@ -1141,7 +1206,7 @@ export default function LedgerAnalysisPage() {
                 </div>
                 
                 <div>
-                  <label htmlFor="cashOutSum" className="block text-sm font-medium text-foreground">Cash Out Amount</label>
+                  <Text variant="bodySmall" weight="medium" as="label" htmlFor="cashOutSum" className="block">Cash Out Amount</Text>
                   <input
                     type="number"
                     id="cashOutSum"
@@ -1155,7 +1220,7 @@ export default function LedgerAnalysisPage() {
                 </div>
                 
                 <div>
-                  <label htmlFor="inGame" className="block text-sm font-medium text-foreground">In Game Amount</label>
+                  <Text variant="bodySmall" weight="medium" as="label" htmlFor="inGame" className="block">In Game Amount</Text>
                   <input
                     type="number"
                     id="inGame"
@@ -1170,7 +1235,7 @@ export default function LedgerAnalysisPage() {
               </div>
               
               <div className="mt-6 flex space-x-2">
-                <button
+                <Button
                   onClick={() => {
                     setShowAddPlayerModal(false);
                     setNewPlayerData({
@@ -1180,17 +1245,18 @@ export default function LedgerAnalysisPage() {
                       inGame: ''
                     });
                   }}
-                  className="flex-1 px-4 py-2 bg-secondary text-secondary-foreground text-base font-medium rounded-md shadow-sm hover:bg-secondary/80 focus:outline-none focus:ring-2 focus:ring-ring"
+                  variant="secondary"
+                  className="flex-1"
                 >
                   Cancel
-                </button>
-                <button
+                </Button>
+                <Button
                   onClick={addPlayerToSession}
                   disabled={!newPlayerData.playerName || !newPlayerData.buyInSum}
-                  className="flex-1 px-4 py-2 bg-black text-white text-base font-medium rounded-2xl shadow-sm hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex-1 bg-black text-white hover:opacity-90"
                 >
                   Add Player
-                </button>
+                </Button>
               </div>
             </div>
           </div>

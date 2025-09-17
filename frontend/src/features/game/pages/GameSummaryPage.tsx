@@ -1,6 +1,7 @@
 import { PlayerSummaryRow } from "../../../entities/game/types";
 import { usePlayerSummaries } from "../api/getPlayerSummaries";
 import GameDataTable from "../components/GameDataTable";
+import { Heading, Text } from "../../../shared/ui/typography";
 
 interface GameSummaryPageProps {
   publicCode: string;
@@ -15,10 +16,10 @@ export default function GameSummaryPage({ publicCode }: GameSummaryPageProps) {
     <div className="min-h-screen bg-background py-8">
       <div className="max-w-6xl mx-auto px-4">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-foreground">Game Summary</h1>
-          <p className="mt-2 text-muted-foreground">
+          <Heading variant="h1">Game Summary</Heading>
+          <Text variant="body" color="muted" className="mt-2">
             Player statistics and performance metrics
-          </p>
+          </Text>
         </div>
 
         {isLoading && (
@@ -29,10 +30,10 @@ export default function GameSummaryPage({ publicCode }: GameSummaryPageProps) {
 
         {!!error && (
           <div className="mb-6 p-4 bg-destructive/10 border-l-4 border-destructive rounded">
-            <div className="text-destructive font-medium">Error</div>
-            <div className="text-destructive">
+            <Text variant="body" color="destructive" weight="medium">Error</Text>
+            <Text variant="body" color="destructive">
               {String(error instanceof Error ? error.message : "An error occurred while loading the game data")}
-            </div>
+            </Text>
           </div>
         )}
 
@@ -45,7 +46,7 @@ export default function GameSummaryPage({ publicCode }: GameSummaryPageProps) {
 
         {!isLoading && !error && rows.length === 0 && (
           <div className="bg-card text-card-foreground rounded-lg border border-border shadow-sm p-12 text-center">
-            <p className="text-muted-foreground">No player data available for this game.</p>
+            <Text variant="body" color="muted">No player data available for this game.</Text>
           </div>
         )}
       </div>

@@ -1,0 +1,9 @@
+FLASK_ENV: production
+ALLOWED_ORIGINS: https://homegame.gg,https://www.homegame.gg,https://home-game-8iqzfr8tg-edunbars-projects.vercel.app
+DATABASE_URL: postgresql+psycopg2://poker_user:O1XbT66.^#H!83[fds234@/home_game?host=/cloudsql/home-game-472415:us-central1:home-game-db
+MAIL_SERVER: smtp.gmail.com
+MAIL_PORT: 587
+MAIL_USE_TLS: true
+MAIL_USERNAME: REPLACE_WITH_YOUR_GMAIL@gmail.com
+MAIL_PASSWORD: REPLACE_WITH_YOUR_APP_PASSWORD
+BUG_REPORT_EMAIL: REPLACE_WITH_YOUR_EMAIL@gmail.com

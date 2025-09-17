@@ -72,6 +72,7 @@ class Game(Base):
     audit_logs = relationship('AuditLog', back_populates='game')
     payment_transactions = relationship('PaymentTransaction', back_populates='game', cascade="all, delete-orphan")
     payment_balances = relationship('PaymentBalance', back_populates='game', cascade="all, delete-orphan")
+    rules = relationship('GameRule', back_populates='game', cascade="all, delete-orphan")
 
     __table_args__ = (
         # public_code is already UNIQUE → PG will create an index
@@ -339,4 +340,41 @@ class PaymentBalance(Base):
         UniqueConstraint('game_id', 'player_id', name='uq_payment_balances_game_player'),
         Index('ix_payment_balances_game', 'game_id'),
         Index('ix_payment_balances_balance', 'game_id', 'payment_balance'),  # For finding who owes/is owed
+    )
+
+
+# ==========================================================
+# GameRules Table
+# ----------------------------------------------------------
+# Stores rules for each game that admins can manage.
+#
+# Columns:
+# - id          : UUID primary key.
+# - game_id     : FK to games.id (CASCADE on delete).
+# - title       : Rule title/name.
+# - content     : Rule description/content (supports markdown).
+# - order_index : Display order for rules.
+# - created_at  : When the rule was created.
+# - updated_at  : When the rule was last modified.
+# - created_by  : Admin code hash for audit trail.
+# ==========================================================
+class GameRule(Base):
+    __tablename__ = 'game_rules'
+
+    id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
+    game_id = Column(UUID(as_uuid=True), ForeignKey('games.id', ondelete='CASCADE'), nullable=False)
+
+    title = Column(Text, nullable=False)
+    content = Column(Text, nullable=False)
+    order_index = Column(BigInteger, nullable=False, server_default=text("0"))
+
+    created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
+    updated_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
+    created_by = Column(Text, nullable=False)  # admin_code hash for audit
+
+    # Relationships
+    game = relationship('Game', back_populates='rules')
+
+    __table_args__ = (
+        Index('ix_game_rules_game_order', 'game_id', 'order_index'),
     )

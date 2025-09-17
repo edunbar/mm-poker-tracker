@@ -1,5 +1,6 @@
 import { AlertCircle, CheckCircle2, Info, X } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
+import { Text } from '../shared/ui/typography';
 
 export interface ToastProps {
   id: string;
@@ -100,12 +101,12 @@ export const Toast: React.FC<ToastProps> = ({
               {getIcon()}
             </div>
             <div className="ml-3 w-0 flex-1">
-              <p className={`text-sm font-medium ${getTitleColor()}`}>
+              <Text variant="bodySmall" weight="medium" className={getTitleColor()}>
                 {title}
-              </p>
-              <p className={`mt-1 text-sm ${getMessageColor()}`}>
+              </Text>
+              <Text variant="bodySmall" className={`mt-1 ${getMessageColor()}`}>
                 {message}
-              </p>
+              </Text>
             </div>
             <div className="ml-4 flex-shrink-0 flex">
               <button

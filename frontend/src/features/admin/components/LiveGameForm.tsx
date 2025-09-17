@@ -1,7 +1,10 @@
 import { Calculator, Plus, Trash2 } from 'lucide-react';
 import React, { useState } from 'react';
 import { Button } from '../../../shared/ui/button';
+import { FormField, FormLabel } from '../../../shared/ui/form-field';
 import { HelpTooltip } from '../../../shared/ui/help-tooltip';
+import { Input } from '../../../shared/ui/input';
+import { Heading, Text } from '../../../shared/ui/typography';
 
 interface Player {
   id: string;
@@ -127,59 +130,56 @@ export default function LiveGameForm({ onSubmit, isLoading }: LiveGameFormProps)
     <div className="space-y-6">
       <div className="bg-card text-card-foreground rounded-lg border border-border shadow-sm">
         <div className="border-b p-4">
-          <h3 className="text-lg font-semibold">Live Game Details</h3>
+          <Heading variant="h3">Live Game Details</Heading>
         </div>
         <div className="p-4 space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label htmlFor="sessionName" className="block text-sm font-medium text-foreground mb-1">
-                Session Name *
-              </label>
-              <input
+            <FormField>
+              <FormLabel htmlFor="sessionName" required>
+                Session Name
+              </FormLabel>
+              <Input
                 id="sessionName"
                 type="text"
-                className="w-full px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring bg-background text-foreground"
                 value={sessionName}
                 onChange={(e) => setSessionName(e.target.value)}
                 placeholder="e.g., Thursday Night Game #15"
               />
-            </div>
-            <div>
-              <label htmlFor="gameNumber" className="block text-sm font-medium text-foreground mb-1 flex items-center gap-2">
+            </FormField>
+            <FormField>
+              <FormLabel htmlFor="gameNumber" className="flex items-center gap-2">
                 Game Number (optional)
                 <HelpTooltip content="Game number will be auto-assigned if left empty" />
-              </label>
-              <input
+              </FormLabel>
+              <Input
                 id="gameNumber"
                 type="number"
-                className="w-full px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring bg-background text-foreground"
                 value={gameNumber}
                 onChange={(e) => setGameNumber(e.target.value)}
                 placeholder="Auto-assigned if empty"
               />
-            </div>
-            <div>
-              <label htmlFor="date" className="block text-sm font-medium text-foreground mb-1">
+            </FormField>
+            <FormField>
+              <FormLabel htmlFor="date">
                 Date (optional)
-              </label>
-              <input
+              </FormLabel>
+              <Input
                 id="date"
                 type="datetime-local"
-                className="w-full px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring bg-background text-foreground"
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
               />
-            </div>
+            </FormField>
           </div>
         </div>
       </div>
 
       <div className="bg-card text-card-foreground rounded-lg border border-border shadow-sm">
         <div className="border-b p-4 flex flex-row items-center justify-between">
-          <h3 className="text-lg font-semibold flex items-center gap-2">
-            Players
+          <div className="flex items-center gap-2">
+            <Heading variant="h3">Players</Heading>
             <HelpTooltip content="Player names should match previous sessions for consistent tracking" />
-          </h3>
+          </div>
           <Button type="button" onClick={addPlayer} variant="outline" size="sm">
             <Plus className="h-4 w-4 mr-2" />
             Add Player
@@ -187,17 +187,17 @@ export default function LiveGameForm({ onSubmit, isLoading }: LiveGameFormProps)
         </div>
         <div className="p-4">
           <div className="space-y-4">
-            <div className="grid grid-cols-4 gap-2 font-medium text-sm text-muted-foreground">
-              <div>Player Name</div>
+            <div className="grid grid-cols-4 gap-2">
+              <Text variant="bodySmall" weight="medium" color="muted">Player Name</Text>
               <div className="flex items-center gap-2">
-                Buy In ($)
+                <Text variant="bodySmall" weight="medium" color="muted">Buy In ($)</Text>
                 <HelpTooltip content="Enter buy-ins in dollars (e.g., 100.00)" />
               </div>
               <div className="flex items-center gap-2">
-                Cash Out ($)
+                <Text variant="bodySmall" weight="medium" color="muted">Cash Out ($)</Text>
                 <HelpTooltip content="Enter cash-outs in dollars (e.g., 100.00)" />
               </div>
-              <div>Net</div>
+              <Text variant="bodySmall" weight="medium" color="muted">Net</Text>
             </div>
             
             {players.map((player) => {
@@ -207,33 +207,33 @@ export default function LiveGameForm({ onSubmit, isLoading }: LiveGameFormProps)
               
               return (
                 <div key={player.id} className="grid grid-cols-4 gap-2 items-center">
-                  <input
+                  <Input
                     type="text"
-                    className="px-3 py-2 border border-input bg-background text-foreground rounded-md focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring placeholder:text-muted-foreground"
                     value={player.name}
                     onChange={(e) => updatePlayer(player.id, 'name', e.target.value)}
                     placeholder="Player name"
+                    size="sm"
                   />
-                  <input
+                  <Input
                     type="number"
                     step="0.01"
-                    className="px-3 py-2 border border-input bg-background text-foreground rounded-md focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring placeholder:text-muted-foreground"
                     value={player.buyIn}
                     onChange={(e) => updatePlayer(player.id, 'buyIn', e.target.value)}
                     placeholder="0.00"
+                    size="sm"
                   />
-                  <input
+                  <Input
                     type="number"
                     step="0.01"
-                    className="px-3 py-2 border border-input bg-background text-foreground rounded-md focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring placeholder:text-muted-foreground"
                     value={player.cashOut}
                     onChange={(e) => updatePlayer(player.id, 'cashOut', e.target.value)}
                     placeholder="0.00"
+                    size="sm"
                   />
                   <div className="flex items-center gap-2">
-                    <span className={`font-mono ${net >= 0 ? 'text-success' : 'text-destructive'}`}>
+                    <Text className={`font-medium ${net >= 0 ? 'text-success' : 'text-destructive'}`}>
                       {net >= 0 ? '+' : ''}${net.toFixed(2)}
-                    </span>
+                    </Text>
                     {players.length > 2 && (
                       <button
                         type="button"
@@ -253,38 +253,38 @@ export default function LiveGameForm({ onSubmit, isLoading }: LiveGameFormProps)
 
       <div className="bg-card text-card-foreground rounded-lg border border-border shadow-sm">
         <div className="border-b p-4">
-          <h3 className="text-lg font-semibold flex items-center gap-2">
+          <div className="flex items-center gap-2">
             <Calculator className="h-5 w-5" />
-            Session Summary
-          </h3>
+            <Heading variant="h3">Session Summary</Heading>
+          </div>
         </div>
         <div className="p-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
-              <div className="text-muted-foreground">Total Buy-ins</div>
-              <div className="font-mono text-lg">${totals.totalBuyIn.toFixed(2)}</div>
+              <Text variant="bodySmall" color="muted">Total Buy-ins</Text>
+              <Text className="font-medium">${totals.totalBuyIn.toFixed(2)}</Text>
             </div>
             <div>
-              <div className="text-muted-foreground">Total Cash-outs</div>
-              <div className="font-mono text-lg">${totals.totalCashOut.toFixed(2)}</div>
+              <Text variant="bodySmall" color="muted">Total Cash-outs</Text>
+              <Text className="font-medium">${totals.totalCashOut.toFixed(2)}</Text>
             </div>
             <div>
-              <div className="text-muted-foreground flex items-center gap-2">
-                Balance
+              <div className="flex items-center gap-2">
+                <Text variant="bodySmall" color="muted">Balance</Text>
                 <HelpTooltip content="The balance should equal 0 if all money is accounted for" />
               </div>
-              <div className={`font-mono text-lg ${isBalanced ? 'text-success' : 'text-destructive'}`}>
+              <Text className={`font-medium ${isBalanced ? 'text-success' : 'text-destructive'}`}>
                 {totals.balance >= 0 ? '+' : ''}${totals.balance.toFixed(2)}
-              </div>
+              </Text>
             </div>
           </div>
           
           {!isBalanced && (
             <div className="mt-4 p-4 bg-warning/20 border-l-4 border-warning rounded">
-              <p className="text-warning">
+              <Text variant="body" color="warning">
                 ⚠️ Session doesn't balance. Total cash-outs should equal total buy-ins.
                 {Math.abs(totals.balance) > 0.01 && ` Difference: $${Math.abs(totals.balance).toFixed(2)}`}
-              </p>
+              </Text>
             </div>
           )}
         </div>
@@ -292,9 +292,11 @@ export default function LiveGameForm({ onSubmit, isLoading }: LiveGameFormProps)
 
       {errors.length > 0 && (
         <div className="p-4 bg-destructive/10 border-l-4 border-destructive rounded">
-          <ul className="list-disc list-inside space-y-1 text-destructive">
+          <ul className="list-disc list-inside space-y-1">
             {errors.map((error, index) => (
-              <li key={index}>{error}</li>
+              <li key={index}>
+                <Text variant="body" color="destructive">{error}</Text>
+              </li>
             ))}
           </ul>
         </div>

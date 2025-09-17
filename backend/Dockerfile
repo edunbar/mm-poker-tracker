@@ -4,7 +4,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential libpq-dev && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
-COPY requirements.txt /app/requirements.txt
+COPY requirements.safe.txt /app/requirements.txt
 RUN pip install --no-cache-dir -r /app/requirements.txt
 
 # Copy backend including alembic files
@@ -13,4 +13,9 @@ COPY . /app
 # Make your source importable: we want /app/src on PYTHONPATH
 ENV PYTHONPATH=/app/src
 
-EXPOSE 8000
+# Cloud Run expects PORT environment variable
+ENV PORT=8080
+EXPOSE 8080
+
+# Use gunicorn for production
+CMD exec gunicorn --bind :$PORT --workers 1 --threads 8 --timeout 0 src.app:app

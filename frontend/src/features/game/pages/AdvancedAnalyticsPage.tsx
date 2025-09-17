@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { usePlayerAnalytics } from '../api/getPlayerAnalytics';
 import { usePlayerSummaries } from '../api/getPlayerSummaries';
 import { useSessionExtremes } from '../api/getSessionExtremes';
+import { Heading, Text } from '../../../shared/ui/typography';
 
 // Custom Skull Icon Component
 const SkullIcon = ({ className }: { className?: string }) => (
@@ -390,22 +391,22 @@ export default function AdvancedAnalyticsPage({ publicCode }: AdvancedAnalyticsP
     <div className="min-h-screen bg-background py-8">
       <div className="max-w-full mx-auto" style={{ paddingLeft: '200px', paddingRight: '200px' }}>
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-foreground">Advanced Analytics</h1>
-          <p className="mt-2 text-muted-foreground">
+          <Heading variant="h1">Advanced Analytics</Heading>
+          <Text variant="body" color="muted" className="mt-2">
             Detailed player performance metrics and achievements
-          </p>
+          </Text>
         </div>
 
         {(isLoading || analyticsLoading || sessionExtremesLoading) && (
           <div className="bg-card text-card-foreground rounded-lg border border-border shadow-sm p-12 text-center">
-            Loading analytics data...
+            <Text variant="body" color="muted">Loading analytics data...</Text>
           </div>
         )}
 
         {error && (
-          <div className="bg-destructive/10 border border-destructive/20 text-destructive rounded-lg p-4 mb-6">
-            <p className="font-medium">Error loading data</p>
-            <p className="text-sm">{error.message}</p>
+          <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4 mb-6">
+            <Text variant="body" weight="medium" color="destructive">Error loading data</Text>
+            <Text variant="bodySmall" color="destructive">{error.message}</Text>
           </div>
         )}
 
@@ -416,7 +417,7 @@ export default function AdvancedAnalyticsPage({ publicCode }: AdvancedAnalyticsP
               <nav className="flex space-x-8 p-4">
                 <button
                   onClick={() => setActiveTab('fame')}
-                  className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                  className={`py-2 px-1 border-b-2 ${
                     activeTab === 'fame'
                       ? 'border-primary text-primary'
                       : 'border-transparent text-muted-foreground hover:text-foreground hover:border-gray-300'
@@ -424,12 +425,12 @@ export default function AdvancedAnalyticsPage({ publicCode }: AdvancedAnalyticsP
                 >
                   <div className="flex items-center gap-2">
                     <Crown className="h-4 w-4" />
-                    Wall of Fame
+                    <Text variant="bodySmall" weight="medium">Wall of Fame</Text>
                   </div>
                 </button>
                 <button
                   onClick={() => setActiveTab('shame')}
-                  className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                  className={`py-2 px-1 border-b-2 ${
                     activeTab === 'shame'
                       ? 'border-primary text-primary'
                       : 'border-transparent text-muted-foreground hover:text-foreground hover:border-gray-300'
@@ -437,7 +438,7 @@ export default function AdvancedAnalyticsPage({ publicCode }: AdvancedAnalyticsP
                 >
                   <div className="flex items-center gap-2">
                     <Skull className="h-4 w-4" />
-                    Wall of Shame
+                    <Text variant="bodySmall" weight="medium">Wall of Shame</Text>
                   </div>
                 </button>
               </nav>
@@ -454,21 +455,21 @@ export default function AdvancedAnalyticsPage({ publicCode }: AdvancedAnalyticsP
                       <div key={key} className="p-6 rounded-lg border border-border">
                         <div className="mb-4">
                           <div className="flex items-center justify-center gap-2">
-                            <h4 className="text-lg font-semibold text-foreground text-center">{category.title}</h4>
+                            <Heading variant="h5" className="text-center">{category.title}</Heading>
                             <div className="relative group">
                               <HelpCircle className="w-4 h-4 text-gray-400 hover:text-gray-600 cursor-help" />
-                              <div className="absolute right-0 top-full mt-2 hidden group-hover:block z-50 w-64 p-3 text-sm text-foreground bg-popover border border-border rounded-lg shadow-xl">
+                              <div className="absolute right-0 top-full mt-2 hidden group-hover:block z-50 w-64 p-3 bg-popover border border-border rounded-lg shadow-xl">
                                 <div className="absolute -top-1 right-4 w-2 h-2 bg-popover border-l border-t border-border rotate-45" />
-                                <strong>{category.title}</strong><br />
-                                {category.description}
+                                <Text variant="bodySmall" weight="bold">{category.title}</Text><br />
+                                <Text variant="bodySmall">{category.description}</Text>
                               </div>
                             </div>
                           </div>
                         </div>
 
                         {categoryData.length === 0 ? (
-                          <div className="text-center py-8 text-muted-foreground">
-                            No data available
+                          <div className="text-center py-8">
+                            <Text variant="body" color="muted">No data available</Text>
                           </div>
                         ) : (
                           <div className="space-y-3">
@@ -477,25 +478,30 @@ export default function AdvancedAnalyticsPage({ publicCode }: AdvancedAnalyticsP
                                 <div className="flex items-center justify-between py-2 gap-4">
                                   <div>
                                     <div className="flex items-center gap-2">
-                                      <p className={`text-sm font-semibold ${
-                                        index === 0
-                                          ? 'text-yellow-500 font-bold'
-                                          : 'text-foreground'
-                                      }`} style={index === 0 ? { filter: 'drop-shadow(0 0 4px rgba(234, 179, 8, 0.2))' } : {}}>
+                                      <Text
+                                        variant="bodySmall"
+                                        weight={index === 0 ? 'bold' : 'semibold'}
+                                        className={index === 0 ? 'text-yellow-500' : ''}
+                                        style={index === 0 ? { filter: 'drop-shadow(0 0 4px rgba(234, 179, 8, 0.2))' } : {}}
+                                      >
                                         {player.player}
-                                      </p>
+                                      </Text>
                                       {index === 0 && (
                                         <Crown className="h-4 w-4 text-yellow-500" style={{ filter: 'drop-shadow(0 0 4px rgba(234, 179, 8, 0.2))' }} />
                                       )}
                                     </div>
-                                    <p className="text-xs text-muted-foreground">{category.getSubtext(player)}</p>
+                                    <Text variant="caption" color="muted">{category.getSubtext(player)}</Text>
                                   </div>
                                   <div className="text-right">
-                                    <p className={`text-sm font-bold ${
-                                      index === 0 ? 'text-success' : 'text-white'
-                                    }`} style={index === 0 ? { filter: 'drop-shadow(0 0 4px rgba(34, 197, 94, 0.2))' } : {}}>
+                                    <Text
+                                      variant="bodySmall"
+                                      weight="bold"
+                                      color={index === 0 ? 'success' : undefined}
+                                      className={index === 0 ? '' : 'text-white'}
+                                      style={index === 0 ? { filter: 'drop-shadow(0 0 4px rgba(34, 197, 94, 0.2))' } : {}}
+                                    >
                                       {category.getValue(player)}
-                                    </p>
+                                    </Text>
                                   </div>
                                 </div>
                                 {index < categoryData.length - 1 && (
@@ -520,21 +526,21 @@ export default function AdvancedAnalyticsPage({ publicCode }: AdvancedAnalyticsP
                       <div key={key} className="p-6 rounded-lg border border-border">
                         <div className="mb-4">
                           <div className="flex items-center justify-center gap-2">
-                            <h4 className="text-lg font-semibold text-foreground text-center">{category.title}</h4>
+                            <Heading variant="h5" className="text-center">{category.title}</Heading>
                             <div className="relative group">
                               <HelpCircle className="w-4 h-4 text-gray-400 hover:text-gray-600 cursor-help" />
-                              <div className="absolute right-0 top-full mt-2 hidden group-hover:block z-50 w-64 p-3 text-sm text-foreground bg-popover border border-border rounded-lg shadow-xl">
+                              <div className="absolute right-0 top-full mt-2 hidden group-hover:block z-50 w-64 p-3 bg-popover border border-border rounded-lg shadow-xl">
                                 <div className="absolute -top-1 right-4 w-2 h-2 bg-popover border-l border-t border-border rotate-45" />
-                                <strong>{category.title}</strong><br />
-                                {category.description}
+                                <Text variant="bodySmall" weight="bold">{category.title}</Text><br />
+                                <Text variant="bodySmall">{category.description}</Text>
                               </div>
                             </div>
                           </div>
                         </div>
 
                         {categoryData.length === 0 ? (
-                          <div className="text-center py-8 text-muted-foreground">
-                            No data available
+                          <div className="text-center py-8">
+                            <Text variant="body" color="muted">No data available</Text>
                           </div>
                         ) : (
                           <div className="space-y-3">
@@ -543,23 +549,28 @@ export default function AdvancedAnalyticsPage({ publicCode }: AdvancedAnalyticsP
                                 <div className="flex items-center justify-between py-2 gap-4">
                                   <div>
                                     <div className="flex items-baseline gap-2">
-                                      <p className={`text-sm font-semibold ${
-                                        index === 0 ? 'text-red-400' : 'text-foreground'
-                                      }`}>
+                                      <Text
+                                        variant="bodySmall"
+                                        weight="semibold"
+                                        className={index === 0 ? 'text-red-400' : ''}
+                                      >
                                         {player.player}
-                                      </p>
+                                      </Text>
                                       {index === 0 && (
                                         <SkullIcon className="h-4 w-4 text-red-400" />
                                       )}
                                     </div>
-                                    <p className="text-xs text-muted-foreground">{category.getSubtext(player)}</p>
+                                    <Text variant="caption" color="muted">{category.getSubtext(player)}</Text>
                                   </div>
                                   <div className="text-right">
-                                    <p className={`text-sm font-bold ${
-                                      index === 0 ? 'text-destructive' : 'text-white'
-                                    }`}>
+                                    <Text
+                                      variant="bodySmall"
+                                      weight="bold"
+                                      color={index === 0 ? 'destructive' : undefined}
+                                      className={index === 0 ? '' : 'text-white'}
+                                    >
                                       {category.getValue(player)}
-                                    </p>
+                                    </Text>
                                   </div>
                                 </div>
                                 {index < categoryData.length - 1 && (
@@ -580,7 +591,7 @@ export default function AdvancedAnalyticsPage({ publicCode }: AdvancedAnalyticsP
 
         {!isLoading && !analyticsLoading && !sessionExtremesLoading && !error && rows.length === 0 && (
           <div className="bg-card text-card-foreground rounded-lg border border-border shadow-sm p-12 text-center">
-            <p className="text-muted-foreground">No game data available for analytics.</p>
+            <Text variant="body" color="muted">No game data available for analytics.</Text>
           </div>
         )}
       </div>

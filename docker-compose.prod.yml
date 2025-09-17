@@ -1,24 +1,4 @@
-version: '3.8'
-
 services:
-  # Nginx reverse proxy
-  nginx:
-    image: nginx:alpine
-    container_name: poker_nginx_prod
-    restart: unless-stopped
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./nginx/ssl:/etc/nginx/ssl:ro
-      - ./frontend/build:/usr/share/nginx/html:ro
-    depends_on:
-      - backend
-    networks:
-      - poker_network
-
-  # PostgreSQL Database
   db:
     image: postgres:16
     container_name: poker_db_prod
@@ -30,104 +10,49 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./backups:/backups
-    networks:
-      - poker_network
-    deploy:
-      resources:
-        limits:
-          memory: 1G
-          cpus: '0.5'
+      - db_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
-      interval: 10s
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}",
+        ]
+      interval: 5s
       timeout: 5s
-      retries: 5
+      retries: 10
 
-  # Backend API
   backend:
     build:
       context: ./backend
-      dockerfile: Dockerfile.prod
+      dockerfile: Dockerfile
     container_name: poker_backend_prod
     restart: unless-stopped
     env_file: .env.production
+    working_dir: /app
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_PORT: ${POSTGRES_PORT:-5432}
       DATABASE_URL: postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:${POSTGRES_PORT:-5432}/${POSTGRES_DB}
-      FLASK_ENV: production
       PORT: "8000"
+      FLASK_ENV: "production"
+      # Google Cloud credentials via environment variables
+      GOOGLE_APPLICATION_CREDENTIALS_JSON: ${GOOGLE_APPLICATION_CREDENTIALS_JSON}
     depends_on:
       db:
         condition: service_healthy
-    volumes:
-      - ./logs:/app/logs
-    networks:
-      - poker_network
-    deploy:
-      resources:
-        limits:
-          memory: 512M
-          cpus: '0.5'
-      restart_policy:
-        condition: any
-        delay: 5s
-        max_attempts: 3
+    ports:
+      - "8000:8000"
     command: >
       sh -c "
-        echo 'Waiting for database...' &&
-        sleep 10 &&
-        echo 'Running migrations...' &&
         python -m alembic -c /app/alembic.ini upgrade head &&
-        echo 'Starting application...' &&
-        gunicorn --bind 0.0.0.0:8000 --workers 4 --timeout 120 --access-logfile - --error-logfile - src.app:create_app()
+        gunicorn --bind 0.0.0.0:8000 --workers 2 --threads 4 --timeout 120 src.app:app
       "
-
-  # Redis for caching (optional)
-  redis:
-    image: redis:7-alpine
-    container_name: poker_redis_prod
-    restart: unless-stopped
     volumes:
-      - redis_data:/data
-    networks:
-      - poker_network
-    deploy:
-      resources:
-        limits:
-          memory: 128M
-          cpus: '0.1'
-
-  # Monitoring with basic metrics
-  prometheus:
-    image: prom/prometheus:latest
-    container_name: poker_prometheus_prod
-    restart: unless-stopped
-    ports:
-      - "9090:9090"
-    volumes:
-      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-      - prometheus_data:/prometheus
-    networks:
-      - poker_network
-    deploy:
-      resources:
-        limits:
-          memory: 256M
-          cpus: '0.2'
+      - ./backend/src:/app/src
+      - ./backend:/app
+    # Note: No Google service account JSON file mounted - using environment variables instead
 
 volumes:
-  postgres_data:
-    driver: local
-  redis_data:
-    driver: local
-  prometheus_data:
-    driver: local
-
-networks:
-  poker_network:
-    driver: bridge
+  db_data:

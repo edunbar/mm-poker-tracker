@@ -1,5 +1,6 @@
 import axios from "axios";
 import { useQuery } from "react-query";
+import { API_BASE_URL } from "../../config/api";
 
 interface GameInfo {
   title?: string;
@@ -9,7 +10,7 @@ interface GameInfo {
 export const fetchGameInfo = async (publicCode: string): Promise<GameInfo> => {
   // Reuse the existing summary endpoint which already returns the game title
   const response = await axios.get(
-    `http://localhost:8000/api/games/${publicCode}/summary`
+    `${API_BASE_URL}/api/games/${publicCode}/summary`
   );
   return response.data;
 };

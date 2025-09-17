@@ -1,5 +1,6 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import React from 'react';
+import { Text } from './typography';
 
 interface PaginationProps {
   currentPage: number;
@@ -61,24 +62,24 @@ export function Pagination({
           disabled={currentPage === 1}
           className="relative inline-flex items-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium text-foreground hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          Previous
+<Text variant="bodySmall" weight="medium">Previous</Text>
         </button>
         <button
           onClick={() => onPageChange(currentPage + 1)}
           disabled={currentPage === totalPages}
           className="relative ml-3 inline-flex items-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium text-foreground hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          Next
+<Text variant="bodySmall" weight="medium">Next</Text>
         </button>
       </div>
       
       <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
         <div>
-          <p className="text-sm text-muted-foreground">
-            Showing <span className="font-medium">{startItem}</span> to{' '}
-            <span className="font-medium">{endItem}</span> of{' '}
-            <span className="font-medium">{totalItems}</span> results
-          </p>
+          <Text variant="bodySmall" color="muted">
+            Showing <Text variant="bodySmall" weight="medium" as="span">{startItem}</Text> to{' '}
+            <Text variant="bodySmall" weight="medium" as="span">{endItem}</Text> of{' '}
+            <Text variant="bodySmall" weight="medium" as="span">{totalItems}</Text> results
+          </Text>
         </div>
         
         <div>
@@ -88,15 +89,15 @@ export function Pagination({
               disabled={currentPage === 1}
               className="relative inline-flex items-center rounded-l-md px-2 py-2 text-muted-foreground ring-1 ring-inset ring-border hover:bg-muted focus:z-20 focus:outline-offset-0 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <span className="sr-only">Previous</span>
+              <Text variant="caption" as="span" className="sr-only">Previous</Text>
               <ChevronLeft className="h-5 w-5" aria-hidden="true" />
             </button>
             
             {visiblePages.map((page, index) => (
               <React.Fragment key={index}>
                 {page === '...' ? (
-                  <span className="relative inline-flex items-center px-4 py-2 text-sm font-semibold text-muted-foreground ring-1 ring-inset ring-border focus:outline-offset-0">
-                    ...
+                  <span className="relative inline-flex items-center px-4 py-2 ring-1 ring-inset ring-border focus:outline-offset-0">
+                    <Text variant="bodySmall" weight="semibold" color="muted">...</Text>
                   </span>
                 ) : (
                   <button
@@ -118,7 +119,7 @@ export function Pagination({
               disabled={currentPage === totalPages}
               className="relative inline-flex items-center rounded-r-md px-2 py-2 text-muted-foreground ring-1 ring-inset ring-border hover:bg-muted focus:z-20 focus:outline-offset-0 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <span className="sr-only">Next</span>
+              <Text variant="caption" as="span" className="sr-only">Next</Text>
               <ChevronRight className="h-5 w-5" aria-hidden="true" />
             </button>
           </nav>

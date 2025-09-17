@@ -1,5 +1,6 @@
 import { type ReactNode } from 'react';
 import { useAdminSession } from '../contexts/AdminSessionContext';
+import { Heading, Text } from '../shared/ui/typography';
 
 interface ProtectedRouteProps {
   children: ReactNode;
@@ -17,13 +18,13 @@ export default function ProtectedRoute({ children, requireAdmin = false }: Prote
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m0 0v3m0-3h3m-3 0h-3m-3-9a3 3 0 106 0v1M9 12a3 3 0 006 0v-1M9 12H6m3 0h6" />
           </svg>
         </div>
-        <h1 className="text-2xl font-bold text-foreground mb-2">Access Denied</h1>
-        <p className="text-muted-foreground mb-4">
+        <Heading variant="h3" className="mb-2">Access Denied</Heading>
+        <Text variant="body" color="muted" className="mb-4">
           You don't have permission to view this page. An admin session is required.
-        </p>
-        <p className="text-sm text-muted-foreground">
+        </Text>
+        <Text variant="bodySmall" color="muted">
           Please log in with admin credentials to access this content.
-        </p>
+        </Text>
       </div>
     );
   }

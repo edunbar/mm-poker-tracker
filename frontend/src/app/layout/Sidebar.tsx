@@ -1,5 +1,6 @@
 import {
   BarChart3,
+  BookOpen,
   CreditCard,
   Download,
   FileText,
@@ -14,12 +15,17 @@ import { NavLink, useLocation } from "react-router-dom";
 import { useAdminSession } from "../../contexts/AdminSessionContext";
 import { adminNav, publicNav } from "../../features/admin/nav";
 import { useGameTitle } from "../../shared/hooks/useGameTitle";
+import { Button } from "../../shared/ui/button";
+import { Input } from "../../shared/ui/input";
+import { Text } from "../../shared/ui/typography";
 
 // Icon mapping for navigation items
 const getNavIcon = (label: string) => {
   switch (label) {
     case "Game Summary":
       return <BarChart3 className="w-4 h-4" />;
+    case "Rule Book":
+      return <BookOpen className="w-4 h-4" />;
     case "Game Ledger":
       return <Receipt className="w-4 h-4" />;
     case "PokerNow Import":
@@ -102,16 +108,16 @@ export default function Sidebar() {
     <nav className="h-full bg-card flex flex-col">
       {/* Header */}
       <div className="px-6 py-5">
-        <div className="text-lg font-semibold text-foreground mb-2">{title}</div>
+        <Text variant="bodyLarge" weight="semibold" className="mb-2">{title}</Text>
         {currentPublicCode && (
-          <div className="flex items-center text-sm text-muted-foreground">
-            <span className="font-mono text-primary">{currentPublicCode}</span>
+          <div className="flex items-center">
+            <Text variant="bodySmall" as="span" className="font-mono text-primary">{currentPublicCode}</Text>
             {hasAdminSession && (
               <>
                 <span className="mx-2">•</span>
-                <div className="flex items-center px-2 py-1 bg-primary text-primary-foreground text-xs font-medium rounded-md hover:bg-primary/90 transition-colors duration-150">
+                <div className="flex items-center px-2 py-1 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors duration-150">
                   <Shield className="w-3 h-3 mr-1" />
-                  Admin
+                  <Text variant="caption" weight="medium">Admin</Text>
                 </div>
               </>
             )}
@@ -133,21 +139,21 @@ export default function Sidebar() {
               return (
                 <div key={item.path}>
                   {isDisabled ? (
-                    <div className="flex items-center px-3 py-2 text-sm text-muted-foreground cursor-not-allowed">
+                    <div className="flex items-center px-3 py-2 cursor-not-allowed">
                       <span className="mr-3 opacity-50">{icon}</span>
-                      {item.label}
+                      <Text variant="bodySmall" weight="medium" color="muted">{item.label}</Text>
                     </div>
                   ) : (
                     <NavLink
                       to={path}
-                      className={({ isActive }) => 
-                        isActive 
-                          ? "flex items-center px-3 py-2 text-sm font-medium text-accent-foreground bg-accent rounded-md"
-                          : "flex items-center px-3 py-2 text-sm font-medium text-foreground rounded-md hover:text-accent-foreground hover:bg-muted transition-colors duration-150"
+                      className={({ isActive }) =>
+                        isActive
+                          ? "flex items-center px-3 py-2 text-accent-foreground bg-accent rounded-md"
+                          : "flex items-center px-3 py-2 text-foreground rounded-md hover:text-accent-foreground hover:bg-muted transition-colors duration-150"
                       }
                     >
                       <span className="mr-3">{icon}</span>
-                      {item.label}
+                      <Text variant="bodySmall" weight="medium">{item.label}</Text>
                     </NavLink>
                   )}
                 </div>
@@ -159,9 +165,9 @@ export default function Sidebar() {
           {hasAdminSession && (
             <>
               <div className="mt-10 mb-4">
-                <div className="px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                <Text variant="caption" weight="semibold" color="muted" className="px-3 uppercase tracking-wider">
                   Admin Tools
-                </div>
+                </Text>
               </div>
               
               <div className="space-y-1">
@@ -173,21 +179,21 @@ export default function Sidebar() {
                   return (
                     <div key={item.path}>
                       {isDisabled ? (
-                        <div className="flex items-center px-3 py-2 text-sm text-muted-foreground cursor-not-allowed">
+                        <div className="flex items-center px-3 py-2 cursor-not-allowed">
                           <span className="mr-3 opacity-50">{icon}</span>
-                          {item.label}
+                          <Text variant="bodySmall" weight="medium" color="muted">{item.label}</Text>
                         </div>
                       ) : (
                         <NavLink
                           to={path}
-                          className={({ isActive }) => 
-                            isActive 
-                              ? "flex items-center px-3 py-2 text-sm font-medium text-accent-foreground bg-accent rounded-md"
-                              : "flex items-center px-3 py-2 text-sm font-medium text-foreground rounded-md hover:text-accent-foreground hover:bg-muted transition-colors duration-150"
+                          className={({ isActive }) =>
+                            isActive
+                              ? "flex items-center px-3 py-2 text-accent-foreground bg-accent rounded-md"
+                              : "flex items-center px-3 py-2 text-foreground rounded-md hover:text-accent-foreground hover:bg-muted transition-colors duration-150"
                           }
                         >
                           <span className="mr-3">{icon}</span>
-                          {item.label}
+                          <Text variant="bodySmall" weight="medium">{item.label}</Text>
                         </NavLink>
                       )}
                     </div>
@@ -203,41 +209,45 @@ export default function Sidebar() {
       {!hasAdminSession && (
         <div className="px-3 py-5 border-t border-border bg-muted">
           {!showAdminLogin ? (
-            <button
+            <Button
               onClick={() => setShowAdminLogin(true)}
-              className="w-full flex items-center px-3 py-2 text-sm font-medium text-foreground rounded-md hover:text-accent-foreground hover:bg-card transition-colors duration-150"
+              variant="ghost"
+              className="w-full justify-start px-3 py-2 hover:bg-card"
             >
               <Shield className="w-4 h-4 mr-3" />
-              Admin Access
-            </button>
+              <Text variant="bodySmall" weight="medium">Admin Access</Text>
+            </Button>
           ) : (
             <form onSubmit={handleAdminLogin} className="space-y-3">
-              <div className="text-sm font-medium text-foreground">Admin Login</div>
-              <input
+              <Text variant="bodySmall" weight="medium">Admin Login</Text>
+              <Input
                 type="password"
                 value={adminCode}
                 onChange={(e) => setAdminCode(e.target.value)}
                 placeholder="Enter admin code"
-                className="w-full px-3 py-2 text-sm border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring bg-background text-foreground"
+                size="sm"
                 autoFocus
               />
               <div className="flex space-x-2">
-                <button
+                <Button
                   type="submit"
-                  className="flex-1 px-3 py-2 text-xs font-medium text-primary-foreground bg-primary rounded-md hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-ring"
+                  size="sm"
+                  className="flex-1"
                 >
-                  Login
-                </button>
-                <button
+                  <Text variant="bodySmall" weight="medium">Login</Text>
+                </Button>
+                <Button
                   type="button"
+                  variant="outline"
+                  size="sm"
                   onClick={() => {
                     setShowAdminLogin(false);
                     setAdminCode('');
                   }}
-                  className="flex-1 px-3 py-2 text-xs font-medium text-muted-foreground bg-background border border-input rounded-md hover:bg-accent focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-ring"
+                  className="flex-1"
                 >
-                  Cancel
-                </button>
+                  <Text variant="bodySmall" weight="medium">Cancel</Text>
+                </Button>
               </div>
             </form>
           )}

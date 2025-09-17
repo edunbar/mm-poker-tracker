@@ -1,44 +1,21 @@
 FROM python:3.11-slim
 
-# Install system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential \
-    libpq-dev \
-    curl \
-    && rm -rf /var/lib/apt/lists/*
+    build-essential libpq-dev && rm -rf /var/lib/apt/lists/*
 
-# Create application directory
 WORKDIR /app
+COPY requirements.prod.txt /app/requirements.txt
+RUN pip install --no-cache-dir -r /app/requirements.txt
 
-# Create non-root user for security
-RUN useradd -m -u 1000 appuser && \
-    chown -R appuser:appuser /app
+# Copy backend including alembic files
+COPY . /app
 
-# Copy and install Python dependencies
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt && \
-    pip install --no-cache-dir gunicorn==21.2.0
-
-# Copy application code
-COPY . .
-
-# Create logs directory
-RUN mkdir -p logs && chown -R appuser:appuser logs
-
-# Switch to non-root user
-USER appuser
-
-# Set environment variables
+# Make your source importable: we want /app/src on PYTHONPATH
 ENV PYTHONPATH=/app/src
-ENV FLASK_ENV=production
-ENV PYTHONUNBUFFERED=1
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:8000/api/health || exit 1
+# Cloud Run expects PORT environment variable
+ENV PORT=8080
+EXPOSE 8080
 
-# Expose port
-EXPOSE 8000
-
-# Production command with Gunicorn
-CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--workers", "4", "--timeout", "120", "--access-logfile", "-", "--error-logfile", "-", "src.app:create_app()"]
+# Use gunicorn for production
+CMD exec gunicorn --bind :$PORT --workers 1 --threads 8 --timeout 0 src.app:app

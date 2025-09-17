@@ -4,6 +4,7 @@ import { useAdminSession } from "../../../contexts/AdminSessionContext";
 import { useToast } from "../../../contexts/ToastContext";
 import { PlayerInfo } from "../../../entities/game/types";
 import { useGameTitle } from "../../../shared/hooks/useGameTitle";
+import { Heading, Text } from "../../../shared/ui/typography";
 import { useGetGame } from "../api/getSession";
 import { useUploadGame } from "../api/uploadSession";
 import GameDataTable from "../components/IngestDataTable";
@@ -86,8 +87,8 @@ export default function GameIngestPage() {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
-          <h1 className="text-2xl font-semibold text-foreground mb-2">Invalid Game Code</h1>
-          <p className="text-muted-foreground">No public game code found in URL.</p>
+          <Heading variant="h2" className="mb-2">Invalid Game Code</Heading>
+          <Text variant="body" color="muted">No public game code found in URL.</Text>
         </div>
       </div>
     );
@@ -97,8 +98,8 @@ export default function GameIngestPage() {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
-          <h1 className="text-2xl font-semibold text-foreground mb-2">Admin Access Required</h1>
-          <p className="text-muted-foreground">You need to be logged in as admin to access this page.</p>
+          <Heading variant="h2" className="mb-2">Admin Access Required</Heading>
+          <Text variant="body" color="muted">You need to be logged in as admin to access this page.</Text>
         </div>
       </div>
     );
@@ -150,10 +151,10 @@ export default function GameIngestPage() {
       <div className="max-w-6xl mx-auto px-4">
         
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-foreground">Submit Game Session</h1>
-          <p className="mt-2 text-muted-foreground">
+          <Heading variant="h1">Submit Game Session</Heading>
+          <Text variant="body" color="muted" className="mt-2">
             Import PokerNow session data
-          </p>
+          </Text>
         </div>
 
       <GameUrlForm
@@ -170,9 +171,9 @@ export default function GameIngestPage() {
             errorMessage={errorMessage}
           />
 
-          {game.isLoading && <p>Loading game data...</p>}
+          {game.isLoading && <Text variant="body">Loading game data...</Text>}
           {game.isError && (
-            <p className="text-destructive">Error loading game data.</p>
+            <Text variant="body" color="destructive">Error loading game data.</Text>
           )}
 
           {rows.length > 0 && (
@@ -186,7 +187,7 @@ export default function GameIngestPage() {
               
               <div className="bg-card text-card-foreground rounded-lg border border-border shadow-sm">
                 <div className="border-b border-border p-4">
-                  <h3 className="text-lg font-semibold text-foreground">Optional Settings</h3>
+                  <Heading variant="h3">Optional Settings</Heading>
                 </div>
                 <div className="p-4">
                   <div className="bg-warning/20 border-l-4 border-warning rounded p-4">
@@ -197,14 +198,14 @@ export default function GameIngestPage() {
                         </svg>
                       </div>
                       <div className="ml-3 flex-1">
-                        <h4 className="font-medium text-warning">Manual Game Number Override</h4>
-                        <div className="mt-2 text-sm text-warning/80">
-                          <p>Leave blank to auto-assign the next game number, or enter a specific number to override (useful for re-uploading deleted games).</p>
+                        <Text variant="body" color="warning" weight="medium" as="h4">Manual Game Number Override</Text>
+                        <div className="mt-2">
+                          <Text variant="bodySmall" color="warning" className="text-warning/80">Leave blank to auto-assign the next game number, or enter a specific number to override (useful for re-uploading deleted games).</Text>
                         </div>
                         <div className="mt-3">
-                          <label htmlFor="gameNumber" className="block text-sm font-medium text-foreground mb-1">
+                          <Text variant="bodySmall" weight="medium" as="label" htmlFor="gameNumber" className="block mb-1">
                             Game Number
-                          </label>
+                          </Text>
                           <input
                             type="number"
                             id="gameNumber"

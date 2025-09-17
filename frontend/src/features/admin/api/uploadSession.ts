@@ -1,5 +1,6 @@
 import axios from "axios";
 import { useMutation } from "react-query";
+import { API_BASE_URL } from "../../../config/api";
 
 export const uploadGameDualWrite = async ({
   public_code,
@@ -17,7 +18,7 @@ export const uploadGameDualWrite = async ({
   gameNumber?: number;
 }) => {
   const response = await axios.post(
-    "http://localhost:8000/api/games/upload",
+    `${API_BASE_URL}/api/games/upload`,
     {
       public_code,
       sessionId,

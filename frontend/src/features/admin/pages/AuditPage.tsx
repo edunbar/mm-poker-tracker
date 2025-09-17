@@ -1,10 +1,14 @@
 import axios from 'axios';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
+import { API_BASE_URL } from '../../../config/api';
 import { useAdminSession } from '../../../contexts/AdminSessionContext';
 import { useToast } from '../../../contexts/ToastContext';
 import { useGameTitle } from '../../../shared/hooks/useGameTitle';
+import { Button } from '../../../shared/ui/button';
+import { EnhancedDataTable, createColumn } from '../../../shared/ui/enhanced-data-table';
 import { Pagination } from '../../../shared/ui/pagination';
+import { Heading, Text } from '../../../shared/ui/typography';
 
 interface AuditEntry {
   id: string;
@@ -74,7 +78,7 @@ export default function AuditPage() {
     try {
       setLoading(true);
       const offset = (page - 1) * itemsPerPage;
-      const response = await axios.get(`http://localhost:8000/api/games/${publicCode}/audit?limit=${itemsPerPage}&offset=${offset}`);
+      const response = await axios.get(`${API_BASE_URL}/api/games/${publicCode}/audit?limit=${itemsPerPage}&offset=${offset}`);
       setAuditData(response.data);
     } catch (error) {
     } finally {
@@ -84,7 +88,7 @@ export default function AuditPage() {
 
   const handleViewDetails = async (operationId: string) => {
     try {
-      const response = await axios.get(`http://localhost:8000/api/games/${publicCode}/audit/operation/${operationId}`);
+      const response = await axios.get(`${API_BASE_URL}/api/games/${publicCode}/audit/operation/${operationId}`);
       setSelectedOperation(response.data);
       setShowDetailsModal(true);
     } catch (error) {
@@ -115,7 +119,7 @@ export default function AuditPage() {
     try {
       setUndoLoading(true);
       await axios.post(
-        `http://localhost:8000/api/games/${publicCode}/audit/undo/${selectedOperation.operation_id}`,
+        `${API_BASE_URL}/api/games/${publicCode}/audit/undo/${selectedOperation.operation_id}`,
         {},
         { headers: { 'X-Admin-Code': effectiveAdminCode } }
       );
@@ -145,12 +149,86 @@ export default function AuditPage() {
     return new Date(timestamp).toLocaleString();
   };
 
+  const auditColumns = useMemo(() => [
+    createColumn('timestamp', 'Timestamp', (entry: AuditEntry) => (
+      <span className="text-sm text-foreground whitespace-nowrap">
+        {formatTimestamp(entry.timestamp)}
+      </span>
+    ), {
+      sortable: true,
+      className: 'w-48'
+    }),
+    createColumn('action', 'Action', (entry: AuditEntry) => (
+      <span className={`px-2 py-1 text-xs font-medium rounded-full whitespace-nowrap ${
+        entry.action === 'PLAYER_MERGE'
+          ? 'bg-primary/10 text-primary'
+          : entry.action === 'PLAYER_MERGE_UNDO'
+          ? 'bg-success/10 text-success'
+          : entry.action.includes('VERIFY')
+          ? 'bg-info/10 text-info'
+          : entry.action.includes('UPDATE')
+          ? 'bg-warning/10 text-warning'
+          : entry.action.includes('INSERT')
+          ? 'bg-success/10 text-success'
+          : entry.action.includes('DELETE')
+          ? 'bg-destructive/10 text-destructive'
+          : entry.action.includes('IMPORT')
+          ? 'bg-primary/10 text-primary'
+          : 'bg-muted text-muted-foreground'
+      }`}>
+        {entry.action.replace('_', ' ')}
+      </span>
+    ), {
+      sortable: true,
+      className: 'w-32'
+    }),
+    createColumn('actor', 'Actor', (entry: AuditEntry) => (
+      <span className="text-sm text-muted-foreground whitespace-nowrap">
+        {entry.actor_id}
+      </span>
+    ), {
+      sortable: true,
+      className: 'w-32'
+    }),
+    createColumn('details', 'Details', (entry: AuditEntry) => (
+      <span className="text-sm text-muted-foreground">
+        {entry.description || 'No description available'}
+      </span>
+    ), {
+      className: 'flex-1'
+    }),
+    createColumn('actions', 'Actions', (entry: AuditEntry) => (
+      <div className="flex space-x-2 text-sm font-medium">
+        <Button
+          onClick={() => handleViewDetails(entry.id)}
+          variant="ghost"
+          size="sm"
+          className="text-primary hover:text-primary/80 p-0 h-auto"
+        >
+          View Details
+        </Button>
+        {entry.can_undo && (
+          <Button
+            onClick={() => handleUndoClick(entry)}
+            variant="ghost"
+            size="sm"
+            className="text-destructive hover:text-destructive/80 p-0 h-auto"
+          >
+            Undo
+          </Button>
+        )}
+      </div>
+    ), {
+      className: 'w-48'
+    }),
+  ], []);
+
   const renderPlayerInfo = (playerData: any, title: string) => {
     if (!playerData) return null;
     
     return (
       <div className="mb-4">
-        <h4 className="font-medium text-foreground mb-2">{title}</h4>
+        <Text variant="body" weight="medium" as="h4" className="mb-2">{title}</Text>
         <div className="bg-muted p-3 rounded">
           <div><strong>Name:</strong> {playerData.display_name}</div>
           <div><strong>External ID:</strong> {playerData.external_id || 'None'}</div>
@@ -194,7 +272,7 @@ export default function AuditPage() {
 
     return (
       <div className="mb-4">
-        <h4 className="font-medium text-foreground mb-2">{title}</h4>
+        <Text variant="body" weight="medium" as="h4" className="mb-2">{title}</Text>
         <div className="bg-muted p-3 rounded">
           {Object.entries(data).map(([key, value]) => (
             <div key={key} className="mb-1">
@@ -211,10 +289,10 @@ export default function AuditPage() {
       <div className="min-h-screen bg-background py-8">
         <div className="max-w-6xl mx-auto px-4">
           <div className="mb-8">
-            <h1 className="text-3xl font-bold text-foreground">Audit Log</h1>
-            <p className="mt-2 text-muted-foreground">
+            <Heading variant="h1">Audit Log</Heading>
+            <Text variant="body" color="muted" className="mt-2">
               View all database operations
-            </p>
+            </Text>
           </div>
           <div className="bg-card text-card-foreground rounded-lg border border-border shadow-sm p-12 text-center">
             Loading audit data...
@@ -230,111 +308,39 @@ export default function AuditPage() {
         
         <div className="mb-8 flex justify-between items-center">
           <div>
-            <h1 className="text-3xl font-bold text-foreground">Audit Log</h1>
-            <p className="mt-2 text-muted-foreground">
+            <Heading variant="h1">Audit Log</Heading>
+            <Text variant="body" color="muted" className="mt-2">
               Database operations and audit trail
-            </p>
+            </Text>
           </div>
-          <button
+          <Button
             onClick={() => fetchAuditData(currentPage)}
-            className="px-4 py-2 bg-black text-white font-medium rounded-2xl hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2"
+            className="bg-black text-white hover:opacity-90"
           >
             Refresh
-          </button>
+          </Button>
         </div>
 
-      <div className="bg-card text-card-foreground rounded-lg border border-border shadow-sm">
-        <div className="border-b p-4">
-          <h3 className="text-lg font-semibold">All Database Operations</h3>
-          <p className="text-sm text-muted-foreground mt-1">
+      <div className="space-y-4">
+        <div className="bg-card text-card-foreground rounded-lg border border-border shadow-sm p-4">
+          <Heading variant="h3">All Database Operations</Heading>
+          <Text variant="bodySmall" color="muted" className="mt-1">
             {auditData?.total_count || 0} operations found
-          </p>
+          </Text>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-card border-b border-border">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                  Timestamp
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                  Action
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                  Actor
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                  Details
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-card divide-y divide-border">
-              {auditData?.audit_logs.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="px-6 py-12 text-center text-muted-foreground">
-                    No audit entries found
-                  </td>
-                </tr>
-              ) : (
-                auditData?.audit_logs.map((entry) => (
-                  <tr key={entry.id} className="hover:bg-accent hover:text-accent-foreground">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-foreground">
-                      {formatTimestamp(entry.timestamp)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                        entry.action === 'PLAYER_MERGE' 
-                          ? 'bg-primary/10 text-primary'
-                          : entry.action === 'PLAYER_MERGE_UNDO'
-                          ? 'bg-success/10 text-success'
-                          : entry.action.includes('VERIFY')
-                          ? 'bg-info/10 text-info'
-                          : entry.action.includes('UPDATE')
-                          ? 'bg-warning/10 text-warning'
-                          : entry.action.includes('INSERT')
-                          ? 'bg-success/10 text-success'
-                          : entry.action.includes('DELETE')
-                          ? 'bg-destructive/10 text-destructive'
-                          : entry.action.includes('IMPORT')
-                          ? 'bg-primary/10 text-primary'
-                          : 'bg-muted text-muted-foreground'
-                      }`}>
-                        {entry.action.replace('_', ' ')}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
-                      {entry.actor_id}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-muted-foreground">
-                      {entry.description || 'No description available'}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
-                      <button
-                        onClick={() => handleViewDetails(entry.id)}
-                        className="text-primary hover:text-primary/80"
-                      >
-                        View Details
-                      </button>
-                      {entry.can_undo && (
-                        <button
-                          onClick={() => handleUndoClick(entry)}
-                          className="text-destructive hover:text-destructive/80 ml-3"
-                        >
-                          Undo
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-        
+        <EnhancedDataTable
+          data={auditData?.audit_logs || []}
+          columns={auditColumns}
+          emptyState={
+            <div className="text-center text-muted-foreground">
+              No audit entries found
+            </div>
+          }
+          className="rounded-lg"
+          variant="default"
+        />
+
         {auditData && auditData.total_count > itemsPerPage && (
           <Pagination
             currentPage={currentPage}
@@ -350,9 +356,9 @@ export default function AuditPage() {
       {showDetailsModal && selectedOperation && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-start justify-center z-50 p-4 overflow-y-auto">
           <div className="bg-card text-card-foreground rounded-lg shadow-xl border border-border p-6 w-full max-w-4xl my-8">
-            <h3 className="text-lg font-medium text-foreground mb-6">
+            <Heading variant="h3" className="mb-6">
               Operation Details
-            </h3>
+            </Heading>
             
             <div className="space-y-6">
               <div className="grid grid-cols-2 gap-4 text-sm">
@@ -367,11 +373,11 @@ export default function AuditPage() {
                   {selectedOperation.action === 'PLAYER_MERGE' ? (
                     // Render player merge data structure
                     <div>
-                      <h4 className="font-medium text-foreground mb-4">Before State</h4>
+                      <Text variant="body" weight="medium" as="h4" className="mb-4">Before State</Text>
                       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                         {renderPlayerInfo(selectedOperation.before_state.target_player, "Target Player")}
                         <div>
-                          <h5 className="font-medium text-gray-900 mb-2">Source Players</h5>
+                          <Text variant="body" weight="medium" as="h5" className="mb-2 text-gray-900">Source Players</Text>
                           {selectedOperation.before_state.source_players?.map((player: any, idx: number) => (
                             <div key={idx} className="mb-3">
                               {renderPlayerInfo(player, `Source Player ${idx + 1}`)}
@@ -392,7 +398,7 @@ export default function AuditPage() {
                   {selectedOperation.action === 'PLAYER_MERGE' ? (
                     // Render player merge data structure
                     <div>
-                      <h4 className="font-medium text-foreground mb-4">After State</h4>
+                      <Text variant="body" weight="medium" as="h4" className="mb-4">After State</Text>
                       {renderPlayerInfo(selectedOperation.after_state.target_player, "Merged Player")}
                     </div>
                   ) : (
@@ -404,12 +410,12 @@ export default function AuditPage() {
             </div>
 
             <div className="flex justify-end gap-3 mt-6">
-              <button
+              <Button
                 onClick={handleCancel}
-                className="px-4 py-2 text-sm font-medium text-foreground bg-background border border-input rounded-lg hover:bg-accent"
+                variant="outline"
               >
                 Close
-              </button>
+              </Button>
             </div>
           </div>
         </div>
@@ -419,14 +425,14 @@ export default function AuditPage() {
       {showUndoConfirm && selectedOperation && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-card text-card-foreground rounded-lg shadow-xl border border-border p-6 w-full max-w-md">
-            <h3 className="text-lg font-medium text-foreground mb-4">
+            <Heading variant="h3" className="mb-4">
               Confirm Undo Operation
-            </h3>
+            </Heading>
             
-            <p className="text-sm text-muted-foreground mb-4">
-              This will undo the merge operation and restore all players to their original state. 
+            <Text variant="bodySmall" color="muted" className="mb-4">
+              This will undo the merge operation and restore all players to their original state.
               This action cannot be undone.
-            </p>
+            </Text>
 
             <div className="bg-sophisticated-gold-extralight border border-sophisticated-gold rounded p-3 mb-4">
               <div className="text-sm text-sophisticated-gold-deep">
@@ -438,9 +444,9 @@ export default function AuditPage() {
 
             {(showAdminInput && !hasAdminSession) && (
               <div className="mb-4">
-                <label className="block text-sm font-medium text-foreground mb-2">
+                <Text variant="bodySmall" weight="medium" as="label" className="block mb-2">
                   Admin Code *
-                </label>
+                </Text>
                 <input
                   type="password"
                   value={manualAdminCode}
@@ -462,20 +468,21 @@ export default function AuditPage() {
             )}
 
             <div className="flex justify-end gap-3">
-              <button
+              <Button
                 onClick={handleCancel}
                 disabled={undoLoading}
-                className="px-4 py-2 text-sm font-medium text-foreground bg-background border border-input rounded-lg hover:bg-accent disabled:opacity-50"
+                variant="outline"
               >
                 Cancel
-              </button>
-              <button
+              </Button>
+              <Button
                 onClick={executeUndo}
                 disabled={undoLoading}
-                className="px-4 py-2 text-sm font-medium text-white bg-red-600 border border-transparent rounded-2xl hover:bg-red-700 disabled:opacity-50"
+                variant="destructive"
+                className="bg-red-600 hover:bg-red-700"
               >
                 {undoLoading ? 'Undoing...' : 'Confirm Undo'}
-              </button>
+              </Button>
             </div>
           </div>
         </div>

@@ -1,9 +1,12 @@
 import axios from 'axios';
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
+import { API_BASE_URL } from '../../../config/api';
 import { useAdminSession } from '../../../contexts/AdminSessionContext';
 import { useToast } from '../../../contexts/ToastContext';
 import { useGameTitle } from '../../../shared/hooks/useGameTitle';
+import { Button } from '../../../shared/ui/button';
+import { Heading, Text } from '../../../shared/ui/typography';
 
 interface UnverifiedPlayer {
   player_id: string;
@@ -84,7 +87,7 @@ export default function VerifiedUsersPage() {
   const fetchVerificationData = async () => {
     try {
       setLoading(true);
-      const response = await axios.get(`http://localhost:8000/api/games/${publicCode}/players/verification`);
+      const response = await axios.get(`${API_BASE_URL}/api/games/${publicCode}/players/verification`);
       setData(response.data);
     } catch (error) {
     } finally {
@@ -113,7 +116,7 @@ export default function VerifiedUsersPage() {
 
     try {
       const response = await axios.post(
-        `http://localhost:8000/api/games/${publicCode}/players/find-duplicates`,
+        `${API_BASE_URL}/api/games/${publicCode}/players/find-duplicates`,
         {
           verified_name: name.trim(),
           exclude_player_id: editingPlayer?.player_id
@@ -158,7 +161,7 @@ export default function VerifiedUsersPage() {
       setModalLoading(true);
       
       await axios.post(
-        `http://localhost:8000/api/games/${publicCode}/players/merge`,
+        `${API_BASE_URL}/api/games/${publicCode}/players/merge`,
         {
           target_player_id: editingPlayer.player_id,
           source_player_ids: selectedMergeTargets,
@@ -206,7 +209,7 @@ export default function VerifiedUsersPage() {
       
       await axios({
         method,
-        url: `http://localhost:8000/api/games/${publicCode}/players/${editingPlayer.player_id}/${endpoint}`,
+        url: `${API_BASE_URL}/api/games/${publicCode}/players/${editingPlayer.player_id}/${endpoint}`,
         data: { 
           verified_name: verifiedName.trim(),
           external_id: externalId.trim() || null
@@ -249,14 +252,14 @@ export default function VerifiedUsersPage() {
       <div className="min-h-screen bg-background py-8">
         <div className="max-w-6xl mx-auto px-4">
           <div className="mb-8">
-            <h1 className="text-3xl font-semibold text-foreground">Player Verification</h1>
-            <p className="mt-2 text-muted-foreground">
+            <Heading variant="h1">Player Verification</Heading>
+            <Text variant="body" color="muted" className="mt-2">
               Manage and verify player identities
-            </p>
+            </Text>
           </div>
           <div className="card-stripe p-12 text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4" />
-            <p className="text-muted-foreground">Loading verification data...</p>
+            <Text variant="body" color="muted">Loading verification data...</Text>
           </div>
         </div>
       </div>
@@ -268,36 +271,42 @@ export default function VerifiedUsersPage() {
       <div className="max-w-6xl mx-auto px-4">
         
         <div className="mb-8">
-          <h1 className="text-3xl font-semibold text-foreground">Player Verification</h1>
-          <p className="mt-2 text-muted-foreground">
+          <Heading variant="h1">Player Verification</Heading>
+          <Text variant="body" color="muted" className="mt-2">
             Manage and verify player identities
-          </p>
+          </Text>
         </div>
       
       <div className="space-y-6">
         {/* Tabs */}
         <div className="border-b border-border">
           <nav className="-mb-px flex space-x-8">
-            <button
+            <Button
               onClick={() => setActiveTab('unverified')}
-              className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+              variant="ghost"
+              className={`py-4 px-1 border-b-2 transition-colors rounded-none ${
                 activeTab === 'unverified'
                   ? 'border-primary text-primary'
                   : 'border-transparent text-muted-foreground hover:text-foreground hover:border-muted-foreground'
               }`}
             >
-              Unverified Players ({data?.unverified_count || 0})
-            </button>
-            <button
+              <Text variant="bodySmall" weight="medium">
+                Unverified Players ({data?.unverified_count || 0})
+              </Text>
+            </Button>
+            <Button
               onClick={() => setActiveTab('verified')}
-              className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+              variant="ghost"
+              className={`py-4 px-1 border-b-2 transition-colors rounded-none ${
                 activeTab === 'verified'
                   ? 'border-primary text-primary'
                   : 'border-transparent text-muted-foreground hover:text-foreground hover:border-muted-foreground'
               }`}
             >
-              Verified Players ({data?.verified_count || 0})
-            </button>
+              <Text variant="bodySmall" weight="medium">
+                Verified Players ({data?.verified_count || 0})
+              </Text>
+            </Button>
           </nav>
         </div>
 
@@ -307,45 +316,46 @@ export default function VerifiedUsersPage() {
             <table className="min-w-full">
             <thead className="bg-card border-b border-border">
               <tr className="border-b border-border">
-                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                <Text variant="caption" weight="medium" color="muted" as="th" className="px-6 py-3 text-left uppercase tracking-wider">
                   {activeTab === 'unverified' ? 'Display Name' : 'Verified Name'}
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                </Text>
+                <Text variant="caption" weight="medium" color="muted" as="th" className="px-6 py-3 text-left uppercase tracking-wider">
                   External ID
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                </Text>
+                <Text variant="caption" weight="medium" color="muted" as="th" className="px-6 py-3 text-left uppercase tracking-wider">
                   Sessions
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                </Text>
+                <Text variant="caption" weight="medium" color="muted" as="th" className="px-6 py-3 text-left uppercase tracking-wider">
                   Actions
-                </th>
+                </Text>
               </tr>
             </thead>
             <tbody className="bg-card">
               {loading ? (
                 <tr>
-                  <td colSpan={4} className="px-6 py-12 text-center text-muted-foreground">
-                    Loading players...
+                  <td colSpan={4} className="px-6 py-12 text-center">
+                    <Text color="muted">Loading players...</Text>
                   </td>
                 </tr>
               ) : currentPlayers.map((player) => (
                 <tr key={player.player_id} className="border-b border-border hover:bg-accent/50">
-                  <td className="px-6 py-4 font-medium text-foreground">
-                    {player.display_name}
-                  </td>
-                  <td className="px-6 py-4 text-foreground">
-                    {player.external_id || '-'}
-                  </td>
-                  <td className="px-6 py-4 text-foreground">
-                    {player.session_count}
+                  <td className="px-6 py-4">
+                    <Text weight="medium">{player.display_name}</Text>
                   </td>
                   <td className="px-6 py-4">
-                    <button
+                    <Text>{player.external_id || '-'}</Text>
+                  </td>
+                  <td className="px-6 py-4">
+                    <Text>{player.session_count}</Text>
+                  </td>
+                  <td className="px-6 py-4">
+                    <Button
                       onClick={() => handleEdit(player, activeTab === 'verified')}
-                      className="px-3 py-1.5 text-sm font-medium bg-secondary text-secondary-foreground rounded-md hover:bg-secondary/80 focus:outline-none focus:ring-2 focus:ring-ring"
+                      variant="secondary"
+                      size="sm"
                     >
                       Edit
-                    </button>
+                    </Button>
                   </td>
                 </tr>
               ))}
@@ -355,9 +365,9 @@ export default function VerifiedUsersPage() {
 
         {!loading && currentPlayers.length === 0 && (
           <div className="bg-card text-card-foreground rounded-lg border border-border shadow-sm p-12 text-center">
-            <p className="text-muted-foreground">
+            <Text variant="body" color="muted">
               No {activeTab} players found.
-            </p>
+            </Text>
           </div>
         )}
       </div>
@@ -366,15 +376,15 @@ export default function VerifiedUsersPage() {
       {showModal && editingPlayer && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-start justify-center z-50 p-4 overflow-y-auto">
           <div className="bg-card text-card-foreground rounded-lg shadow-xl p-6 w-full max-w-2xl my-8 border border-border">
-            <h3 className="text-lg font-medium text-foreground mb-6">
+            <Heading variant="h3" className="mb-6">
               {editingPlayer.is_verified ? 'Edit Verified Player' : 'Verify Player'}
-            </h3>
+            </Heading>
             
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-foreground mb-2">
+                <Text variant="bodySmall" weight="medium" as="label" className="block mb-2">
                   Display Name (read-only)
-                </label>
+                </Text>
                 <input
                   type="text"
                   value={editingPlayer.display_name}
@@ -384,9 +394,9 @@ export default function VerifiedUsersPage() {
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-foreground mb-2">
+                <Text variant="bodySmall" weight="medium" as="label" className="block mb-2">
                   External ID (read-only)
-                </label>
+                </Text>
                 <input
                   type="text"
                   value={editingPlayer.external_id || '-'}
@@ -396,9 +406,9 @@ export default function VerifiedUsersPage() {
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-foreground mb-2">
+                <Text variant="bodySmall" weight="medium" as="label" className="block mb-2">
                   All Names Used (read-only)
-                </label>
+                </Text>
                 <input
                   type="text"
                   value={editingPlayer.all_names.join(', ')}
@@ -408,9 +418,9 @@ export default function VerifiedUsersPage() {
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-foreground mb-2">
+                <Text variant="bodySmall" weight="medium" as="label" className="block mb-2">
                   Verified Name *
-                </label>
+                </Text>
                 <input
                   type="text"
                   value={verifiedName}
@@ -418,9 +428,9 @@ export default function VerifiedUsersPage() {
                   placeholder="Enter real player name..."
                   className="w-full px-3 py-2 border border-input bg-background text-foreground rounded-lg focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring placeholder:text-muted-foreground"
                 />
-                <p className="text-sm text-muted-foreground mt-1">
+                <Text variant="bodySmall" color="muted" className="mt-1">
                   This will be used to identify the player across sessions
-                </p>
+                </Text>
               </div>
               
               {/* Duplicate Detection Section */}
@@ -428,13 +438,13 @@ export default function VerifiedUsersPage() {
                 <div className="p-4 bg-warning/10 border border-warning rounded-lg">
                   <div className="flex items-center mb-3">
                     <div className="text-warning mr-2">⚠️</div>
-                    <h4 className="font-medium text-warning">
+                    <Text variant="body" weight="medium" color="warning" as="h4">
                       Found {duplicateDetection.match_count} potential match{duplicateDetection.match_count > 1 ? 'es' : ''} for '{duplicateDetection.verified_name}'
-                    </h4>
+                    </Text>
                   </div>
-                  <p className="text-sm text-warning mb-3">
+                  <Text variant="bodySmall" color="warning" className="mb-3">
                     Do you want to merge these players? This will combine all their session data.
-                  </p>
+                  </Text>
                   
                   <div className="space-y-2 max-h-48 overflow-y-auto">
                     {duplicateDetection.potential_matches.map((match) => (
@@ -447,22 +457,24 @@ export default function VerifiedUsersPage() {
                         />
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between">
-                            <div className="font-medium text-foreground">
-                              {match.display_name} 
-                              {match.is_verified && <span className="ml-2 px-2 py-1 text-xs bg-success/20 text-success rounded">Verified</span>}
+                            <div>
+                              <Text weight="medium">
+                                {match.display_name}
+                                {match.is_verified && <span className="ml-2 px-2 py-1 text-xs bg-success/20 text-success rounded">Verified</span>}
+                              </Text>
                             </div>
-                            <div className="text-sm text-muted-foreground">{match.session_count} sessions</div>
+                            <Text variant="bodySmall" color="muted">{match.session_count} sessions</Text>
                           </div>
                           {match.external_id && (
-                            <div className="text-sm text-muted-foreground">ID: {match.external_id}</div>
+                            <Text variant="bodySmall" color="muted">ID: {match.external_id}</Text>
                           )}
-                          <div className="text-xs text-muted-foreground mt-1">
+                          <Text variant="caption" color="muted" className="mt-1">
                             Used names: {match.session_names.slice(0, 3).join(', ')}
                             {match.session_names.length > 3 && ` (+${match.session_names.length - 3} more)`}
-                          </div>
-                          <div className="text-xs text-primary mt-1">
+                          </Text>
+                          <Text variant="caption" color="primary" className="mt-1">
                             {match.match_reasons.join(', ')}
-                          </div>
+                          </Text>
                         </div>
                       </label>
                     ))}
@@ -470,18 +482,18 @@ export default function VerifiedUsersPage() {
                   
                   {selectedMergeTargets.length > 0 && (
                     <div className="mt-3 p-3 bg-primary/10 rounded border border-primary/20">
-                      <div className="text-sm text-primary">
+                      <Text variant="bodySmall" color="primary">
                         <strong>Merge Preview:</strong> {selectedMergeTargets.length} player{selectedMergeTargets.length > 1 ? 's' : ''} will be merged into this verification.
-                      </div>
+                      </Text>
                     </div>
                   )}
                 </div>
               )}
               
               <div>
-                <label className="block text-sm font-medium text-foreground mb-2">
+                <Text variant="bodySmall" weight="medium" as="label" className="block mb-2">
                   External ID {editingPlayer.is_verified ? '' : '*'}
-                </label>
+                </Text>
                 <input
                   type="text"
                   value={externalId}
@@ -489,16 +501,16 @@ export default function VerifiedUsersPage() {
                   placeholder="Enter PokerNow player ID..."
                   className="w-full px-3 py-2 border border-input bg-background text-foreground rounded-lg focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring placeholder:text-muted-foreground"
                 />
-                <p className="text-sm text-muted-foreground mt-1">
+                <Text variant="bodySmall" color="muted" className="mt-1">
                   {editingPlayer.is_verified ? 'Update the player\'s PokerNow ID' : 'Required to verify player - this is their PokerNow ID'}
-                </p>
+                </Text>
               </div>
 
               {showAdminInput && (
                 <div>
-                  <label className="block text-sm font-medium text-foreground mb-2">
+                  <Text variant="bodySmall" weight="medium" as="label" className="block mb-2">
                     Admin Code *
-                  </label>
+                  </Text>
                   <input
                     type="password"
                     value={manualAdminCode}
@@ -511,24 +523,23 @@ export default function VerifiedUsersPage() {
             </div>
             
             <div className="flex justify-end gap-3 mt-6">
-              <button
+              <Button
                 onClick={handleCancel}
                 disabled={modalLoading}
-                className="px-4 py-2 text-sm font-medium text-muted-foreground bg-muted border border-input rounded-lg hover:bg-accent hover:text-accent-foreground focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50"
+                variant="outline"
               >
                 Cancel
-              </button>
-              <button
+              </Button>
+              <Button
                 onClick={handleSave}
                 disabled={modalLoading || !verifiedName.trim() || (!editingPlayer.is_verified && !externalId.trim())}
-                className="px-4 py-2 text-sm font-medium text-primary-foreground bg-primary border border-transparent rounded-lg hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50"
               >
                 {modalLoading ? (
                   selectedMergeTargets.length > 0 ? 'Merging...' : 'Saving...'
                 ) : (
                   selectedMergeTargets.length > 0 ? `Merge & Verify (${selectedMergeTargets.length + 1} players)` : 'Save'
                 )}
-              </button>
+              </Button>
             </div>
           </div>
         </div>
@@ -538,25 +549,25 @@ export default function VerifiedUsersPage() {
       {showMergeConfirmation && (
         <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-60">
           <div className="bg-card text-card-foreground rounded-lg shadow-xl p-6 w-96 max-w-md mx-4 border border-border">
-            <h3 className="text-lg font-medium text-foreground mb-4">
+            <Heading variant="h3" className="mb-4">
               Confirm Player Merge
-            </h3>
-            <p className="text-sm text-muted-foreground mb-4">
+            </Heading>
+            <Text variant="bodySmall" color="muted" className="mb-4">
               This will merge {selectedMergeTargets.length} player{selectedMergeTargets.length > 1 ? 's' : ''} into one. All session data will be combined. This action cannot be undone.
-            </p>
+            </Text>
             <div className="flex justify-end gap-3">
-              <button
+              <Button
                 onClick={() => setShowMergeConfirmation(false)}
-                className="px-4 py-2 text-sm font-medium text-muted-foreground bg-muted border border-input rounded-lg hover:bg-accent hover:text-accent-foreground"
+                variant="outline"
               >
                 Cancel
-              </button>
-              <button
+              </Button>
+              <Button
                 onClick={executeMerge}
-                className="px-4 py-2 text-sm font-medium text-destructive-foreground bg-destructive border border-transparent rounded-lg hover:bg-destructive/90"
+                variant="destructive"
               >
                 Confirm Merge
-              </button>
+              </Button>
             </div>
           </div>
         </div>

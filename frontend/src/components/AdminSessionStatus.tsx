@@ -1,5 +1,6 @@
 import { useAdminSession } from '../contexts/AdminSessionContext';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { Button } from '../shared/ui/button';
 
 interface AdminSessionStatusProps {
   className?: string;
@@ -45,13 +46,15 @@ export default function AdminSessionStatus({ className = '', compact = false }: 
             </div>
           )}
         </div>
-        <button
+        <Button
           onClick={handleClearSession}
-          className="ml-4 text-xs bg-success/20 text-success px-2 py-1 rounded hover:bg-success/30"
+          variant="ghost"
+          size="sm"
+          className="ml-4 text-xs bg-success/20 text-success px-2 py-1 hover:bg-success/30"
           title="Clear admin session"
         >
           Clear Session
-        </button>
+        </Button>
       </div>
     </div>
   );

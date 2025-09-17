@@ -1,13 +1,6 @@
 import React, { useMemo } from "react";
 import { PlayerSummaryRow } from "../../../entities/game/types";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "../../../shared/ui/table";
+import { EnhancedDataTable, createColumn } from "../../../shared/ui/enhanced-data-table";
 
 interface GameDataTableProps {
   playersInfos: PlayerSummaryRow[];
@@ -15,7 +8,6 @@ interface GameDataTableProps {
     | React.Dispatch<React.SetStateAction<PlayerSummaryRow[]>>
     | (() => void);
 }
-
 
 function formatNumber(n: number | null | undefined) {
   // Handle negative zero by normalizing very small values to 0
@@ -43,83 +35,68 @@ const GameDataTable: React.FC<GameDataTableProps> = ({ playersInfos = [] }) => {
     return { buyInTotal, cashOutTotal, net, balanced };
   }, [playersInfos]);
 
+  const columns = useMemo(() => [
+    createColumn('player', 'Player', 'player', {
+      sortable: true,
+      className: 'min-w-0'
+    }),
+    createColumn('rank', 'Rank', 'rank', {
+      sortable: true,
+      align: 'right' as const
+    }),
+    createColumn('buyIn', 'Buy In', (row: PlayerSummaryRow) => formatNumber(row.buyIn), {
+      sortable: true,
+      align: 'right' as const
+    }),
+    createColumn('cashOut', 'Cash Out', (row: PlayerSummaryRow) => formatNumber(row.cashOut), {
+      sortable: true,
+      align: 'right' as const
+    }),
+    createColumn('net', 'Net', (row: PlayerSummaryRow) => (
+      <span className={`font-medium ${
+        Math.abs(row.net) < 0.005
+          ? "text-muted-foreground"
+          : row.net > 0.005
+          ? "text-success"
+          : "text-destructive"
+      }`}>
+        {formatNumber(row.net)}
+      </span>
+    ), {
+      sortable: true,
+      align: 'right' as const
+    }),
+    createColumn('gamesPlayed', 'Games', 'gamesPlayed', {
+      sortable: true,
+      align: 'right' as const
+    }),
+  ], []);
+
+  // Create data with totals row
+  const dataWithTotals = useMemo(() => {
+    const totalsRow: PlayerSummaryRow = {
+      player: 'Totals',
+      rank: 0,
+      buyIn: derived.buyInTotal,
+      cashOut: derived.cashOutTotal,
+      net: derived.net,
+      gamesPlayed: 0,
+    };
+    return [...playersInfos, totalsRow];
+  }, [playersInfos, derived]);
+
   if (!Array.isArray(playersInfos) || playersInfos.length === 0) {
     return <div>No player summary data available.</div>;
   }
 
   return (
-    <div>
-      <div className="overflow-auto rounded-xl border border-border bg-card">
-        <Table className="table-auto w-full">
-          <TableHeader className="bg-muted">
-            <TableRow>
-              <TableHead className="min-w-0">Player</TableHead>
-              <TableHead className="text-right">Rank</TableHead>
-              <TableHead className="text-right">Buy In</TableHead>
-              <TableHead className="text-right">Cash Out</TableHead>
-              <TableHead className="text-right">Net</TableHead>
-
-              <TableHead className="text-right">Games</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {playersInfos.map((row, idx) => (
-              <TableRow key={row.player + idx}>
-                <TableCell className="px-3 py-2">{row.player}</TableCell>
-                <TableCell className="px-3 py-2 text-right">
-                  {row.rank}
-                </TableCell>
-                <TableCell className="px-3 py-2 text-right">
-                  {formatNumber(row.buyIn)}
-                </TableCell>
-                <TableCell className="px-3 py-2 text-right">
-                  {formatNumber(row.cashOut)}
-                </TableCell>
-                <TableCell
-                  className={`px-3 py-2 text-right font-medium ${
-                    Math.abs(row.net) < 0.005
-                      ? "text-muted-foreground"
-                      : row.net > 0.005
-                      ? "text-green-600 dark:text-green-400"
-                      : "text-red-600 dark:text-red-400"
-                  }`}
-                >
-                  {formatNumber(row.net)}
-                </TableCell>
-
-                <TableCell className="px-3 py-2 text-right">
-                  {row.gamesPlayed}
-                </TableCell>
-              </TableRow>
-            ))}
-
-            <TableRow className="bg-muted">
-              <TableCell colSpan={2} className="font-medium">
-                Totals
-              </TableCell>
-              <TableCell className="text-right font-semibold">
-                {formatNumber(derived.buyInTotal)}
-              </TableCell>
-              <TableCell className="text-right font-semibold">
-                {formatNumber(derived.cashOutTotal)}
-              </TableCell>
-              <TableCell
-                className={`text-right font-semibold ${
-                  Math.abs(derived.net) < 0.005
-                    ? "text-muted-foreground"
-                    : derived.net > 0.005
-                    ? "text-green-600 dark:text-green-400"
-                    : "text-red-600 dark:text-red-400"
-                }`}
-              >
-                {formatNumber(derived.net)}
-              </TableCell>
-              <TableCell colSpan={8} />
-            </TableRow>
-          </TableBody>
-        </Table>
-      </div>
-    </div>
+    <EnhancedDataTable
+      data={dataWithTotals}
+      columns={columns}
+      className="rounded-xl"
+      variant="default"
+      emptyState={<div>No player summary data available.</div>}
+    />
   );
 };
 

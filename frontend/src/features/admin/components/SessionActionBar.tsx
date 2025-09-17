@@ -1,4 +1,5 @@
 import { Upload, Loader2, CheckCircle2 } from "lucide-react";
+import { Button } from "../../../shared/ui/button";
 
 interface GameActionBarProps {
   onCancel: () => void;
@@ -17,15 +18,15 @@ const GameActionBar: React.FC<GameActionBarProps> = ({
 }) => (
   <div className="mt-6 space-y-4">
     <div className="flex items-center justify-between">
-      <button
-        className="bg-muted text-muted-foreground px-4 py-2 rounded hover:bg-accent hover:text-accent-foreground transition-colors disabled:opacity-50"
+      <Button
+        variant="muted"
         onClick={onCancel}
         disabled={isLoading}
       >
         Cancel
-      </button>
-      <button
-        className={`px-6 py-2 rounded flex items-center gap-2 transition-colors ${
+      </Button>
+      <Button
+        className={`px-6 py-2 flex items-center gap-2 ${
           isSuccess
             ? "bg-success text-success-foreground"
             : balanced && !isLoading
@@ -48,7 +49,7 @@ const GameActionBar: React.FC<GameActionBarProps> = ({
             <Upload className="h-4 w-4" /> Upload to Database
           </>
         )}
-      </button>
+      </Button>
     </div>
 
     {/* Inline success message */}

@@ -1,5 +1,6 @@
 import axios from "axios";
 import { useQuery } from "react-query";
+import { API_BASE_URL } from "../../../config/api";
 
 interface PlayerAnalytics {
   player_name: string;
@@ -23,7 +24,7 @@ interface AnalyticsResponse {
 
 export const fetchPlayerAnalytics = async (publicCode: string): Promise<AnalyticsResponse> => {
   const response = await axios.get(
-    `http://localhost:8000/api/games/${publicCode}/analytics`
+    `${API_BASE_URL}/api/games/${publicCode}/analytics`
   );
   return response.data;
 };

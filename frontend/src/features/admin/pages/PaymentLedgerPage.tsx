@@ -2,9 +2,12 @@ import axios from 'axios';
 import { ChevronDown, ChevronUp, DollarSign, Edit, History, Plus, Target, Trash2, Users, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
+import { API_BASE_URL } from '../../../config/api';
 import { useAdminSession } from '../../../contexts/AdminSessionContext';
 import { useToast } from '../../../contexts/ToastContext';
 import { useGameTitle } from '../../../shared/hooks/useGameTitle';
+import { Button } from '../../../shared/ui/button';
+import { Heading, Text } from '../../../shared/ui/typography';
 
 interface PlayerPaymentSummary {
   player_id: string;
@@ -96,7 +99,7 @@ export default function PaymentLedgerPage() {
 
   const fetchPaymentSummary = async () => {
     try {
-      const response = await axios.get(`http://localhost:8000/api/games/${publicCode}/payments/summary`);
+      const response = await axios.get(`${API_BASE_URL}/api/games/${publicCode}/payments/summary`);
       setPaymentSummary(response.data.players);
     } catch (error) {
     }
@@ -105,7 +108,7 @@ export default function PaymentLedgerPage() {
 
   const fetchSettlements = async () => {
     try {
-      const response = await axios.get(`http://localhost:8000/api/games/${publicCode}/payments/settlements`);
+      const response = await axios.get(`${API_BASE_URL}/api/games/${publicCode}/payments/settlements`);
       setSettlements(response.data.settlements);
     } catch (error) {
     }
@@ -113,7 +116,7 @@ export default function PaymentLedgerPage() {
 
   const fetchPaymentHistory = async () => {
     try {
-      const response = await axios.get(`http://localhost:8000/api/games/${publicCode}/payments/history`);
+      const response = await axios.get(`${API_BASE_URL}/api/games/${publicCode}/payments/history`);
       setPaymentHistory(response.data.transactions);
     } catch (error) {
     }
@@ -159,7 +162,7 @@ export default function PaymentLedgerPage() {
         reference_id: recordForm.reference_id || null
       };
 
-      await axios.post(`http://localhost:8000/api/games/${publicCode}/payments/record`, paymentData, {
+      await axios.post(`${API_BASE_URL}/api/games/${publicCode}/payments/record`, paymentData, {
         headers: {
           'X-Admin-Code': adminCode,
           'Content-Type': 'application/json'
@@ -237,7 +240,7 @@ export default function PaymentLedgerPage() {
         payment_date: editingPayment.payment_date
       };
 
-      await axios.put(`http://localhost:8000/api/games/${publicCode}/payments/${editingPayment.id}`, paymentData, {
+      await axios.put(`${API_BASE_URL}/api/games/${publicCode}/payments/${editingPayment.id}`, paymentData, {
         headers: {
           'X-Admin-Code': adminCode,
           'Content-Type': 'application/json'
@@ -287,7 +290,7 @@ export default function PaymentLedgerPage() {
     setSubmitLoading(true);
 
     try {
-      await axios.delete(`http://localhost:8000/api/games/${publicCode}/payments/${paymentToDelete.id}`, {
+      await axios.delete(`${API_BASE_URL}/api/games/${publicCode}/payments/${paymentToDelete.id}`, {
         headers: {
           'X-Admin-Code': adminCode
         }
@@ -328,7 +331,7 @@ export default function PaymentLedgerPage() {
         notes: `Optimal settlement: ${settlement.payer_name} → ${settlement.recipient_name}`
       };
 
-      await axios.post(`http://localhost:8000/api/games/${publicCode}/payments/record`, paymentData, {
+      await axios.post(`${API_BASE_URL}/api/games/${publicCode}/payments/record`, paymentData, {
         headers: {
           'X-Admin-Code': adminCode,
           'Content-Type': 'application/json'
@@ -439,7 +442,7 @@ export default function PaymentLedgerPage() {
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto" />
-          <p className="mt-2 text-muted-foreground">Loading payment ledger...</p>
+          <Text variant="body" color="muted" className="mt-2">Loading payment ledger...</Text>
         </div>
       </div>
     );
@@ -450,17 +453,18 @@ export default function PaymentLedgerPage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-6">
           <div>
-            <h1 className="text-3xl font-bold text-foreground">Payment Ledger</h1>
-            <p className="mt-2 text-muted-foreground">Track payments and settle debts</p>
+            <Heading variant="h1">Payment Ledger</Heading>
+            <Text variant="body" color="muted" className="mt-2">Track payments and settle debts</Text>
           </div>
         </div>
 
         {/* Tab Navigation */}
         <div className="border-b border-border mb-6">
           <nav className="-mb-px flex space-x-8">
-            <button
+            <Button
               onClick={() => setActiveTab('summary')}
-              className={`py-2 px-1 border-b-2 font-medium text-sm ${
+              variant="ghost"
+              className={`py-2 px-1 border-b-2 font-medium text-sm rounded-none ${
                 activeTab === 'summary'
                   ? 'border-primary text-primary'
                   : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
@@ -468,10 +472,11 @@ export default function PaymentLedgerPage() {
             >
               <Users className="w-4 h-4 inline mr-1" />
               Balance Summary
-            </button>
-            <button
+            </Button>
+            <Button
               onClick={() => setActiveTab('settlements')}
-              className={`py-2 px-1 border-b-2 font-medium text-sm ${
+              variant="ghost"
+              className={`py-2 px-1 border-b-2 font-medium text-sm rounded-none ${
                 activeTab === 'settlements'
                   ? 'border-primary text-primary'
                   : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
@@ -479,10 +484,11 @@ export default function PaymentLedgerPage() {
             >
               <Target className="w-4 h-4 inline mr-1" />
               Optimal Settlement Structure
-            </button>
-            <button
+            </Button>
+            <Button
               onClick={() => setActiveTab('history')}
-              className={`py-2 px-1 border-b-2 font-medium text-sm ${
+              variant="ghost"
+              className={`py-2 px-1 border-b-2 font-medium text-sm rounded-none ${
                 activeTab === 'history'
                   ? 'border-primary text-primary'
                   : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
@@ -490,10 +496,11 @@ export default function PaymentLedgerPage() {
             >
               <History className="w-4 h-4 inline mr-1" />
               Payment History
-            </button>
-            <button
+            </Button>
+            <Button
               onClick={() => setActiveTab('record')}
-              className={`py-2 px-1 border-b-2 font-medium text-sm ${
+              variant="ghost"
+              className={`py-2 px-1 border-b-2 font-medium text-sm rounded-none ${
                 activeTab === 'record'
                   ? 'border-primary text-primary'
                   : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
@@ -501,7 +508,7 @@ export default function PaymentLedgerPage() {
             >
               <Plus className="w-4 h-4 inline mr-1" />
               Record Payment
-            </button>
+            </Button>
           </nav>
         </div>
 
@@ -509,132 +516,149 @@ export default function PaymentLedgerPage() {
         {activeTab === 'summary' && (
           <div className="bg-card text-card-foreground shadow rounded-lg border border-border">
             <div className="px-6 py-4 border-b border-border">
-              <h2 className="text-lg font-medium text-foreground">Player Balance Summary</h2>
-              <p className="text-sm text-muted-foreground">
+              <Heading variant="h2">Player Balance Summary</Heading>
+              <Text variant="bodySmall" color="muted">
                 Payment data for all players
-              </p>
+              </Text>
             </div>
             <div className="overflow-x-auto overflow-y-visible">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-card border-b border-border">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                      <button
-                        className="flex items-center space-x-1 hover:text-foreground"
+                    <th className="px-6 py-3 text-left uppercase tracking-wider">
+                      <Button
+                        variant="ghost"
+                        className="flex items-center space-x-1 hover:text-foreground p-0 h-auto"
                         onClick={() => handleSort('player_name')}
                       >
-                        <span>Player</span>
+                        <Text variant="caption" weight="medium" color="muted">Player</Text>
                         {getSortIcon('player_name')}
-                      </button>
+                      </Button>
                     </th>
-                    <th className="px-6 py-3 text-center text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                      <button
-                        className="flex items-center justify-center space-x-1 hover:text-foreground"
+                    <th className="px-6 py-3 text-center uppercase tracking-wider">
+                      <Button
+                        variant="ghost"
+                        className="flex items-center justify-center space-x-1 hover:text-foreground p-0 h-auto"
                         onClick={() => handleSort('poker_net_winnings')}
                       >
-                        <span>Poker Winnings</span>
+                        <Text variant="caption" weight="medium" color="muted">Poker Winnings</Text>
                         {getSortIcon('poker_net_winnings')}
-                      </button>
+                      </Button>
                     </th>
-                    <th className="px-6 py-3 text-center text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                      <button
-                        className="flex items-center justify-center space-x-1 hover:text-foreground"
+                    <th className="px-6 py-3 text-center uppercase tracking-wider">
+                      <Button
+                        variant="ghost"
+                        className="flex items-center justify-center space-x-1 hover:text-foreground p-0 h-auto"
                         onClick={() => handleSort('total_paid')}
                       >
-                        <span>Paid Out</span>
+                        <Text variant="caption" weight="medium" color="muted">Paid Out</Text>
                         {getSortIcon('total_paid')}
-                      </button>
+                      </Button>
                     </th>
-                    <th className="px-6 py-3 text-center text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                      <button
-                        className="flex items-center justify-center space-x-1 hover:text-foreground"
+                    <th className="px-6 py-3 text-center uppercase tracking-wider">
+                      <Button
+                        variant="ghost"
+                        className="flex items-center justify-center space-x-1 hover:text-foreground p-0 h-auto"
                         onClick={() => handleSort('total_received')}
                       >
-                        <span>Received</span>
+                        <Text variant="caption" weight="medium" color="muted">Received</Text>
                         {getSortIcon('total_received')}
-                      </button>
+                      </Button>
                     </th>
-                    <th className="px-6 py-3 text-center text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                      <button
-                        className="flex items-center justify-center space-x-1 hover:text-foreground"
+                    <th className="px-6 py-3 text-center uppercase tracking-wider">
+                      <Button
+                        variant="ghost"
+                        className="flex items-center justify-center space-x-1 hover:text-foreground p-0 h-auto"
                         onClick={() => handleSort('realized_cash_earnings')}
                       >
-                        <span>Realized Cash Earnings</span>
+                        <Text variant="caption" weight="medium" color="muted">Realized Cash Earnings</Text>
                         {getSortIcon('realized_cash_earnings')}
-                      </button>
+                      </Button>
                     </th>
-                    <th className="px-6 py-3 text-center text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                      <button
-                        className="flex items-center justify-center space-x-1 hover:text-foreground"
+                    <th className="px-6 py-3 text-center uppercase tracking-wider">
+                      <Button
+                        variant="ghost"
+                        className="flex items-center justify-center space-x-1 hover:text-foreground p-0 h-auto"
                         onClick={() => handleSort('net_balance')}
                       >
-                        <span>Amount Owed</span>
+                        <Text variant="caption" weight="medium" color="muted">Amount Owed</Text>
                         {getSortIcon('net_balance')}
-                      </button>
+                      </Button>
                     </th>
-                    <th className="px-6 py-3 text-center text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                      <button
-                        className="flex items-center justify-center space-x-1 hover:text-foreground"
+                    <th className="px-6 py-3 text-center uppercase tracking-wider">
+                      <Button
+                        variant="ghost"
+                        className="flex items-center justify-center space-x-1 hover:text-foreground p-0 h-auto"
                         onClick={() => handleSort('days_since_last_payment')}
                       >
-                        <span>Days Since Last Payment</span>
+                        <Text variant="caption" weight="medium" color="muted">Days Since Last Payment</Text>
                         {getSortIcon('days_since_last_payment')}
-                      </button>
+                      </Button>
                     </th>
                   </tr>
                 </thead>
                 <tbody className="bg-card divide-y divide-border">
                   {sortedPaymentSummary.map((player) => (
                     <tr key={player.player_id}>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-foreground">
-                        {player.player_name}
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <Text variant="bodySmall" weight="medium">{player.player_name}</Text>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-foreground text-center">
-                        {formatCurrency(player.poker_net_winnings)}
+                      <td className="px-6 py-4 whitespace-nowrap text-center">
+                        <Text variant="bodySmall">{formatCurrency(player.poker_net_winnings)}</Text>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-foreground text-center">
-                        {formatCurrency(player.total_paid)}
+                      <td className="px-6 py-4 whitespace-nowrap text-center">
+                        <Text variant="bodySmall">{formatCurrency(player.total_paid)}</Text>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-foreground text-center">
-                        {formatCurrency(player.total_received)}
+                      <td className="px-6 py-4 whitespace-nowrap text-center">
+                        <Text variant="bodySmall">{formatCurrency(player.total_received)}</Text>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-center">
+                      <td className="px-6 py-4 whitespace-nowrap text-center">
                         {(() => {
                           const realizedCashEarnings = player.total_received - player.total_paid;
                           return (
-                            <span className={`font-medium ${
-                              realizedCashEarnings > 0
-                                ? 'text-success'
-                                : realizedCashEarnings < 0
-                                ? 'text-destructive'
-                                : 'text-foreground'
-                            }`}>
+                            <Text
+                              variant="bodySmall"
+                              weight="medium"
+                              color={
+                                realizedCashEarnings > 0
+                                  ? 'success'
+                                  : realizedCashEarnings < 0
+                                  ? 'destructive'
+                                  : 'default'
+                              }
+                            >
                               {formatCurrency(realizedCashEarnings)}
-                            </span>
+                            </Text>
                           );
                         })()}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-center">
+                      <td className="px-6 py-4 whitespace-nowrap text-center">
                         {(() => {
                           const netBalance = (player.poker_net_winnings + player.total_paid) - player.total_received;
                           return (
-                            <span className={`font-medium ${
-                              netBalance > 0.005
-                                ? 'text-success'
-                                : netBalance < -0.005
-                                ? 'text-destructive'
-                                : 'text-foreground'
-                            }`}>
+                            <Text
+                              variant="bodySmall"
+                              weight="medium"
+                              color={
+                                netBalance > 0.005
+                                  ? 'success'
+                                  : netBalance < -0.005
+                                  ? 'destructive'
+                                  : 'default'
+                              }
+                            >
                               {formatCurrency(netBalance)}
-                            </span>
+                            </Text>
                           );
                         })()}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-foreground text-center">
-                        {player.days_since_last_payment !== null && player.days_since_last_payment !== undefined
-                          ? `${player.days_since_last_payment} days`
-                          : 'Never'
-                        }
+                      <td className="px-6 py-4 whitespace-nowrap text-center">
+                        <Text variant="bodySmall">
+                          {player.days_since_last_payment !== null && player.days_since_last_payment !== undefined
+                            ? `${player.days_since_last_payment} days`
+                            : 'Never'
+                          }
+                        </Text>
                       </td>
                     </tr>
                   ))}
@@ -648,10 +672,10 @@ export default function PaymentLedgerPage() {
         {activeTab === 'settlements' && (
           <div className="bg-card text-card-foreground shadow rounded-lg border border-border">
             <div className="px-6 py-4 border-b border-border">
-              <h2 className="text-lg font-medium text-foreground">Optimal Settlement Structure</h2>
-              <p className="text-sm text-muted-foreground">
+              <Heading variant="h2">Optimal Settlement Structure</Heading>
+              <Text variant="bodySmall" color="muted">
                 Required payments to settle all debts with minimum transactions
-              </p>
+              </Text>
             </div>
             {settlements.length > 0 ? (
               <div className="p-6">
@@ -665,14 +689,14 @@ export default function PaymentLedgerPage() {
                             <DollarSign className="w-5 h-5 text-destructive" />
                           </div>
                           <div>
-                            <h3 className="text-lg font-semibold text-foreground">
+                            <Heading variant="h3">
                               {payerInfo.payer_name} owes
-                            </h3>
+                            </Heading>
                           </div>
                         </div>
                         <div className="text-right">
-                          <div className="text-2xl font-bold text-destructive">
-                            {formatCurrency(payerInfo.total_owed)}
+                          <div>
+                            <Heading variant="h4" color="destructive">{formatCurrency(payerInfo.total_owed)}</Heading>
                           </div>
                         </div>
                       </div>
@@ -683,24 +707,25 @@ export default function PaymentLedgerPage() {
                           <div key={paymentIndex}>
                             {paymentIndex > 0 && <hr className="border-border" />}
                             <div className="flex items-center justify-between py-3">
-                              <div className="text-sm font-medium text-foreground">
-                                <span className="font-bold text-foreground">{payment.recipient_name}</span>
+                              <div>
+                                <Text variant="bodySmall" weight="bold">{payment.recipient_name}</Text>
                               </div>
                               <div className="flex items-center space-x-4">
                                 <div className="text-right">
-                                  <div className="text-lg font-semibold text-success">
-                                    {formatCurrency(payment.amount)}
+                                  <div>
+                                    <Text variant="bodyLarge" weight="semibold" color="success">{formatCurrency(payment.amount)}</Text>
                                   </div>
                                 </div>
-                                <button
+                                <Button
                                   onClick={() => handleMarkSettlementPaid(payment)}
                                   disabled={submitLoading}
-                                  className="px-2 py-1 text-xs font-medium text-white bg-black border border-transparent rounded-2xl hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-1"
+                                  size="sm"
+                                  className="bg-black text-white hover:opacity-90 flex items-center space-x-1 text-xs px-2 py-1"
                                   title="Record this settlement as paid"
                                 >
                                   <DollarSign className="w-4 h-4" />
-                                  <span>Mark as Paid</span>
-                                </button>
+                                  <Text variant="caption">Mark as Paid</Text>
+                                </Button>
                               </div>
                             </div>
                           </div>
@@ -713,7 +738,7 @@ export default function PaymentLedgerPage() {
             ) : (
               <div className="p-8 text-center">
                 <Target className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
-                <p className="text-muted-foreground">All players are settled up!</p>
+                <Text variant="body" color="muted">All players are settled up!</Text>
               </div>
             )}
           </div>
@@ -723,71 +748,75 @@ export default function PaymentLedgerPage() {
         {activeTab === 'history' && (
           <div className="bg-card text-card-foreground shadow rounded-lg border border-border">
             <div className="px-6 py-4 border-b border-border">
-              <h2 className="text-lg font-medium text-foreground">Payment History</h2>
-              <p className="text-sm text-muted-foreground">
+              <Heading variant="h2">Payment History</Heading>
+              <Text variant="bodySmall" color="muted">
                 All payment transactions
-              </p>
+              </Text>
             </div>
             {paymentHistory.length > 0 ? (
               <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-card border-b border-border">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                        Date
+                      <th className="px-6 py-3 text-left uppercase tracking-wider">
+                        <Text variant="caption" weight="medium" color="muted">Date</Text>
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                        Payer → Recipient
+                      <th className="px-6 py-3 text-left uppercase tracking-wider">
+                        <Text variant="caption" weight="medium" color="muted">Payer → Recipient</Text>
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                        Amount
+                      <th className="px-6 py-3 text-left uppercase tracking-wider">
+                        <Text variant="caption" weight="medium" color="muted">Amount</Text>
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                        Method
+                      <th className="px-6 py-3 text-left uppercase tracking-wider">
+                        <Text variant="caption" weight="medium" color="muted">Method</Text>
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                        Notes
+                      <th className="px-6 py-3 text-left uppercase tracking-wider">
+                        <Text variant="caption" weight="medium" color="muted">Notes</Text>
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                        Actions
+                      <th className="px-6 py-3 text-left uppercase tracking-wider">
+                        <Text variant="caption" weight="medium" color="muted">Actions</Text>
                       </th>
                     </tr>
                   </thead>
                   <tbody className="bg-card divide-y divide-border">
                     {paymentHistory.map((payment) => (
                       <tr key={payment.id}>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-foreground">
-                          {formatDate(payment.payment_date)}
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <Text variant="bodySmall">{formatDate(payment.payment_date)}</Text>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-foreground">
-                          {payment.payer_name} → {payment.recipient_name}
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <Text variant="bodySmall">{payment.payer_name} → {payment.recipient_name}</Text>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-success">
-                          {formatCurrency(payment.amount)}
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <Text variant="bodySmall" weight="medium" color="success">{formatCurrency(payment.amount)}</Text>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-foreground">
-                          {payment.payment_method || '-'}
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <Text variant="bodySmall">{payment.payment_method || '-'}</Text>
                         </td>
-                        <td className="px-6 py-4 text-sm text-foreground">
-                          {payment.notes || '-'}
+                        <td className="px-6 py-4">
+                          <Text variant="bodySmall">{payment.notes || '-'}</Text>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-foreground">
+                        <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex space-x-2">
-                            <button
+                            <Button
                               onClick={() => handleEditPayment(payment)}
+                              variant="ghost"
+                              size="icon-sm"
                               className="text-primary hover:text-primary/80 p-1"
                               title="Edit payment"
                             >
                               <Edit className="w-4 h-4" />
-                            </button>
-                            <button
+                            </Button>
+                            <Button
                               onClick={() => handleDeletePayment(payment)}
+                              variant="ghost"
+                              size="icon-sm"
                               className="text-destructive hover:text-destructive/80 p-1"
                               title="Delete payment"
                               disabled={submitLoading}
                             >
                               <Trash2 className="w-4 h-4" />
-                            </button>
+                            </Button>
                           </div>
                         </td>
                       </tr>
@@ -798,7 +827,7 @@ export default function PaymentLedgerPage() {
             ) : (
               <div className="p-8 text-center">
                 <History className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
-                <p className="text-muted-foreground">No payment history yet</p>
+                <Text variant="body" color="muted">No payment history yet</Text>
               </div>
             )}
           </div>
@@ -808,17 +837,17 @@ export default function PaymentLedgerPage() {
         {activeTab === 'record' && (
           <div className="bg-card text-card-foreground shadow rounded-lg border border-border">
             <div className="px-6 py-4 border-b border-border">
-              <h2 className="text-lg font-medium text-foreground">Record Payment</h2>
-              <p className="text-sm text-muted-foreground">
+              <Heading variant="h2">Record Payment</Heading>
+              <Text variant="bodySmall" color="muted">
                 Record a payment between players
-              </p>
+              </Text>
             </div>
             <form onSubmit={handleRecordPayment} className="p-6 space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-foreground mb-1">
+                  <Text variant="bodySmall" weight="medium" as="label" className="block mb-1">
                     Payer *
-                  </label>
+                  </Text>
                   <select
                     value={recordForm.payer_id}
                     onChange={(e) => setRecordForm({...recordForm, payer_id: e.target.value})}
@@ -835,9 +864,9 @@ export default function PaymentLedgerPage() {
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-medium text-foreground mb-1">
+                  <Text variant="bodySmall" weight="medium" as="label" className="block mb-1">
                     Recipient *
-                  </label>
+                  </Text>
                   <select
                     value={recordForm.recipient_id}
                     onChange={(e) => setRecordForm({...recordForm, recipient_id: e.target.value})}
@@ -858,9 +887,9 @@ export default function PaymentLedgerPage() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-foreground mb-1">
+                  <Text variant="bodySmall" weight="medium" as="label" className="block mb-1">
                     Amount * ($)
-                  </label>
+                  </Text>
                   <input
                     type="number"
                     step="0.01"
@@ -874,9 +903,9 @@ export default function PaymentLedgerPage() {
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-medium text-foreground mb-1">
+                  <Text variant="bodySmall" weight="medium" as="label" className="block mb-1">
                     Payment Method
-                  </label>
+                  </Text>
                   <select
                     value={recordForm.payment_method}
                     onChange={(e) => setRecordForm({...recordForm, payment_method: e.target.value})}
@@ -894,9 +923,9 @@ export default function PaymentLedgerPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-foreground mb-1">
+                <Text variant="bodySmall" weight="medium" as="label" className="block mb-1">
                   Notes
-                </label>
+                </Text>
                 <input
                   type="text"
                   value={recordForm.notes}
@@ -907,9 +936,9 @@ export default function PaymentLedgerPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-foreground mb-1">
+                <Text variant="bodySmall" weight="medium" as="label" className="block mb-1">
                   Reference ID
-                </label>
+                </Text>
                 <input
                   type="text"
                   value={recordForm.reference_id}
@@ -921,9 +950,9 @@ export default function PaymentLedgerPage() {
 
               {!hasAdminSession && showAdminInput && (
                 <div>
-                  <label className="block text-sm font-medium text-foreground mb-1">
+                  <Text variant="bodySmall" weight="medium" as="label" className="block mb-1">
                     Admin Code *
-                  </label>
+                  </Text>
                   <input
                     type="password"
                     value={manualAdminCode}
@@ -936,7 +965,7 @@ export default function PaymentLedgerPage() {
               )}
 
               <div className="flex justify-end space-x-3">
-                <button
+                <Button
                   type="button"
                   onClick={() => {
                     setRecordForm({
@@ -949,17 +978,17 @@ export default function PaymentLedgerPage() {
                     });
                     setShowAdminInput(false);
                   }}
-                  className="px-4 py-2 text-sm font-medium text-muted-foreground border border-input bg-background rounded-2xl hover:bg-accent"
+                  variant="outline"
                 >
                   Clear
-                </button>
-                <button
+                </Button>
+                <Button
                   type="submit"
                   disabled={submitLoading}
-                  className="px-4 py-2 text-sm font-medium text-white bg-black border border-transparent rounded-2xl hover:opacity-90 disabled:opacity-50"
+                  className="bg-black text-white hover:opacity-90"
                 >
                   {submitLoading ? 'Recording...' : 'Record Payment'}
-                </button>
+                </Button>
               </div>
             </form>
           </div>
@@ -970,21 +999,23 @@ export default function PaymentLedgerPage() {
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
             <div className="bg-card text-card-foreground rounded-lg shadow-xl border border-border max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
               <div className="flex items-center justify-between p-6 border-b border-border">
-                <h3 className="text-lg font-medium text-foreground">Edit Payment</h3>
-                <button
+                <Heading variant="h3">Edit Payment</Heading>
+                <Button
                   onClick={() => setEditingPayment(null)}
+                  variant="ghost"
+                  size="icon-sm"
                   className="text-muted-foreground hover:text-foreground"
                 >
                   <X className="w-6 h-6" />
-                </button>
+                </Button>
               </div>
               
               <form onSubmit={handleUpdatePayment} className="p-6 space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-foreground mb-1">
+                    <Text variant="bodySmall" weight="medium" as="label" className="block mb-1">
                       Payer *
-                    </label>
+                    </Text>
                     <select
                       value={editForm.payer_id}
                       onChange={(e) => setEditForm({...editForm, payer_id: e.target.value})}
@@ -1001,9 +1032,9 @@ export default function PaymentLedgerPage() {
                   </div>
                   
                   <div>
-                    <label className="block text-sm font-medium text-foreground mb-1">
+                    <Text variant="bodySmall" weight="medium" as="label" className="block mb-1">
                       Recipient *
-                    </label>
+                    </Text>
                     <select
                       value={editForm.recipient_id}
                       onChange={(e) => setEditForm({...editForm, recipient_id: e.target.value})}
@@ -1024,9 +1055,9 @@ export default function PaymentLedgerPage() {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-foreground mb-1">
+                    <Text variant="bodySmall" weight="medium" as="label" className="block mb-1">
                       Amount * ($)
-                    </label>
+                    </Text>
                     <input
                       type="number"
                       step="0.01"
@@ -1040,9 +1071,9 @@ export default function PaymentLedgerPage() {
                   </div>
                   
                   <div>
-                    <label className="block text-sm font-medium text-foreground mb-1">
+                    <Text variant="bodySmall" weight="medium" as="label" className="block mb-1">
                       Payment Method
-                    </label>
+                    </Text>
                     <select
                       value={editForm.payment_method}
                       onChange={(e) => setEditForm({...editForm, payment_method: e.target.value})}
@@ -1060,9 +1091,9 @@ export default function PaymentLedgerPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-foreground mb-1">
+                  <Text variant="bodySmall" weight="medium" as="label" className="block mb-1">
                     Notes
-                  </label>
+                  </Text>
                   <input
                     type="text"
                     value={editForm.notes}
@@ -1073,9 +1104,9 @@ export default function PaymentLedgerPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-foreground mb-1">
+                  <Text variant="bodySmall" weight="medium" as="label" className="block mb-1">
                     Reference ID
-                  </label>
+                  </Text>
                   <input
                     type="text"
                     value={editForm.reference_id}
@@ -1087,9 +1118,9 @@ export default function PaymentLedgerPage() {
 
                 {!hasAdminSession && showAdminInput && (
                   <div>
-                    <label className="block text-sm font-medium text-foreground mb-1">
+                    <Text variant="bodySmall" weight="medium" as="label" className="block mb-1">
                       Admin Code *
-                    </label>
+                    </Text>
                     <input
                       type="password"
                       value={manualAdminCode}
@@ -1102,20 +1133,20 @@ export default function PaymentLedgerPage() {
                 )}
 
                 <div className="flex justify-end space-x-3 pt-4">
-                  <button
+                  <Button
                     type="button"
                     onClick={() => setEditingPayment(null)}
-                    className="px-4 py-2 text-sm font-medium text-muted-foreground border border-input bg-background rounded-2xl hover:bg-accent"
+                    variant="outline"
                   >
                     Cancel
-                  </button>
-                  <button
+                  </Button>
+                  <Button
                     type="submit"
                     disabled={submitLoading}
-                    className="px-4 py-2 text-sm font-medium text-white bg-black border border-transparent rounded-2xl hover:opacity-90 disabled:opacity-50"
+                    className="bg-black text-white hover:opacity-90"
                   >
                     {submitLoading ? 'Updating...' : 'Update Payment'}
-                  </button>
+                  </Button>
                 </div>
               </form>
             </div>
@@ -1127,23 +1158,25 @@ export default function PaymentLedgerPage() {
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
             <div className="bg-card text-card-foreground rounded-lg shadow-xl border border-border max-w-md w-full mx-4">
               <div className="flex items-center justify-between p-6 border-b border-border">
-                <h3 className="text-lg font-medium text-foreground">Admin Access Required</h3>
-                <button
+                <Heading variant="h3">Admin Access Required</Heading>
+                <Button
                   onClick={() => setShowAdminInput(false)}
+                  variant="ghost"
+                  size="icon-sm"
                   className="text-muted-foreground hover:text-foreground"
                 >
                   <X className="w-6 h-6" />
-                </button>
+                </Button>
               </div>
               
               <div className="p-6">
-                <p className="text-sm text-muted-foreground mb-4">
+                <Text variant="bodySmall" color="muted" className="mb-4">
                   Please enter your admin code to record this settlement payment.
-                </p>
+                </Text>
                 <div>
-                  <label className="block text-sm font-medium text-foreground mb-1">
+                  <Text variant="bodySmall" weight="medium" as="label" className="block mb-1">
                     Admin Code *
-                  </label>
+                  </Text>
                   <input
                     type="password"
                     value={manualAdminCode}
@@ -1158,19 +1191,19 @@ export default function PaymentLedgerPage() {
                   />
                 </div>
                 <div className="flex justify-end space-x-3 mt-4">
-                  <button
+                  <Button
                     onClick={() => setShowAdminInput(false)}
-                    className="px-4 py-2 text-sm font-medium text-muted-foreground border border-input bg-background rounded-2xl hover:bg-accent"
+                    variant="outline"
                   >
                     Cancel
-                  </button>
-                  <button
+                  </Button>
+                  <Button
                     onClick={() => setShowAdminInput(false)}
                     disabled={!manualAdminCode}
-                    className="px-4 py-2 text-sm font-medium text-white bg-black border border-transparent rounded-2xl hover:opacity-90 disabled:opacity-50"
+                    className="bg-black text-white hover:opacity-90"
                   >
                     Continue
-                  </button>
+                  </Button>
                 </div>
               </div>
             </div>
@@ -1182,14 +1215,16 @@ export default function PaymentLedgerPage() {
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
             <div className="bg-card text-card-foreground rounded-lg shadow-xl border border-border max-w-md w-full mx-4">
               <div className="flex items-center justify-between p-6 border-b border-border">
-                <h3 className="text-lg font-medium text-foreground">Confirm Delete</h3>
-                <button
+                <Heading variant="h3">Confirm Delete</Heading>
+                <Button
                   onClick={() => setPaymentToDelete(null)}
+                  variant="ghost"
+                  size="icon-sm"
                   className="text-muted-foreground hover:text-foreground"
                   disabled={submitLoading}
                 >
                   <X className="w-6 h-6" />
-                </button>
+                </Button>
               </div>
               
               <div className="p-6">
@@ -1198,40 +1233,40 @@ export default function PaymentLedgerPage() {
                     <Trash2 className="w-6 h-6 text-destructive" />
                   </div>
                   <div className="ml-4">
-                    <h4 className="text-lg font-medium text-foreground">Delete Payment</h4>
-                    <p className="text-sm text-muted-foreground">This action cannot be undone.</p>
+                    <Text variant="bodyLarge" weight="medium" as="h4">Delete Payment</Text>
+                    <Text variant="bodySmall" color="muted">This action cannot be undone.</Text>
                   </div>
                 </div>
                 
                 <div className="bg-muted rounded-lg p-4 mb-4">
-                  <div className="text-sm text-foreground">
-                    <div className="font-medium mb-1">Payment Details:</div>
+                  <div>
+                    <Text variant="bodySmall" weight="medium" className="mb-1">Payment Details:</Text>
                     <div className="flex items-center justify-between">
                       <span>
-                        <span className="font-medium text-primary">{paymentToDelete.payer_name}</span>
-                        <span className="mx-2 text-muted-foreground">→</span>
-                        <span className="font-medium text-success">{paymentToDelete.recipient_name}</span>
+                        <Text variant="bodySmall" weight="medium" color="primary" as="span">{paymentToDelete.payer_name}</Text>
+                        <Text variant="bodySmall" color="muted" as="span" className="mx-2">→</Text>
+                        <Text variant="bodySmall" weight="medium" color="success" as="span">{paymentToDelete.recipient_name}</Text>
                       </span>
-                      <span className="font-bold text-lg">{formatCurrency(paymentToDelete.amount)}</span>
+                      <Text variant="bodyLarge" weight="bold">{formatCurrency(paymentToDelete.amount)}</Text>
                     </div>
                     {paymentToDelete.payment_method && (
-                      <div className="text-xs text-muted-foreground mt-1">
+                      <Text variant="caption" color="muted" className="mt-1">
                         via {paymentToDelete.payment_method}
-                      </div>
+                      </Text>
                     )}
                     {paymentToDelete.notes && (
-                      <div className="text-xs text-muted-foreground mt-1">
+                      <Text variant="caption" color="muted" className="mt-1">
                         Note: {paymentToDelete.notes}
-                      </div>
+                      </Text>
                     )}
                   </div>
                 </div>
 
                 {!hasAdminSession && showAdminInput && (
                   <div className="mb-4">
-                    <label className="block text-sm font-medium text-foreground mb-1">
+                    <Text variant="bodySmall" weight="medium" as="label" className="block mb-1">
                       Admin Code *
-                    </label>
+                    </Text>
                     <input
                       type="password"
                       value={manualAdminCode}
@@ -1244,18 +1279,19 @@ export default function PaymentLedgerPage() {
                 )}
 
                 <div className="flex justify-end space-x-3">
-                  <button
+                  <Button
                     type="button"
                     onClick={() => setPaymentToDelete(null)}
-                    className="px-4 py-2 text-sm font-medium text-muted-foreground border border-input bg-background rounded-2xl hover:bg-accent"
+                    variant="outline"
                     disabled={submitLoading}
                   >
                     Cancel
-                  </button>
-                  <button
+                  </Button>
+                  <Button
                     onClick={confirmDeletePayment}
                     disabled={submitLoading}
-                    className="px-4 py-2 text-sm font-medium text-destructive-foreground bg-destructive border border-transparent rounded-2xl hover:bg-destructive/90 disabled:opacity-50 flex items-center"
+                    variant="destructive"
+                    className="flex items-center"
                   >
                     {submitLoading ? (
                       <>
@@ -1268,7 +1304,7 @@ export default function PaymentLedgerPage() {
                         Delete Payment
                       </>
                     )}
-                  </button>
+                  </Button>
                 </div>
               </div>
             </div>

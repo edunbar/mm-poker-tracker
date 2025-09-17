@@ -29,6 +29,7 @@ migrations/*.pyc
 .env
 .env.*
 !.env.example
+!.env.*.example
 *.json
 !package.json
 !package-lock.json
@@ -38,6 +39,15 @@ migrations/*.pyc
 *.pem
 *.crt
 *.csr
+
+# Additional sensitive file patterns
+*.p12
+*.keystore
+*_rsa
+*_ed25519
+id_rsa*
+id_dsa*
+known_hosts
 
 # Google Service Account files
 *service-account*.json

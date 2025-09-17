@@ -1,5 +1,6 @@
 import axios from "axios";
 import { useQuery } from "react-query";
+import { API_BASE_URL } from "../../../config/api";
 
 interface SessionExtreme {
   player_name: string;
@@ -19,7 +20,7 @@ interface SessionExtremesResponse {
 
 export const fetchSessionExtremes = async (publicCode: string): Promise<SessionExtremesResponse> => {
   const response = await axios.get(
-    `http://localhost:8000/api/games/${publicCode}/session-extremes`
+    `${API_BASE_URL}/api/games/${publicCode}/session-extremes`
   );
   return response.data;
 };

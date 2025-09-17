@@ -1,6 +1,11 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { API_BASE_URL } from "../../config/api";
 import { useAdminSession } from "../../contexts/AdminSessionContext";
+import { Button } from "../../shared/ui/button";
+import { Input } from "../../shared/ui/input";
+import { FormField, FormLabel, FormMessage } from "../../shared/ui/form-field";
+import { Heading, Text, Code } from "../../shared/ui/typography";
 
 export default function LandingPage() {
   const [mode, setMode] = useState<'join' | 'create'>('join');
@@ -31,7 +36,7 @@ export default function LandingPage() {
     setError(null);
 
     try {
-      const response = await fetch('http://localhost:8000/api/games/create', {
+      const response = await fetch(`${API_BASE_URL}/api/games/create`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -84,71 +89,72 @@ export default function LandingPage() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
               </div>
-              <h1 className="text-2xl font-bold text-foreground">Game Created Successfully! 🎉</h1>
-              <p className="mt-2 text-muted-foreground">Your new poker game is ready to use</p>
+              <Heading variant="h2">Game Created Successfully! 🎉</Heading>
+              <Text variant="bodyLarge" color="muted" className="mt-2">Your new poker game is ready to use</Text>
             </div>
             
             <div className="space-y-4 mb-6">
               <div className="bg-muted p-4 rounded-lg">
-                <label className="block text-sm font-medium text-foreground mb-2">
+                <Text variant="bodySmall" weight="medium" as="label" className="block mb-2">
                   Public Code (Share with players)
-                </label>
+                </Text>
                 <div className="flex items-center space-x-2">
-                  <code className="flex-1 bg-background px-3 py-2 border border-input rounded font-mono text-lg font-bold text-center text-foreground">
+                  <Code className="flex-1 bg-background px-3 py-2 border border-input rounded text-lg font-bold text-center">
                     {createdGame.public_code}
-                  </code>
-                  <button
+                  </Code>
+                  <Button
                     onClick={() => navigator.clipboard.writeText(createdGame.public_code)}
-                    className="px-3 py-2 text-sm bg-primary text-primary-foreground rounded-2xl hover:bg-primary/90"
+                    size="sm"
                   >
                     Copy
-                  </button>
+                  </Button>
                 </div>
               </div>
 
               <div className="bg-warning/20 p-4 rounded-lg">
-                <label className="block text-sm font-medium text-foreground mb-2">
+                <Text variant="bodySmall" weight="medium" as="label" className="block mb-2">
                   Admin Code (Keep secret!)
-                </label>
+                </Text>
                 <div className="flex items-center space-x-2">
-                  <code className="flex-1 bg-background px-3 py-2 border border-input rounded font-mono text-sm break-all text-foreground">
+                  <Code className="flex-1 bg-background px-3 py-2 border border-input rounded text-sm break-all">
                     {createdGame.admin_code}
-                  </code>
-                  <button
+                  </Code>
+                  <Button
                     onClick={() => navigator.clipboard.writeText(createdGame.admin_code)}
-                    className="px-3 py-2 text-sm bg-primary text-primary-foreground rounded-2xl hover:bg-primary/90"
+                    size="sm"
                   >
                     Copy
-                  </button>
+                  </Button>
                 </div>
-                <p className="mt-2 text-xs text-warning">
+                <Text variant="caption" color="warning" className="mt-2">
                   ⚠️ Save this admin code! You'll need it to manage sessions and import data.
-                </p>
+                </Text>
               </div>
 
               {createdGame.title && (
                 <div className="bg-muted p-4 rounded-lg">
-                  <label className="block text-sm font-medium text-foreground mb-2">
+                  <Text variant="bodySmall" weight="medium" as="label" className="block mb-2">
                     Game Title
-                  </label>
-                  <p className="text-foreground">{createdGame.title}</p>
+                  </Text>
+                  <Text>{createdGame.title}</Text>
                 </div>
               )}
             </div>
             
             <div className="flex space-x-3">
-              <button
+              <Button
                 onClick={handleGoToGame}
-                className="flex-1 px-4 py-2 bg-primary text-primary-foreground font-medium rounded-2xl hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                className="flex-1"
               >
                 Go to Game
-              </button>
-              <button
+              </Button>
+              <Button
                 onClick={handleCreateAnother}
-                className="flex-1 px-4 py-2 border border-border bg-transparent text-foreground font-medium rounded-2xl hover:bg-muted focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                variant="outline"
+                className="flex-1"
               >
                 Create Another
-              </button>
+              </Button>
             </div>
           </div>
         </div>
@@ -161,121 +167,113 @@ export default function LandingPage() {
       <div className="max-w-md w-full">
         <div className="bg-card text-card-foreground rounded-lg border border-border shadow-sm p-8">
           <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-foreground">🃏 HomeGame</h1>
-            <p className="mt-2 text-muted-foreground">Create a new game or join an existing one</p>
+            <Heading variant="h1">🃏 HomeGame</Heading>
+            <Text variant="bodyLarge" color="muted" className="mt-2">Create a new game or join an existing one</Text>
           </div>
           
           {/* Mode Toggle */}
           <div className="flex mb-6 bg-muted rounded-lg p-1">
-            <button
+            <Button
               type="button"
-              className={`flex-1 py-2 px-4 text-sm font-medium rounded-md transition-colors ${
-                mode === 'join'
-                  ? 'bg-background text-foreground shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
+              variant={mode === 'join' ? 'secondary' : 'ghost'}
+              className="flex-1"
               onClick={() => setMode('join')}
             >
               Join Game
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
-              className={`flex-1 py-2 px-4 text-sm font-medium rounded-md transition-colors ${
-                mode === 'create'
-                  ? 'bg-background text-foreground shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
+              variant={mode === 'create' ? 'secondary' : 'ghost'}
+              className="flex-1"
               onClick={() => setMode('create')}
             >
               Create Game
-            </button>
+            </Button>
           </div>
           
           {error && (
             <div className="mb-6 p-4 bg-destructive/10 border-l-4 border-destructive rounded">
-              <div className="text-destructive font-medium">Error</div>
-              <div className="text-destructive/80">{error}</div>
+              <Text weight="medium" color="destructive">Error</Text>
+              <Text color="destructive" className="opacity-80">{error}</Text>
             </div>
           )}
           
           {mode === 'join' ? (
             <form onSubmit={handleJoinGame} className="space-y-6">
-              <div>
-                <label htmlFor="gameId" className="block text-sm font-medium text-foreground mb-2">
-                  Game Code *
-                </label>
-                <input
+              <FormField>
+                <FormLabel htmlFor="gameId" required>
+                  Game Code
+                </FormLabel>
+                <Input
                   id="gameId"
                   type="text"
                   value={gameId}
                   onChange={(e) => setGameId(e.target.value.toUpperCase())}
-                  className="w-full px-3 py-2 border border-input bg-background text-foreground rounded-md focus:outline-none focus:ring-2 focus:ring-ring font-mono text-center text-lg"
                   placeholder="e.g., C4QROK"
+                  className="font-mono text-center text-lg"
                   required
                 />
-              </div>
+              </FormField>
               
-              <div>
-                <label htmlFor="adminId" className="block text-sm font-medium text-foreground mb-2">
+              <FormField>
+                <FormLabel htmlFor="adminId">
                   Admin Code (optional)
-                </label>
-                <input
+                </FormLabel>
+                <Input
                   id="adminId"
                   type="password"
                   value={adminId}
                   onChange={(e) => setAdminId(e.target.value)}
-                  className="w-full px-3 py-2 border border-input bg-background text-foreground rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
                   placeholder="Enter admin code for management access"
                 />
-                <p className="mt-1 text-sm text-muted-foreground">
+                <FormMessage>
                   Required for game management and data ingestion
-                </p>
-              </div>
+                </FormMessage>
+              </FormField>
               
-              <button
+              <Button
                 type="submit"
-                className="w-full px-4 py-2 bg-primary text-primary-foreground font-medium rounded-2xl hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                className="w-full"
               >
                 Join Game
-              </button>
+              </Button>
             </form>
           ) : (
             <form onSubmit={handleCreateGame} className="space-y-6">
-              <div>
-                <label htmlFor="gameTitle" className="block text-sm font-medium text-foreground mb-2">
+              <FormField>
+                <FormLabel htmlFor="gameTitle">
                   Game Title (optional)
-                </label>
-                <input
+                </FormLabel>
+                <Input
                   id="gameTitle"
                   type="text"
                   value={gameTitle}
                   onChange={(e) => setGameTitle(e.target.value)}
-                  className="w-full px-3 py-2 border border-input bg-background text-foreground rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
                   placeholder="e.g., Thursday Night Home Game"
                   maxLength={100}
                 />
-                <p className="mt-1 text-sm text-muted-foreground">
+                <FormMessage>
                   Give your game a memorable name
-                </p>
-              </div>
+                </FormMessage>
+              </FormField>
               
-              <button
+              <Button
                 type="submit"
                 disabled={isLoading}
-                className="w-full px-4 py-2 bg-primary text-primary-foreground font-medium rounded-2xl hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full"
               >
                 {isLoading ? 'Creating Game...' : 'Create New Game'}
-              </button>
+              </Button>
             </form>
           )}
           
           <div className="mt-8 p-4 bg-info/10 border-l-4 border-info rounded">
-            <h3 className="font-medium text-info mb-2">Features</h3>
-            <ul className="text-info/80 text-sm space-y-1">
-              <li>• View player statistics and game summaries</li>
-              <li>• Import PokerNow sessions automatically</li>
-              <li>• Enter live game results manually</li>
-              <li>• Track player performance over time</li>
+            <Heading variant="h6" color="primary" className="mb-2">Features</Heading>
+            <ul className="space-y-1">
+              <Text variant="bodySmall" color="primary" className="opacity-80" as="li">• View player statistics and game summaries</Text>
+              <Text variant="bodySmall" color="primary" className="opacity-80" as="li">• Import PokerNow sessions automatically</Text>
+              <Text variant="bodySmall" color="primary" className="opacity-80" as="li">• Enter live game results manually</Text>
+              <Text variant="bodySmall" color="primary" className="opacity-80" as="li">• Track player performance over time</Text>
             </ul>
           </div>
         </div>

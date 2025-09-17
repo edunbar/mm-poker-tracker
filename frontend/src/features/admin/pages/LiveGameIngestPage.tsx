@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { API_BASE_URL } from '../../../config/api';
 import { useAdminSession } from '../../../contexts/AdminSessionContext';
 import { useGameTitle } from '../../../shared/hooks/useGameTitle';
+import { Heading, Text } from '../../../shared/ui/typography';
 import LiveGameForm from '../components/LiveGameForm';
 
 interface LiveGameData {
@@ -40,7 +42,7 @@ export default function LiveGameIngestPage() {
     setSuccess(null);
 
     try {
-      const response = await fetch('http://localhost:8000/api/games/upload_live', {
+      const response = await fetch(`${API_BASE_URL}/api/games/upload_live`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -79,24 +81,24 @@ export default function LiveGameIngestPage() {
     <div className="min-h-screen bg-background py-8">
       <div className="max-w-6xl mx-auto px-4">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-foreground">Submit Live Game Results</h1>
-          <p className="mt-2 text-muted-foreground">
+          <Heading variant="h1">Submit Live Game Results</Heading>
+          <Text variant="body" color="muted" className="mt-2">
             Enter the results from your live poker game
-          </p>
+          </Text>
         </div>
 
         {error && (
           <div className="mb-6 p-4 bg-destructive/10 border-l-4 border-destructive rounded">
-            <div className="text-destructive font-medium">Error</div>
-            <div className="text-destructive">{error}</div>
+            <Text variant="body" color="destructive" weight="medium">Error</Text>
+            <Text variant="body" color="destructive">{error}</Text>
           </div>
         )}
 
         {success && (
           <div className="mb-6 p-4 bg-success/10 border-l-4 border-success rounded">
-            <div className="text-success font-medium">Success!</div>
-            <div className="text-success">{success}</div>
-            <div className="text-success text-sm mt-1">Redirecting to game summary...</div>
+            <Text variant="body" color="success" weight="medium">Success!</Text>
+            <Text variant="body" color="success">{success}</Text>
+            <Text variant="bodySmall" color="success" className="mt-1">Redirecting to game summary...</Text>
           </div>
         )}
 

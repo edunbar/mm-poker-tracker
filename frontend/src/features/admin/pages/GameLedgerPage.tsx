@@ -2,9 +2,12 @@ import axios from 'axios';
 import { Edit, MoreVertical, Plus, Save, Trash2, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
+import { API_BASE_URL } from '../../../config/api';
 import { useAdminSession } from '../../../contexts/AdminSessionContext';
 import { useGameTitle } from '../../../shared/hooks/useGameTitle';
+import { Button } from '../../../shared/ui/button';
 import { Pagination, usePagination } from '../../../shared/ui/pagination';
+import { Heading, Text } from '../../../shared/ui/typography';
 
 interface SessionPlayerSummary {
   session_id: string;
@@ -88,7 +91,7 @@ export default function GameLedgerPage() {
   const fetchLedgerData = async () => {
     try {
       setLoading(true);
-      const response = await axios.get(`http://localhost:8000/api/games/${publicCode}/ledger`);
+      const response = await axios.get(`${API_BASE_URL}/api/games/${publicCode}/ledger`);
       setSummaries(response.data.summaries || []);
     } catch (error) {
     } finally {
@@ -113,7 +116,7 @@ export default function GameLedgerPage() {
       const inGame = parseFloat(newRowData.inGame || '0') * 100;
       
       // Create a simple POST request - we'll handle this with existing endpoint for now
-      await axios.put(`http://localhost:8000/api/games/${publicCode}/ledger/manual/new`, {
+      await axios.put(`${API_BASE_URL}/api/games/${publicCode}/ledger/manual/new`, {
         session_external_id: newRowData.sessionId,
         player_name: newRowData.playerName,
         buy_in_sum: buyIn,
@@ -176,7 +179,7 @@ export default function GameLedgerPage() {
       };
 
       await axios.put(
-        `http://localhost:8000/api/games/${publicCode}/ledger/${editingRow.session_id}/${editingRow.player_id}`,
+        `${API_BASE_URL}/api/games/${publicCode}/ledger/${editingRow.session_id}/${editingRow.player_id}`,
         updateData,
         {
           headers: {
@@ -212,7 +215,7 @@ export default function GameLedgerPage() {
   const performDelete = async (sessionId: string, playerId: string) => {
     try {
       await axios.delete(
-        `http://localhost:8000/api/games/${publicCode}/ledger/${sessionId}/${playerId}`,
+        `${API_BASE_URL}/api/games/${publicCode}/ledger/${sessionId}/${playerId}`,
         {
           headers: {
             'X-Admin-Code': effectiveAdminCode,
@@ -245,7 +248,7 @@ export default function GameLedgerPage() {
   const performSessionDelete = async (sessionId: string) => {
     try {
       await axios.delete(
-        `http://localhost:8000/api/games/${publicCode}/sessions/${sessionId}`,
+        `${API_BASE_URL}/api/games/${publicCode}/sessions/${sessionId}`,
         {
           headers: {
             'X-Admin-Code': effectiveAdminCode,
@@ -347,24 +350,23 @@ export default function GameLedgerPage() {
         
         <div className="mb-8 flex justify-between items-center">
           <div>
-            <h1 className="text-3xl font-bold text-foreground">Game Ledger</h1>
-            <p className="mt-2 text-muted-foreground">
+            <Heading variant="h1">Game Ledger</Heading>
+            <Text variant="body" color="muted" className="mt-2">
               Session and player data
-            </p>
+            </Text>
           </div>
-          <button
+          <Button
             onClick={fetchLedgerData}
-            className="px-4 py-2 bg-primary text-primary-foreground font-medium rounded-2xl hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
           >
-            Refresh
-          </button>
+            <Text variant="bodySmall" weight="medium">Refresh</Text>
+          </Button>
         </div>
 
       {showAdminInput && (
         <div className="bg-card text-card-foreground rounded-lg border border-border shadow-sm p-4 mb-6">
-          <label className="block text-sm font-medium text-foreground mb-2">
+          <Text variant="bodySmall" weight="medium" as="label" className="block mb-2">
             Admin Code:
-          </label>
+          </Text>
           <div className="flex gap-2">
             <input
               type="password"
@@ -375,53 +377,53 @@ export default function GameLedgerPage() {
             />
             {editingRow ? (
               <>
-                <button
+                <Button
                   onClick={handleSave}
-                  className="px-4 py-2 bg-black text-white font-medium rounded-2xl hover:opacity-90"
+                  className="bg-black text-white hover:opacity-90"
                 >
-                  Save
-                </button>
-                <button
+                  <Text variant="bodySmall" weight="medium">Save</Text>
+                </Button>
+                <Button
                   onClick={handleCancel}
-                  className="px-4 py-2 border border-input bg-background text-muted-foreground font-medium rounded-2xl hover:bg-accent"
+                  variant="outline"
                 >
-                  Cancel
-                </button>
+                  <Text variant="bodySmall" weight="medium">Cancel</Text>
+                </Button>
               </>
             ) : pendingDelete ? (
               <>
-                <button
+                <Button
                   onClick={() => {
                     // Find the player name for the pending delete
-                    const summary = summaries.find(s => 
-                      s.session_id === pendingDelete.sessionId && 
+                    const summary = summaries.find(s =>
+                      s.session_id === pendingDelete.sessionId &&
                       s.player_id === pendingDelete.playerId
                     );
-                    setDeleteTarget({ 
-                      sessionId: pendingDelete.sessionId, 
-                      playerId: pendingDelete.playerId, 
-                      playerName: summary?.player_name || 'Unknown Player' 
+                    setDeleteTarget({
+                      sessionId: pendingDelete.sessionId,
+                      playerId: pendingDelete.playerId,
+                      playerName: summary?.player_name || 'Unknown Player'
                     });
                     setShowDeleteModal(true);
                   }}
-                  className="px-4 py-2 bg-destructive text-destructive-foreground font-medium rounded-2xl hover:bg-destructive/90"
+                  variant="destructive"
                 >
-                  Delete
-                </button>
-                <button
+                  <Text variant="bodySmall" weight="medium">Delete</Text>
+                </Button>
+                <Button
                   onClick={handleCancel}
-                  className="px-4 py-2 border border-input bg-background text-muted-foreground font-medium rounded-2xl hover:bg-accent"
+                  variant="outline"
                 >
-                  Cancel
-                </button>
+                  <Text variant="bodySmall" weight="medium">Cancel</Text>
+                </Button>
               </>
             ) : (
-              <button
+              <Button
                 onClick={handleCancel}
-                className="px-4 py-2 border border-input bg-transparent text-foreground font-medium rounded-2xl hover:bg-accent"
+                variant="outline"
               >
                 Cancel
-              </button>
+              </Button>
             )}
           </div>
         </div>
@@ -431,25 +433,25 @@ export default function GameLedgerPage() {
           <table className="min-w-full">
           <thead className="bg-card border-b border-border">
             <tr>
-              <th className="px-4 py-4 text-left text-sm font-semibold text-muted-foreground" />
-              <th className="px-6 py-4 text-left text-sm font-semibold text-muted-foreground">
-                Session/Player
+              <th className="px-4 py-4" />
+              <th className="px-6 py-4 text-left">
+                <Text variant="bodySmall" weight="semibold" color="muted" className="uppercase tracking-wider">Session/Player</Text>
               </th>
-              <th className="px-6 py-4 text-right text-sm font-semibold text-muted-foreground">
-                Buy In
+              <th className="px-6 py-4 text-right">
+                <Text variant="bodySmall" weight="semibold" color="muted" className="uppercase tracking-wider">Buy In</Text>
               </th>
-              <th className="px-6 py-4 text-right text-sm font-semibold text-muted-foreground">
-                Cash Out
+              <th className="px-6 py-4 text-right">
+                <Text variant="bodySmall" weight="semibold" color="muted" className="uppercase tracking-wider">Cash Out</Text>
               </th>
-              <th className="px-6 py-4 text-right text-sm font-semibold text-muted-foreground">
-                Net
+              <th className="px-6 py-4 text-right">
+                <Text variant="bodySmall" weight="semibold" color="muted" className="uppercase tracking-wider">Net</Text>
               </th>
-              <th className="px-6 py-4 text-left text-sm font-semibold text-muted-foreground">
-                Names
+              <th className="px-6 py-4 text-left">
+                <Text variant="bodySmall" weight="semibold" color="muted" className="uppercase tracking-wider">Names</Text>
               </th>
               {hasAdminSession && (
-                <th className="px-6 py-4 text-center text-sm font-semibold text-muted-foreground">
-                  Actions
+                <th className="px-6 py-4 text-center">
+                  <Text variant="bodySmall" weight="semibold" color="muted" className="uppercase tracking-wider">Actions</Text>
                 </th>
               )}
             </tr>
@@ -491,48 +493,55 @@ export default function GameLedgerPage() {
                 {/* Session Header Row */}
                 <tr key={`session-${sessionGroup.session_id}`} className="bg-accent hover:bg-accent/80 border-l-4 border-primary border-b border-border">
                   <td className="px-4 py-4">
-                    <button
+                    <Button
                       onClick={() => toggleSession(sessionGroup.session_id)}
-                      className="flex items-center justify-center w-6 h-6 bg-primary text-primary-foreground rounded-full hover:bg-primary/90"
+                      size="icon-sm"
+                      className="w-6 h-6 rounded-full"
                     >
                       {expandedSessions.has(sessionGroup.session_id) ? '−' : '+'}
-                    </button>
+                    </Button>
                   </td>
                   <td className="px-6 py-4">
-                    <div className="text-sm font-semibold text-accent-foreground">Game #{sessionGroup.game_number}</div>
-                    <div className="text-xs text-accent-foreground opacity-80">
+                    <Text variant="bodySmall" weight="semibold" className="text-accent-foreground">Game #{sessionGroup.game_number}</Text>
+                    <Text variant="caption" className="text-accent-foreground opacity-80">
                       {formatDate(sessionGroup.session_started_at)} • ({sessionGroup.players.length} players)
-                    </div>
+                    </Text>
                   </td>
-                  <td className="px-6 py-4 text-sm text-accent-foreground text-right font-medium">
-                    ${formatCurrency(sessionGroup.players.reduce((sum, p) => sum + p.buy_in_sum, 0))}
+                  <td className="px-6 py-4 text-right">
+                    <Text variant="bodySmall" weight="medium" className="text-accent-foreground">${formatCurrency(sessionGroup.players.reduce((sum, p) => sum + p.buy_in_sum, 0))}</Text>
                   </td>
-                  <td className="px-6 py-4 text-sm text-accent-foreground text-right font-medium">
-                    ${formatCurrency(sessionGroup.players.reduce((sum, p) => sum + p.cash_out_sum + p.in_game, 0))}
+                  <td className="px-6 py-4 text-right">
+                    <Text variant="bodySmall" weight="medium" className="text-accent-foreground">${formatCurrency(sessionGroup.players.reduce((sum, p) => sum + p.cash_out_sum + p.in_game, 0))}</Text>
                   </td>
-                  <td className="px-6 py-4 text-sm font-semibold text-right">
-                    <span className={sessionGroup.players.reduce((sum, p) => sum + p.net, 0) >= 0 ? 'text-success' : 'text-destructive'}>
+                  <td className="px-6 py-4 text-right">
+                    <Text
+                      variant="bodySmall"
+                      weight="semibold"
+                      color={sessionGroup.players.reduce((sum, p) => sum + p.net, 0) >= 0 ? 'success' : 'destructive'}
+                    >
                       ${formatCurrency(sessionGroup.players.reduce((sum, p) => sum + p.net, 0))}
-                    </span>
+                    </Text>
                   </td>
-                  <td className="px-6 py-4 text-sm text-accent-foreground opacity-75">
+                  <td className="px-6 py-4">
                     <div className="truncate max-w-32" title={sessionGroup.session_external_id || 'N/A'}>
-                      {sessionGroup.session_external_id || 'N/A'}
+                      <Text variant="bodySmall" className="text-accent-foreground opacity-75">{sessionGroup.session_external_id || 'N/A'}</Text>
                     </div>
                   </td>
                   {hasAdminSession && (
                     <td className="px-6 py-4 text-sm font-medium text-center">
                       <div className="flex justify-end">
                         <div className="relative" data-dropdown>
-                          <button
+                          <Button
                             onClick={() => setActiveDropdown(activeDropdown === `session-${sessionGroup.session_id}` ? null : `session-${sessionGroup.session_id}`)}
+                            variant="ghost"
+                            size="icon-sm"
                             className="p-1 text-gray-400 hover:text-gray-600"
                           >
                           <MoreVertical className="h-4 w-4" />
-                        </button>
+                        </Button>
                         {activeDropdown === `session-${sessionGroup.session_id}` && (
                           <div className="absolute right-0 top-8 bg-popover border border-border rounded-md shadow-lg z-10 min-w-[120px]">
-                            <button
+                            <Button
                               onClick={() => {
                                 setNewRowData({
                                   ...newRowData,
@@ -541,21 +550,23 @@ export default function GameLedgerPage() {
                                 setShowAddRowModal(true);
                                 setActiveDropdown(null);
                               }}
-                              className="flex items-center gap-2 w-full px-3 py-2 text-sm text-popover-foreground hover:bg-accent"
+                              variant="ghost"
+                              className="flex items-center gap-2 w-full justify-start px-3 py-2 hover:bg-accent"
                             >
                               <Plus className="h-3 w-3" />
-                              Add Row
-                            </button>
-                            <button
+                              <Text variant="bodySmall">Add Row</Text>
+                            </Button>
+                            <Button
                               onClick={() => {
                                 handleSessionDelete(sessionGroup.session_id, sessionGroup.game_number, sessionGroup.players.length);
                                 setActiveDropdown(null);
                               }}
-                              className="flex items-center gap-2 w-full px-3 py-2 text-sm text-destructive hover:bg-accent"
+                              variant="ghost"
+                              className="flex items-center gap-2 w-full justify-start px-3 py-2 hover:bg-accent"
                             >
                               <Trash2 className="h-3 w-3" />
-                              Delete Session
-                            </button>
+                              <Text variant="bodySmall" color="destructive">Delete Session</Text>
+                            </Button>
                           </div>
                         )}
                         </div>
@@ -568,10 +579,10 @@ export default function GameLedgerPage() {
                 {expandedSessions.has(sessionGroup.session_id) && sessionGroup.players.map((summary) => (
                   <tr key={`${summary.session_id}-${summary.player_id}`} className="hover:bg-muted/50 bg-card border-b border-border">
                     <td className="px-4 py-3" />
-                    <td className="px-6 py-3 text-sm text-foreground pl-12">
-                      {summary.player_name}
+                    <td className="px-6 py-3 pl-12">
+                      <Text variant="bodySmall">{summary.player_name}</Text>
                     </td>
-                    <td className="px-6 py-3 text-sm text-foreground text-right">
+                    <td className="px-6 py-3 text-right">
                       {editingRow?.session_id === summary.session_id && editingRow?.player_id === summary.player_id ? (
                         <input
                           type="number"
@@ -580,18 +591,18 @@ export default function GameLedgerPage() {
                           className="w-20 px-2 py-1 border border-input rounded text-sm bg-background"
                         />
                       ) : (
-                        `$${formatCurrency(summary.buy_in_sum)}`
+                        <Text variant="bodySmall">${formatCurrency(summary.buy_in_sum)}</Text>
                       )}
                     </td>
-                    <td className="px-6 py-3 text-sm text-foreground text-right">
+                    <td className="px-6 py-3 text-right">
                       {editingRow?.session_id === summary.session_id && editingRow?.player_id === summary.player_id ? (
                         <input
                           type="number"
                           value={editingRow.cash_out_sum + editingRow.in_game}
                           onChange={(e) => {
                             const totalValue = parseInt(e.target.value) || 0;
-                            setEditingRow({ 
-                              ...editingRow, 
+                            setEditingRow({
+                              ...editingRow,
                               cash_out_sum: totalValue,
                               in_game: 0
                             });
@@ -600,10 +611,10 @@ export default function GameLedgerPage() {
                           title="Total cash out + in game"
                         />
                       ) : (
-                        `$${formatCurrency(summary.cash_out_sum + summary.in_game)}`
+                        <Text variant="bodySmall">${formatCurrency(summary.cash_out_sum + summary.in_game)}</Text>
                       )}
                     </td>
-                    <td className={`px-6 py-3 text-sm font-medium text-right ${summary.net >= 0 ? 'text-success' : 'text-destructive'}`}>
+                    <td className="px-6 py-3 text-right">
                       {editingRow?.session_id === summary.session_id && editingRow?.player_id === summary.player_id ? (
                         <input
                           type="number"
@@ -612,10 +623,12 @@ export default function GameLedgerPage() {
                           className="w-20 px-2 py-1 border border-input rounded text-sm bg-background"
                         />
                       ) : (
-                        `$${formatCurrency(summary.net)}`
+                        <Text variant="bodySmall" weight="medium" color={summary.net >= 0 ? 'success' : 'destructive'}>
+                          ${formatCurrency(summary.net)}
+                        </Text>
                       )}
                     </td>
-                    <td className="px-6 py-3 text-sm text-foreground">
+                    <td className="px-6 py-3">
                       {editingRow?.session_id === summary.session_id && editingRow?.player_id === summary.player_id ? (
                         <input
                           type="text"
@@ -625,58 +638,66 @@ export default function GameLedgerPage() {
                         />
                       ) : (
                         <div className="truncate max-w-32" title={summary.names.join(', ')}>
-                          {summary.names.join(', ')}
+                          <Text variant="bodySmall">{summary.names.join(', ')}</Text>
                         </div>
                       )}
                     </td>
                     {hasAdminSession && (
-                      <td className="px-6 py-3 text-sm font-medium text-center">
+                      <td className="px-6 py-3 text-center">
                         <div className="flex justify-end">
                           {editingRow?.session_id === summary.session_id && editingRow?.player_id === summary.player_id ? (
                             <div className="flex gap-2">
-                              <button
+                              <Button
                                 onClick={handleSave}
+                                variant="ghost"
+                                size="icon-sm"
                                 className="p-1 text-green-600 hover:text-green-900"
                               >
                                 <Save className="h-4 w-4" />
-                              </button>
-                              <button
+                              </Button>
+                              <Button
                                 onClick={handleCancel}
+                                variant="ghost"
+                                size="icon-sm"
                                 className="p-1 text-gray-600 hover:text-gray-900"
                               >
                                 <X className="h-4 w-4" />
-                              </button>
+                              </Button>
                             </div>
                           ) : (
                             <div className="relative" data-dropdown>
-                            <button
+                            <Button
                               onClick={() => setActiveDropdown(activeDropdown === `player-${summary.session_id}-${summary.player_id}` ? null : `player-${summary.session_id}-${summary.player_id}`)}
+                              variant="ghost"
+                              size="icon-sm"
                               className="p-1 text-gray-400 hover:text-gray-600"
                             >
                               <MoreVertical className="h-4 w-4" />
-                            </button>
+                            </Button>
                             {activeDropdown === `player-${summary.session_id}-${summary.player_id}` && (
                               <div className="absolute right-0 top-8 bg-white border border-gray-200 rounded-md shadow-lg z-10 min-w-[100px]">
-                                <button
+                                <Button
                                   onClick={() => {
                                     handleEdit(summary);
                                     setActiveDropdown(null);
                                   }}
-                                  className="flex items-center gap-2 w-full px-3 py-2 text-sm text-popover-foreground hover:bg-accent"
+                                  variant="ghost"
+                                  className="flex items-center gap-2 w-full justify-start px-3 py-2 hover:bg-accent"
                                 >
                                   <Edit className="h-3 w-3" />
-                                  Edit
-                                </button>
-                                <button
+                                  <Text variant="bodySmall">Edit</Text>
+                                </Button>
+                                <Button
                                   onClick={() => {
                                     handleDelete(summary.session_id, summary.player_id, summary.player_name);
                                     setActiveDropdown(null);
                                   }}
-                                  className="flex items-center gap-2 w-full px-3 py-2 text-sm text-destructive hover:bg-accent"
+                                  variant="ghost"
+                                  className="flex items-center gap-2 w-full justify-start px-3 py-2 hover:bg-accent"
                                 >
                                   <Trash2 className="h-3 w-3" />
-                                  Delete
-                                </button>
+                                  <Text variant="bodySmall" color="destructive">Delete</Text>
+                                </Button>
                               </div>
                             )}
                             </div>
@@ -703,7 +724,7 @@ export default function GameLedgerPage() {
 
       {!loading && summaries.length === 0 && (
         <div className="bg-card text-card-foreground rounded-lg border border-border shadow-sm p-12 text-center">
-          <p className="text-muted-foreground">No game ledger entries found.</p>
+          <Text variant="body" color="muted">No game ledger entries found.</Text>
         </div>
       )}
 
@@ -714,7 +735,7 @@ export default function GameLedgerPage() {
             <svg className="w-4 h-4 mr-2 text-red-600" fill="currentColor" viewBox="0 0 20 20">
               <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
             </svg>
-            <span className="text-destructive">{errorMessage}</span>
+            <Text variant="bodySmall" color="destructive" as="span">{errorMessage}</Text>
           </div>
         </div>
       )}
@@ -724,19 +745,21 @@ export default function GameLedgerPage() {
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-40">
           <div className="relative top-20 mx-auto p-5 border border-border w-96 shadow-lg rounded-md bg-card text-card-foreground">
             <div className="flex items-center justify-between border-b pb-3">
-              <h3 className="text-xl font-semibold text-gray-900">Confirm Deletion</h3>
-              <button
+              <Heading variant="h4" className="text-gray-900">Confirm Deletion</Heading>
+              <Button
                 onClick={() => {
                   setShowDeleteModal(false);
                   setDeleteTarget(null);
                 }}
+                variant="ghost"
+                size="icon-sm"
                 className="text-gray-400 hover:text-gray-600"
               >
                 <span className="sr-only">Close</span>
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
-              </button>
+              </Button>
             </div>
             
             <div className="pt-4 pb-6">
@@ -747,40 +770,42 @@ export default function GameLedgerPage() {
                   </svg>
                 </div>
                 <div className="ml-3">
-                  <h4 className="text-lg font-medium text-gray-900 mb-2">Delete Player Record</h4>
-                  <p className="text-sm text-gray-600 mb-4">
-                    Are you sure you want to delete the record for <strong>{deleteTarget.playerName}</strong>? 
+                  <Text variant="bodyLarge" weight="medium" as="h4" className="text-gray-900 mb-2">Delete Player Record</Text>
+                  <Text variant="bodySmall" className="text-gray-600 mb-4">
+                    Are you sure you want to delete the record for <strong>{deleteTarget.playerName}</strong>?
                     This action cannot be undone and will permanently remove this player's data from the session.
-                  </p>
+                  </Text>
                   <div className="bg-red-50 border border-red-200 rounded p-3">
-                    <p className="text-sm text-red-800">
+                    <Text variant="bodySmall" className="text-red-800">
                       <strong>Warning:</strong> This will delete the player record from both the database and Google Sheets.
-                    </p>
+                    </Text>
                   </div>
                 </div>
               </div>
             </div>
 
             <div className="flex justify-end space-x-3 pt-4 border-t">
-              <button
+              <Button
                 onClick={() => {
                   setShowDeleteModal(false);
                   setDeleteTarget(null);
                 }}
-                className="px-4 py-2 text-sm font-medium text-gray-700 border border-gray-300 bg-transparent rounded-2xl hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+                variant="outline"
+                className="text-gray-700 border-gray-300 hover:bg-gray-50"
               >
                 Cancel
-              </button>
-              <button
+              </Button>
+              <Button
                 onClick={async () => {
                   await performDelete(deleteTarget.sessionId, deleteTarget.playerId);
                   setShowDeleteModal(false);
                   setDeleteTarget(null);
                 }}
-                className="px-4 py-2 text-sm font-medium text-white bg-red-600 border border-transparent rounded-2xl hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                variant="destructive"
+                className="bg-red-600 hover:bg-red-700"
               >
-                Delete Record
-              </button>
+                <Text variant="bodySmall" weight="medium">Delete Record</Text>
+              </Button>
             </div>
           </div>
         </div>
@@ -791,19 +816,21 @@ export default function GameLedgerPage() {
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-40">
           <div className="relative top-20 mx-auto p-5 border border-border w-96 shadow-lg rounded-md bg-card text-card-foreground">
             <div className="flex items-center justify-between border-b pb-3">
-              <h3 className="text-xl font-semibold text-gray-900">Confirm Session Deletion</h3>
-              <button
+              <Heading variant="h4" className="text-gray-900">Confirm Session Deletion</Heading>
+              <Button
                 onClick={() => {
                   setShowSessionDeleteModal(false);
                   setSessionDeleteTarget(null);
                 }}
+                variant="ghost"
+                size="icon-sm"
                 className="text-gray-400 hover:text-gray-600"
               >
                 <span className="sr-only">Close</span>
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
-              </button>
+              </Button>
             </div>
             
             <div className="pt-4 pb-6">
@@ -814,40 +841,42 @@ export default function GameLedgerPage() {
                   </svg>
                 </div>
                 <div className="ml-3">
-                  <h4 className="text-lg font-medium text-gray-900 mb-2">Delete Entire Session</h4>
-                  <p className="text-sm text-gray-600 mb-4">
-                    Are you sure you want to delete <strong>Game #{sessionDeleteTarget.gameNumber}</strong> and all associated player records? 
+                  <Text variant="bodyLarge" weight="medium" as="h4" className="text-gray-900 mb-2">Delete Entire Session</Text>
+                  <Text variant="bodySmall" className="text-gray-600 mb-4">
+                    Are you sure you want to delete <strong>Game #{sessionDeleteTarget.gameNumber}</strong> and all associated player records?
                     This will permanently remove <strong>{sessionDeleteTarget.playerCount} player record(s)</strong> from the session.
-                  </p>
+                  </Text>
                   <div className="bg-red-50 border border-red-200 rounded p-3">
-                    <p className="text-sm text-red-800">
+                    <Text variant="bodySmall" className="text-red-800">
                       <strong>Warning:</strong> This action cannot be undone and will delete the entire session from both the database and Google Sheets.
-                    </p>
+                    </Text>
                   </div>
                 </div>
               </div>
             </div>
 
             <div className="flex justify-end space-x-3 pt-4 border-t">
-              <button
+              <Button
                 onClick={() => {
                   setShowSessionDeleteModal(false);
                   setSessionDeleteTarget(null);
                 }}
-                className="px-4 py-2 text-sm font-medium text-gray-700 border border-gray-300 bg-transparent rounded-2xl hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+                variant="outline"
+                className="text-gray-700 border-gray-300 hover:bg-gray-50"
               >
                 Cancel
-              </button>
-              <button
+              </Button>
+              <Button
                 onClick={async () => {
                   await performSessionDelete(sessionDeleteTarget.sessionId);
                   setShowSessionDeleteModal(false);
                   setSessionDeleteTarget(null);
                 }}
-                className="px-4 py-2 text-sm font-medium text-white bg-red-600 border border-transparent rounded-2xl hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                variant="destructive"
+                className="bg-red-600 hover:bg-red-700"
               >
-                Delete Session
-              </button>
+                <Text variant="bodySmall" weight="medium">Delete Session</Text>
+              </Button>
             </div>
           </div>
         </div>
@@ -858,8 +887,8 @@ export default function GameLedgerPage() {
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-40">
           <div className="relative top-20 mx-auto p-5 border border-border w-96 shadow-lg rounded-md bg-card text-card-foreground">
             <div className="flex items-center justify-between border-b pb-3">
-              <h3 className="text-xl font-semibold text-gray-900">Add New Row</h3>
-              <button
+              <Heading variant="h4" className="text-gray-900">Add New Row</Heading>
+              <Button
                 onClick={() => {
                   setShowAddRowModal(false);
                   setNewRowData({
@@ -871,24 +900,26 @@ export default function GameLedgerPage() {
                   });
                   setErrorMessage(null);
                 }}
+                variant="ghost"
+                size="icon-sm"
                 className="text-gray-400 hover:text-gray-600"
               >
                 ✕
-              </button>
+              </Button>
             </div>
 
             <div className="mt-4">
               {errorMessage && (
                 <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded">
-                  <p className="text-sm text-red-800">{errorMessage}</p>
+                  <Text variant="bodySmall" className="text-red-800">{errorMessage}</Text>
                 </div>
               )}
 
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <Text variant="bodySmall" weight="medium" as="label" className="block text-gray-700 mb-1">
                     Session ID <span className="text-red-500">*</span>
-                  </label>
+                  </Text>
                   <input
                     type="text"
                     value={newRowData.sessionId}
@@ -896,13 +927,13 @@ export default function GameLedgerPage() {
                     className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-600"
                     placeholder="Session will be auto-filled"
                   />
-                  <p className="text-xs text-gray-500 mt-1">Session ID is automatically filled based on the selected session</p>
+                  <Text variant="caption" className="text-gray-500 mt-1">Session ID is automatically filled based on the selected session</Text>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <Text variant="bodySmall" weight="medium" as="label" className="block text-gray-700 mb-1">
                     Player Name <span className="text-red-500">*</span>
-                  </label>
+                  </Text>
                   <input
                     type="text"
                     value={newRowData.playerName}
@@ -913,9 +944,9 @@ export default function GameLedgerPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <Text variant="bodySmall" weight="medium" as="label" className="block text-gray-700 mb-1">
                     Buy In ($) <span className="text-red-500">*</span>
-                  </label>
+                  </Text>
                   <input
                     type="number"
                     step="0.01"
@@ -927,9 +958,9 @@ export default function GameLedgerPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <Text variant="bodySmall" weight="medium" as="label" className="block text-gray-700 mb-1">
                     Cash Out ($)
-                  </label>
+                  </Text>
                   <input
                     type="number"
                     step="0.01"
@@ -941,9 +972,9 @@ export default function GameLedgerPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <Text variant="bodySmall" weight="medium" as="label" className="block text-gray-700 mb-1">
                     In Game ($)
-                  </label>
+                  </Text>
                   <input
                     type="number"
                     step="0.01"
@@ -957,7 +988,7 @@ export default function GameLedgerPage() {
             </div>
 
             <div className="flex justify-end space-x-3 pt-4 border-t mt-6">
-              <button
+              <Button
                 onClick={() => {
                   setShowAddRowModal(false);
                   setNewRowData({
@@ -969,16 +1000,17 @@ export default function GameLedgerPage() {
                   });
                   setErrorMessage(null);
                 }}
-                className="px-4 py-2 text-sm font-medium text-gray-700 border border-gray-300 bg-transparent rounded-2xl hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+                variant="outline"
+                className="text-gray-700 border-gray-300 hover:bg-gray-50"
               >
                 Cancel
-              </button>
-              <button
+              </Button>
+              <Button
                 onClick={handleAddRow}
-                className="px-4 py-2 text-sm font-medium text-white bg-black border border-transparent rounded-2xl hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                className="bg-black text-white hover:opacity-90"
               >
-                Add Row
-              </button>
+                <Text variant="bodySmall" weight="medium">Add Row</Text>
+              </Button>
             </div>
           </div>
         </div>
