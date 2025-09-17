@@ -209,7 +209,7 @@ export default function LiveGameForm({ onSubmit, isLoading }: LiveGameFormProps)
                 <div key={player.id} className="grid grid-cols-4 gap-2 items-center">
                   <input
                     type="text"
-                    className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="px-3 py-2 border border-input bg-background text-foreground rounded-md focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring placeholder:text-muted-foreground"
                     value={player.name}
                     onChange={(e) => updatePlayer(player.id, 'name', e.target.value)}
                     placeholder="Player name"
@@ -217,7 +217,7 @@ export default function LiveGameForm({ onSubmit, isLoading }: LiveGameFormProps)
                   <input
                     type="number"
                     step="0.01"
-                    className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="px-3 py-2 border border-input bg-background text-foreground rounded-md focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring placeholder:text-muted-foreground"
                     value={player.buyIn}
                     onChange={(e) => updatePlayer(player.id, 'buyIn', e.target.value)}
                     placeholder="0.00"
@@ -225,7 +225,7 @@ export default function LiveGameForm({ onSubmit, isLoading }: LiveGameFormProps)
                   <input
                     type="number"
                     step="0.01"
-                    className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="px-3 py-2 border border-input bg-background text-foreground rounded-md focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring placeholder:text-muted-foreground"
                     value={player.cashOut}
                     onChange={(e) => updatePlayer(player.id, 'cashOut', e.target.value)}
                     placeholder="0.00"
@@ -280,8 +280,8 @@ export default function LiveGameForm({ onSubmit, isLoading }: LiveGameFormProps)
           </div>
           
           {!isBalanced && (
-            <div className="mt-4 p-4 bg-sophisticated-gold-extralight border-l-4 border-sophisticated-gold rounded">
-              <p className="text-sophisticated-gold-deep">
+            <div className="mt-4 p-4 bg-warning/20 border-l-4 border-warning rounded">
+              <p className="text-warning">
                 ⚠️ Session doesn't balance. Total cash-outs should equal total buy-ins.
                 {Math.abs(totals.balance) > 0.01 && ` Difference: $${Math.abs(totals.balance).toFixed(2)}`}
               </p>
@@ -291,7 +291,7 @@ export default function LiveGameForm({ onSubmit, isLoading }: LiveGameFormProps)
       </div>
 
       {errors.length > 0 && (
-        <div className="p-4 bg-red-50 border-l-4 border-red-400 rounded">
+        <div className="p-4 bg-destructive/10 border-l-4 border-destructive rounded">
           <ul className="list-disc list-inside space-y-1 text-destructive">
             {errors.map((error, index) => (
               <li key={index}>{error}</li>

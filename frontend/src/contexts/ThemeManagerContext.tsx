@@ -1,68 +1,45 @@
-// Advanced Theme Management Context
-// Provides theme switching, persistence, and utilities
+// Simplified Theme Management Context
+// Provides the betting site theme and utilities
 
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
-import { Theme, ThemeKey, themes, DEFAULT_THEME } from '../styles/themes';
-import { applyTheme, getSavedTheme } from '../styles/themeUtils';
+import { createContext, useContext, useEffect, type ReactNode } from 'react';
+import { Theme, themes, DEFAULT_THEME } from '../styles/themes';
+import { applyTheme } from '../styles/themeUtils';
 
 interface ThemeContextValue {
   // Current theme state
   currentTheme: Theme;
-  currentThemeKey: ThemeKey;
-  
-  // Theme switching
-  setTheme: (themeKey: ThemeKey) => void;
-  
-  // Available themes
-  availableThemes: Record<ThemeKey, Theme>;
-  
+  currentThemeKey: string;
+
   // Utility functions
   colors: Theme['colors'];
-  isTheme: (themeKey: ThemeKey) => boolean;
+  setTheme: (themeKey: string) => void;
+  availableThemes: string[];
 }
 
 const ThemeContext = createContext<ThemeContextValue | undefined>(undefined);
 
 interface ThemeManagerProviderProps {
   children: ReactNode;
-  defaultTheme?: ThemeKey;
 }
 
-export function ThemeManagerProvider({ 
-  children, 
-  defaultTheme = DEFAULT_THEME 
-}: ThemeManagerProviderProps) {
-  // Initialize theme from localStorage or default
-  const [currentThemeKey, setCurrentThemeKey] = useState<ThemeKey>(() => {
-    const saved = getSavedTheme();
-    if (saved && saved in themes) {
-      return saved as ThemeKey;
-    }
-    return defaultTheme;
-  });
+export function ThemeManagerProvider({ children }: ThemeManagerProviderProps) {
+  const currentTheme = themes[DEFAULT_THEME];
 
-  const currentTheme = themes[currentThemeKey];
-
-  // Apply theme when it changes
+  // Apply theme on mount
   useEffect(() => {
     applyTheme(currentTheme);
   }, [currentTheme]);
 
-  // Theme switching function
-  const setTheme = (themeKey: ThemeKey) => {
-    setCurrentThemeKey(themeKey);
-  };
-
-  // Utility function to check current theme
-  const isTheme = (themeKey: ThemeKey) => currentThemeKey === themeKey;
+  // Dummy functions for compatibility (since we only have one theme)
+  const setTheme = () => {}; // No-op since we only have betting site theme
+  const availableThemes = [DEFAULT_THEME];
 
   const value: ThemeContextValue = {
     currentTheme,
-    currentThemeKey,
-    setTheme,
-    availableThemes: themes,
+    currentThemeKey: DEFAULT_THEME,
     colors: currentTheme.colors,
-    isTheme,
+    setTheme,
+    availableThemes,
   };
 
   return (
@@ -75,11 +52,11 @@ export function ThemeManagerProvider({
 // Hook for consuming theme context
 export function useThemeManager(): ThemeContextValue {
   const context = useContext(ThemeContext);
-  
+
   if (context === undefined) {
     throw new Error('useThemeManager must be used within a ThemeManagerProvider');
   }
-  
+
   return context;
 }
 
@@ -90,8 +67,8 @@ export function useThemeColors() {
 }
 
 export function useCurrentTheme() {
-  const { currentTheme, currentThemeKey } = useThemeManager();
-  return { theme: currentTheme, key: currentThemeKey };
+  const { currentTheme } = useThemeManager();
+  return { theme: currentTheme, key: DEFAULT_THEME };
 }
 
 export function useThemeSwitcher() {

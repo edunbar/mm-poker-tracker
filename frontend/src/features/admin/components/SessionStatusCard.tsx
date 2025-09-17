@@ -13,12 +13,12 @@ const GameStatusCard: React.FC<GameStatusCardProps> = ({
 }) => {
   if (status === "success") {
     return (
-      <div className="mb-6 p-4 bg-green-50 border-l-4 border-green-400 rounded">
+      <div className="mb-6 p-4 bg-success/10 border-l-4 border-success rounded">
         <div className="flex items-center">
-          <CheckCircle2 className="h-5 w-5 text-green-600 mr-3" />
+          <CheckCircle2 className="h-5 w-5 text-success mr-3" />
           <div>
-            <div className="text-green-800 font-medium">Success!</div>
-            <div className="text-green-700">Game has been saved to the database successfully.</div>
+            <div className="text-success font-medium">Success!</div>
+            <div className="text-success/80">Game has been saved to the database successfully.</div>
           </div>
         </div>
       </div>
@@ -26,35 +26,35 @@ const GameStatusCard: React.FC<GameStatusCardProps> = ({
   }
   if (status === "error") {
     return (
-      <div className="mb-6 p-4 bg-red-50 border-l-4 border-red-400 rounded">
+      <div className="mb-6 p-4 bg-destructive/10 border-l-4 border-destructive rounded">
         <div className="flex items-center">
-          <AlertTriangle className="h-5 w-5 text-red-600 mr-3" />
+          <AlertTriangle className="h-5 w-5 text-destructive mr-3" />
           <div>
-            <div className="text-red-800 font-medium">Error</div>
-            <div className="text-red-700">{errorMessage || "Please fix invalid cells and ensure totals are balanced before uploading."}</div>
+            <div className="text-destructive font-medium">Error</div>
+            <div className="text-destructive/80">{errorMessage || "Please fix invalid cells and ensure totals are balanced before uploading."}</div>
           </div>
         </div>
       </div>
     );
   }
   return (
-    <div className="bg-white rounded-lg border shadow-sm p-4 mb-6">
+    <div className="bg-card text-card-foreground rounded-lg border border-border shadow-sm p-4 mb-6">
       <div className="flex items-center">
         {balanced ? (
-          <CheckCircle2 className="h-5 w-5 text-green-600 mr-3" />
+          <CheckCircle2 className="h-5 w-5 text-success mr-3" />
         ) : (
-          <AlertTriangle className="h-5 w-5 text-red-600 mr-3" />
+          <AlertTriangle className="h-5 w-5 text-destructive mr-3" />
         )}
         <div>
           <div
             className={`font-medium ${
-              balanced ? "text-green-800" : "text-red-800"
+              balanced ? "text-success" : "text-destructive"
             }`}
           >
             {balanced ? "Ready to upload" : "Needs attention"}
           </div>
           <div className={`text-sm ${
-            balanced ? "text-green-700" : "text-red-700"
+            balanced ? "text-success/80" : "text-destructive/80"
           }`}>
             {balanced
               ? "Totals are balanced. You can safely upload this game."

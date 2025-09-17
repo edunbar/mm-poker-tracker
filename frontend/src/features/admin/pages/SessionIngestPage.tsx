@@ -172,7 +172,7 @@ export default function GameIngestPage() {
 
           {game.isLoading && <p>Loading game data...</p>}
           {game.isError && (
-            <p className="text-red-600">Error loading game data.</p>
+            <p className="text-destructive">Error loading game data.</p>
           )}
 
           {rows.length > 0 && (
@@ -184,25 +184,25 @@ export default function GameIngestPage() {
               />
               <GameDataTable playersInfos={rows} setEditableData={setRows} publicCode={PUBLIC_CODE} />
               
-              <div className="bg-white rounded-lg border shadow-sm">
-                <div className="border-b p-4">
-                  <h3 className="text-lg font-semibold">Optional Settings</h3>
+              <div className="bg-card text-card-foreground rounded-lg border border-border shadow-sm">
+                <div className="border-b border-border p-4">
+                  <h3 className="text-lg font-semibold text-foreground">Optional Settings</h3>
                 </div>
                 <div className="p-4">
-                  <div className="bg-sophisticated-gold-extralight border-l-4 border-sophisticated-gold rounded p-4">
+                  <div className="bg-warning/20 border-l-4 border-warning rounded p-4">
                     <div className="flex items-start">
                       <div className="flex-shrink-0">
-                        <svg className="h-5 w-5 text-sophisticated-gold" fill="currentColor" viewBox="0 0 20 20">
+                        <svg className="h-5 w-5 text-warning" fill="currentColor" viewBox="0 0 20 20">
                           <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
                         </svg>
                       </div>
                       <div className="ml-3 flex-1">
-                        <h4 className="font-medium text-sophisticated-gold-deep">Manual Game Number Override</h4>
-                        <div className="mt-2 text-sm text-sophisticated-gold-deep">
+                        <h4 className="font-medium text-warning">Manual Game Number Override</h4>
+                        <div className="mt-2 text-sm text-warning/80">
                           <p>Leave blank to auto-assign the next game number, or enter a specific number to override (useful for re-uploading deleted games).</p>
                         </div>
                         <div className="mt-3">
-                          <label htmlFor="gameNumber" className="block text-sm font-medium text-gray-700 mb-1">
+                          <label htmlFor="gameNumber" className="block text-sm font-medium text-foreground mb-1">
                             Game Number
                           </label>
                           <input
@@ -212,7 +212,7 @@ export default function GameIngestPage() {
                             onChange={(e) => setGameNumber(e.target.value)}
                             placeholder="Auto-assign"
                             min="1"
-                            className="block w-32 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            className="block w-32 px-3 py-2 border border-input bg-background text-foreground rounded-md focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring"
                           />
                         </div>
                       </div>

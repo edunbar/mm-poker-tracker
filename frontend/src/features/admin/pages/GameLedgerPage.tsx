@@ -404,7 +404,7 @@ export default function GameLedgerPage() {
                     });
                     setShowDeleteModal(true);
                   }}
-                  className="px-4 py-2 bg-red-600 text-white font-medium rounded-2xl hover:bg-red-700"
+                  className="px-4 py-2 bg-destructive text-destructive-foreground font-medium rounded-2xl hover:bg-destructive/90"
                 >
                   Delete
                 </button>
@@ -418,7 +418,7 @@ export default function GameLedgerPage() {
             ) : (
               <button
                 onClick={handleCancel}
-                className="px-4 py-2 border border-gray-300 bg-transparent text-gray-700 font-medium rounded-2xl hover:bg-gray-50"
+                className="px-4 py-2 border border-input bg-transparent text-foreground font-medium rounded-2xl hover:bg-accent"
               >
                 Cancel
               </button>
@@ -702,7 +702,7 @@ export default function GameLedgerPage() {
       </div>
 
       {!loading && summaries.length === 0 && (
-        <div className="bg-white rounded-lg border shadow-sm p-12 text-center">
+        <div className="bg-card text-card-foreground rounded-lg border border-border shadow-sm p-12 text-center">
           <p className="text-muted-foreground">No game ledger entries found.</p>
         </div>
       )}
@@ -722,7 +722,7 @@ export default function GameLedgerPage() {
       {/* Delete Confirmation Modal */}
       {showDeleteModal && deleteTarget && (
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-40">
-          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+          <div className="relative top-20 mx-auto p-5 border border-border w-96 shadow-lg rounded-md bg-card text-card-foreground">
             <div className="flex items-center justify-between border-b pb-3">
               <h3 className="text-xl font-semibold text-gray-900">Confirm Deletion</h3>
               <button
@@ -789,7 +789,7 @@ export default function GameLedgerPage() {
       {/* Session Delete Confirmation Modal */}
       {showSessionDeleteModal && sessionDeleteTarget && (
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-40">
-          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+          <div className="relative top-20 mx-auto p-5 border border-border w-96 shadow-lg rounded-md bg-card text-card-foreground">
             <div className="flex items-center justify-between border-b pb-3">
               <h3 className="text-xl font-semibold text-gray-900">Confirm Session Deletion</h3>
               <button
@@ -856,7 +856,7 @@ export default function GameLedgerPage() {
       {/* Add Row Modal */}
       {showAddRowModal && (
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-40">
-          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+          <div className="relative top-20 mx-auto p-5 border border-border w-96 shadow-lg rounded-md bg-card text-card-foreground">
             <div className="flex items-center justify-between border-b pb-3">
               <h3 className="text-xl font-semibold text-gray-900">Add New Row</h3>
               <button

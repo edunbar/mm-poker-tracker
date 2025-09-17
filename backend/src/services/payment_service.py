@@ -36,6 +36,7 @@ class PlayerPaymentSummary:
     total_received: Decimal  # Amount received from others
     balance: Decimal  # Payment balance: total_received - net_winnings (can be negative)
     realized_earnings: Decimal  # Actual cash flow: total_received - total_paid
+    days_since_last_payment: Optional[int]  # Days since their last payment (as payer)
 
 
 @dataclass 
@@ -136,41 +137,70 @@ class PaymentService:
     def get_payment_summary(self, game_id: str) -> List[PlayerPaymentSummary]:
         """
         Get payment summary for all players in a game.
-        
+
         Returns list of PlayerPaymentSummary objects with current balances.
         """
         with SessionLocal() as db:
             # Ensure balances are up to date
             self._sync_all_balances(db, game_id)
-            
-            # Get all balances for this game
-            balances = (
-                db.query(PaymentBalance, Player.display_name)
-                .join(Player, PaymentBalance.player_id == Player.id)
-                .filter(PaymentBalance.game_id == game_id)
-                .all()
-            )
-            
+            db.commit()  # Commit the balance sync changes
+
+            # Get all balances for this game with last payment dates
+            balances_query = """
+                SELECT
+                    pb.*,
+                    p.display_name,
+                    (
+                        SELECT MAX(pt.payment_date)
+                        FROM payment_transactions pt
+                        WHERE pt.game_id = pb.game_id
+                        AND pt.payer_id = pb.player_id
+                        AND pt.status = 'completed'
+                    ) as last_payment_date
+                FROM payment_balances pb
+                JOIN players p ON pb.player_id = p.id
+                WHERE pb.game_id = :game_id
+            """
+
+            balances = db.execute(text(balances_query), {"game_id": game_id}).mappings().all()
+
             summaries = []
-            for balance, player_name in balances:
+            for balance in balances:
                 poker_net = Decimal(balance.poker_net_winnings) / 100
                 total_paid = Decimal(balance.total_paid) / 100
                 total_received = Decimal(balance.total_received) / 100
-                
+
                 # Balance = received - net winnings (can be negative)
                 player_balance = total_received - poker_net
-                
+
                 # Realized Earnings = actual cash flow (received - paid)
                 realized_earnings = total_received - total_paid
-                
+
+                # Calculate days since last payment
+                days_since_last_payment = None
+                if balance.last_payment_date:
+                    last_payment_date = balance.last_payment_date
+                    if isinstance(last_payment_date, str):
+                        # Handle string date format
+                        last_payment_date = datetime.fromisoformat(last_payment_date.replace('Z', '+00:00'))
+
+                    # Ensure last_payment_date is timezone-aware
+                    if last_payment_date.tzinfo is None:
+                        last_payment_date = last_payment_date.replace(tzinfo=timezone.utc)
+
+                    # Calculate days difference
+                    days_diff = (datetime.now(timezone.utc) - last_payment_date).days
+                    days_since_last_payment = days_diff
+
                 summaries.append(PlayerPaymentSummary(
                     player_id=str(balance.player_id),
-                    player_name=player_name,
+                    player_name=balance.display_name,
                     poker_net_winnings=poker_net,
                     total_paid=total_paid,
                     total_received=total_received,
                     balance=player_balance,
-                    realized_earnings=realized_earnings
+                    realized_earnings=realized_earnings,
+                    days_since_last_payment=days_since_last_payment
                 ))
             
             # Sort by balance descending (highest owed first)

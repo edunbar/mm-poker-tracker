@@ -86,17 +86,17 @@ export default function LiveGameIngestPage() {
         </div>
 
         {error && (
-          <div className="mb-6 p-4 bg-red-50 border-l-4 border-red-400 rounded">
-            <div className="text-red-800 font-medium">Error</div>
-            <div className="text-red-700">{error}</div>
+          <div className="mb-6 p-4 bg-destructive/10 border-l-4 border-destructive rounded">
+            <div className="text-destructive font-medium">Error</div>
+            <div className="text-destructive">{error}</div>
           </div>
         )}
 
         {success && (
-          <div className="mb-6 p-4 bg-green-50 border-l-4 border-green-400 rounded">
-            <div className="text-green-800 font-medium">Success!</div>
-            <div className="text-green-700">{success}</div>
-            <div className="text-green-600 text-sm mt-1">Redirecting to game summary...</div>
+          <div className="mb-6 p-4 bg-success/10 border-l-4 border-success rounded">
+            <div className="text-success font-medium">Success!</div>
+            <div className="text-success">{success}</div>
+            <div className="text-success text-sm mt-1">Redirecting to game summary...</div>
           </div>
         )}
 

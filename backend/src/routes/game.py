@@ -773,7 +773,8 @@ def get_payment_summary(public_code: str):
                     "total_paid": float(player_summary.total_paid),
                     "total_received": float(player_summary.total_received),
                     "balance": float(player_summary.balance),
-                    "realized_earnings": float(player_summary.realized_earnings)
+                    "realized_earnings": float(player_summary.realized_earnings),
+                    "days_since_last_payment": player_summary.days_since_last_payment
                 })
             
             return jsonify({"players": result}), 200

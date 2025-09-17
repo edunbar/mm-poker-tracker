@@ -332,31 +332,31 @@ export default function AdvancedAnalyticsPage({ publicCode }: AdvancedAnalyticsP
       getValue: (player: AnalyticsPlayer) => formatCurrencyFromDollars(player.net),
       getSubtext: (player: AnalyticsPlayer) => player.sessionInfo || 'single session'
     },
-    'lowest-win-rate': {
-      title: 'Lowest Win Rate',
+    'highest-loss-rate': {
+      title: 'Highest Loss Rate',
       icon: Clock,
       iconColor: 'text-amber-600',
       iconBg: 'bg-amber-100',
-      description: 'Players with the lowest session win percentage (minimum 10 games)',
+      description: 'Players with the highest session loss percentage (minimum 10 games)',
       getData: (): AnalyticsPlayer[] => {
         if (!analyticsData?.analytics) return [];
         return Object.values(analyticsData.analytics)
           .filter(p => p.total_games >= 10)
           .map(p => {
-            const winRate = (p.total_wins / p.total_games) * 100;
+            const lossRate = (p.total_losses / p.total_games) * 100;
             return {
               player: p.player_name,
               gamesPlayed: p.total_games,
-              net: p.total_wins,
+              net: p.total_losses,
               longestStreak: p.longest_losing_streak,
-              winRate: winRate
+              lossRate: lossRate
             };
           })
-          .sort((a, b) => a.winRate - b.winRate)
+          .sort((a, b) => b.lossRate - a.lossRate)
           .slice(0, 3);
       },
-      getValue: (player: AnalyticsPlayer) => `${Math.round(player.winRate || 0)}%`,
-      getSubtext: (player: AnalyticsPlayer) => `${player.net}/${player.gamesPlayed} sessions won`
+      getValue: (player: AnalyticsPlayer) => `${Math.round(player.lossRate || 0)}%`,
+      getSubtext: (player: AnalyticsPlayer) => `${player.net}/${player.gamesPlayed} sessions lost`
     },
     'most-sessions-lost': {
       title: 'Most Sessions Lost',

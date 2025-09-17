@@ -39,79 +39,68 @@
   border-color: hsl(var(--sophisticated-gold-deep));
 }
 
-/* Enhanced theme system inspired by Airtable, Stripe, Linear, and GitHub */
-
-/* Custom warm color palette */
+/* Betting Site Theme - Dark sports betting inspired by FanDuel and DraftKings */
 :root {
-  /* Background system - warm off-white base */
-  --background: 28 25% 96%; /* #F9F3EF warm off-white */
-  --foreground: 208 60% 18%; /* #1B3C53 dark navy for text */
-  
-  /* Card system - clean white cards on warm background */
-  --card: 0 0% 100%; /* Pure white for cards */
-  --card-foreground: 208 60% 18%; /* #1B3C53 dark navy */
-  
-  /* Muted backgrounds - warm beige tones */
-  --muted: 28 15% 83%; /* #D2C1B6 warm beige */
-  --muted-foreground: 208 30% 35%; /* Muted version of navy */
-  
-  /* Border system - soft warm borders */
-  --border: 28 15% 85%; /* Lighter version of #D2C1B6 */
-  --input: 28 15% 85%; /* Same as border for consistency */
-  
-  /* Primary system - slate blue accent */
-  --primary: 208 30% 45%; /* #456882 slate blue */
-  --primary-foreground: 0 0% 100%;
-  
-  /* Secondary system - warm beige */
-  --secondary: 28 15% 83%; /* #D2C1B6 warm beige */
-  --secondary-foreground: 208 60% 18%; /* #1B3C53 dark navy */
-  
-  /* Accent system - slate blue tones */
-  --accent: 208 25% 92%; /* Light slate blue */
-  --accent-foreground: 208 60% 18%; /* #1B3C53 dark navy */
-  
-  /* Status colors - Dark Gold theme */
+  /* Core colors - dark charcoal background like DraftKings */
+  --background: 0 0% 10%; /* #1a1a1a Dark charcoal background */
+  --foreground: 0 0% 100%; /* #FFFFFF Pure white text for high contrast */
+
+  /* Interactive colors - deep purple primary, bright green secondary */
+  --primary: 271 81% 56%; /* #8A2BE2 Deep purple for primary actions */
+  --primary-foreground: 0 0% 100%; /* #FFFFFF White text on purple */
+  --secondary: 103 75% 53%; /* #53d337 Bright green for secondary actions */
+  --secondary-foreground: 0 0% 0%; /* #000000 Black text on bright green */
+
+  /* UI colors - dark theme with true gold accents */
+  --muted: 0 0% 16%; /* #2a2a2a Slightly lighter gray for muted areas */
+  --muted-foreground: 0 0% 69%; /* #B0B0B0 Light gray for muted text */
+  --accent: 45 50% 64%; /* #D4B574 Sophisticated gold for accents */
+  --accent-foreground: 0 0% 0%; /* #000000 Black text on gold */
+
+  /* System colors */
+  --border: 0 0% 25%; /* #404040 Medium gray for borders */
+  --input: 0 0% 16%; /* #2a2a2a Dark gray for inputs */
+  --ring: 271 81% 56%; /* #8A2BE2 Purple for focus rings */
+
+  /* Card colors - slightly lighter than background for depth */
+  --card: 0 0% 14%; /* #242424 DraftKings card background */
+  --card-foreground: 0 0% 100%; /* #FFFFFF White text on cards */
+
+  /* Status colors - vibrant for betting interface */
   --destructive: 0 70% 50%; /* #DC2626 */
   --destructive-foreground: 0 0% 100%;
-  --success: 162 89% 40%; /* #059669 */
-  --success-foreground: 0 0% 100%;
-  --warning: 45 50% 64%; /* #D4B574 - True Gold */
-  --warning-foreground: 0 0% 26%; /* #434343 - Dark gray */
-  --info: 0 0% 42%; /* #6B6B6B - Medium gray */
+  --success: 103 75% 53%; /* #53d337 Bright green for success */
+  --success-foreground: 0 0% 0%;
+  --warning: 45 50% 64%; /* #D4B574 Sophisticated gold for warnings */
+  --warning-foreground: 0 0% 0%;
+  --info: 213 100% 56%; /* #1E90FF Bright blue for info */
   --info-foreground: 0 0% 100%;
 
-  /* Custom sophisticated gold colors - more gold, less brown */
+  /* Custom sophisticated gold colors */
   --sophisticated-gold: 45 50% 64%; /* #D4B574 - True gold tone */
   --sophisticated-gold-deep: 45 50% 54%; /* #B89C5A - Deeper gold */
   --sophisticated-gold-light: 45 50% 84%; /* #E8D4A0 - Light gold */
   --sophisticated-gold-extralight: 45 50% 94%; /* #F5EDD8 - Very light gold */
+  /* Navigation colors - dark with purple accents */
+  --nav-background: 0 0% 14%; /* #242424 Slightly lighter than main background */
+  --nav-border: 0 0% 25%; /* #404040 */
+  --nav-item-hover: 0 0% 16%; /* #2a2a2a Subtle hover state */
+  --nav-item-active: 271 81% 56%; /* #8A2BE2 Purple for active items */
+  --nav-item-active-border: 45 50% 64%; /* #D4B574 Sophisticated gold border for active */
 
-  /* Focus rings - slate blue */
-  --ring: 208 30% 45%; /* #456882 slate blue */
-  
   /* Popover system */
-  --popover: 0 0% 100%;
-  --popover-foreground: 0 0% 9%;
-  
-  /* Border radius - Linear inspired */
+  --popover: 0 0% 14%; /* #242424 Dark popover background */
+  --popover-foreground: 0 0% 100%; /* White text */
+
+  /* Border radius */
   --radius: 0.5rem;
-  
-  /* Legacy component-specific variables - now use theme colors */
-  
-  /* Table system - uses theme colors */
+
+  /* Legacy component-specific variables - uses theme colors */
   --table-header-bg: var(--muted);
-  --table-row-hover: var(--accent);
+  --table-row-hover: var(--muted);
   --table-row-selected: var(--accent);
   --table-border: var(--border);
-  
-  /* Navigation - uses theme colors */
-  --nav-background: var(--card);
-  --nav-border: var(--border);
-  --nav-item-hover: var(--muted);
-  --nav-item-active: var(--accent);
-  --nav-item-active-border: var(--primary);
-  
+
   /* Status badges - uses theme colors */
   --badge-success-bg: var(--success);
   --badge-success-text: var(--success-foreground);
@@ -121,10 +110,10 @@
   --badge-error-text: var(--destructive-foreground);
   --badge-info-bg: var(--info);
   --badge-info-text: var(--info-foreground);
-  
+
   /* Form elements - uses theme colors */
-  --input-bg: var(--background);
-  --input-border: var(--input);
+  --input-bg: var(--input);
+  --input-border: var(--border);
   --input-border-focus: var(--ring);
   --input-placeholder: var(--muted-foreground);
 }
@@ -141,6 +130,20 @@ body {
   background-color: hsl(var(--background));
   color: hsl(var(--foreground));
   overscroll-behavior: none;
+}
+
+/* Fix autofill styles to maintain dark theme */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 30px hsl(var(--input)) inset !important;
+  -webkit-text-fill-color: hsl(var(--foreground)) !important;
+  caret-color: hsl(var(--foreground)) !important;
+}
+
+input:-webkit-autofill::first-line {
+  color: hsl(var(--foreground)) !important;
 }
 
 /* Component utility classes */

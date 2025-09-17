@@ -109,7 +109,7 @@ def get_player_summaries(public_code: str):
                 player                                        AS "player",
                 DENSE_RANK() OVER (ORDER BY total_net_chips DESC)    AS "rank",
                 ROUND(buy_in_chips/100.0, 2)                  AS "buyIn",
-                ROUND(cash_out_chips/100.0, 2)                AS "cashOut",
+                ROUND((cash_out_chips + in_game_chips)/100.0, 2) AS "cashOut",
                 ROUND(total_net_chips/100.0, 2)               AS "net",
                 games_played                                  AS "gamesPlayed"
             FROM calc

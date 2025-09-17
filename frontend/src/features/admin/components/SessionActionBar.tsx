@@ -18,19 +18,19 @@ const GameActionBar: React.FC<GameActionBarProps> = ({
   <div className="mt-6 space-y-4">
     <div className="flex items-center justify-between">
       <button
-        className="bg-gray-200 px-4 py-2 rounded hover:bg-gray-300 transition-colors"
+        className="bg-muted text-muted-foreground px-4 py-2 rounded hover:bg-accent hover:text-accent-foreground transition-colors disabled:opacity-50"
         onClick={onCancel}
         disabled={isLoading}
       >
         Cancel
       </button>
       <button
-        className={`px-6 py-2 rounded text-white flex items-center gap-2 transition-colors ${
+        className={`px-6 py-2 rounded flex items-center gap-2 transition-colors ${
           isSuccess
-            ? "bg-green-600"
+            ? "bg-success text-success-foreground"
             : balanced && !isLoading
-            ? "bg-green-600 hover:bg-green-700"
-            : "bg-gray-400 cursor-not-allowed"
+            ? "bg-success text-success-foreground hover:bg-success/90"
+            : "bg-muted text-muted-foreground cursor-not-allowed"
         }`}
         onClick={onUpload}
         disabled={(!balanced || isLoading) && !isSuccess}
@@ -50,11 +50,11 @@ const GameActionBar: React.FC<GameActionBarProps> = ({
         )}
       </button>
     </div>
-    
+
     {/* Inline success message */}
     {isSuccess && (
-      <div className="bg-green-50 border-l-4 border-green-400 rounded p-3 text-right">
-        <p className="text-green-800 text-sm font-medium">
+      <div className="bg-success/10 border-l-4 border-success rounded p-3 text-right">
+        <p className="text-success text-sm font-medium">
           ✓ Session uploaded successfully! The data has been saved to your database.
         </p>
       </div>

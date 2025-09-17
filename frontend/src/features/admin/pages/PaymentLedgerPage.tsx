@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { ChevronDown, ChevronUp, DollarSign, Edit, HelpCircle, History, Plus, Target, Trash2, Users, X } from 'lucide-react';
+import { ChevronDown, ChevronUp, DollarSign, Edit, History, Plus, Target, Trash2, Users, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useAdminSession } from '../../../contexts/AdminSessionContext';
@@ -14,6 +14,7 @@ interface PlayerPaymentSummary {
   total_received: number;
   realized_cash_earnings?: number;  // Calculated field: received - paid
   net_balance?: number;  // Calculated field: (poker_winnings + paid_out) - received
+  days_since_last_payment?: number | null;  // Days since their last payment
 }
 
 interface SettlementSuggestion {
@@ -100,6 +101,7 @@ export default function PaymentLedgerPage() {
     } catch (error) {
     }
   };
+
 
   const fetchSettlements = async () => {
     try {
@@ -333,15 +335,21 @@ export default function PaymentLedgerPage() {
         }
       });
 
-      // Refresh all data
+      // Remove the paid settlement from current list
+      setSettlements(prev => prev.filter(s =>
+        !(s.payer_id === settlement.payer_id &&
+          s.recipient_id === settlement.recipient_id &&
+          s.amount === settlement.amount)
+      ));
+
+      // Refresh payment data but keep settlements stable
       await Promise.all([
         fetchPaymentSummary(),
-        fetchSettlements(),
         fetchPaymentHistory()
       ]);
 
       showSuccess(
-        'Settlement Recorded', 
+        'Settlement Recorded',
         `Payment recorded: ${settlement.payer_name} paid ${settlement.recipient_name} ${formatCurrency(settlement.amount)}`
       );
     } catch (error: any) {
@@ -353,7 +361,9 @@ export default function PaymentLedgerPage() {
   };
 
   const formatCurrency = (cents: number) => {
-    return `$${(cents).toFixed(2)}`;
+    // Handle negative zero by normalizing very small values to 0
+    const normalized = Math.abs(cents) < 0.005 ? 0 : cents;
+    return `$${normalized.toFixed(2)}`;
   };
 
   const formatDate = (dateString: string) => {
@@ -401,6 +411,28 @@ export default function PaymentLedgerPage() {
     if (sortField !== field) return null;
     return sortDirection === 'asc' ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />;
   };
+
+  // Group settlements by payer
+  const groupedSettlements = settlements.reduce((acc, settlement) => {
+    const payerId = settlement.payer_id;
+    if (!acc[payerId]) {
+      acc[payerId] = {
+        payer_name: settlement.payer_name,
+        total_owed: 0,
+        payments: []
+      };
+    }
+    const payerGroup = acc[payerId];
+    if (payerGroup) {
+      payerGroup.total_owed += settlement.amount;
+      payerGroup.payments.push(settlement);
+    }
+    return acc;
+  }, {} as Record<string, {
+    payer_name: string;
+    total_owed: number;
+    payments: SettlementSuggestion[];
+  }>);
 
   if (loading) {
     return (
@@ -495,68 +527,59 @@ export default function PaymentLedgerPage() {
                         {getSortIcon('player_name')}
                       </button>
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                    <th className="px-6 py-3 text-center text-xs font-medium text-muted-foreground uppercase tracking-wider">
                       <button
-                        className="flex items-center space-x-1 hover:text-foreground"
+                        className="flex items-center justify-center space-x-1 hover:text-foreground"
                         onClick={() => handleSort('poker_net_winnings')}
                       >
                         <span>Poker Winnings</span>
                         {getSortIcon('poker_net_winnings')}
                       </button>
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                    <th className="px-6 py-3 text-center text-xs font-medium text-muted-foreground uppercase tracking-wider">
                       <button
-                        className="flex items-center space-x-1 hover:text-foreground"
+                        className="flex items-center justify-center space-x-1 hover:text-foreground"
                         onClick={() => handleSort('total_paid')}
                       >
                         <span>Paid Out</span>
                         {getSortIcon('total_paid')}
                       </button>
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                    <th className="px-6 py-3 text-center text-xs font-medium text-muted-foreground uppercase tracking-wider">
                       <button
-                        className="flex items-center space-x-1 hover:text-foreground"
+                        className="flex items-center justify-center space-x-1 hover:text-foreground"
                         onClick={() => handleSort('total_received')}
                       >
                         <span>Received</span>
                         {getSortIcon('total_received')}
                       </button>
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                      <div className="flex items-center space-x-1">
-                        <button
-                          className="flex items-center space-x-1 hover:text-foreground"
-                          onClick={() => handleSort('realized_cash_earnings')}
-                        >
-                          <span>Realized Cash Earnings</span>
-                          {getSortIcon('realized_cash_earnings')}
-                        </button>
-                        <div className="relative group">
-                          <HelpCircle className="w-4 h-4 text-gray-400 hover:text-gray-600 cursor-help" />
-                          <div className="absolute right-0 top-full mt-2 hidden group-hover:block z-50 w-64 p-3 text-sm text-foreground bg-popover border border-border rounded-lg shadow-xl">
-                            <div className="absolute -top-1 right-4 w-2 h-2 bg-popover border-l border-t border-border rotate-45" />
-                            Actual cash flow (received - paid out). Shows net cash position from payments made and received.
-                          </div>
-                        </div>
-                      </div>
+                    <th className="px-6 py-3 text-center text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                      <button
+                        className="flex items-center justify-center space-x-1 hover:text-foreground"
+                        onClick={() => handleSort('realized_cash_earnings')}
+                      >
+                        <span>Realized Cash Earnings</span>
+                        {getSortIcon('realized_cash_earnings')}
+                      </button>
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                      <div className="flex items-center space-x-1">
-                        <button
-                          className="flex items-center space-x-1 hover:text-foreground"
-                          onClick={() => handleSort('net_balance')}
-                        >
-                          <span>Net Balance</span>
-                          {getSortIcon('net_balance')}
-                        </button>
-                        <div className="relative group">
-                          <HelpCircle className="w-4 h-4 text-gray-400 hover:text-gray-600 cursor-help" />
-                          <div className="absolute right-0 top-full mt-2 hidden group-hover:block z-50 w-64 p-3 text-sm text-foreground bg-popover border border-border rounded-lg shadow-xl">
-                            <div className="absolute -top-1 right-4 w-2 h-2 bg-popover border-l border-t border-border rotate-45" />
-                            Amount owed to player (positive) or amount player owes (negative). Formula: (poker winnings + paid out) - received.
-                          </div>
-                        </div>
-                      </div>
+                    <th className="px-6 py-3 text-center text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                      <button
+                        className="flex items-center justify-center space-x-1 hover:text-foreground"
+                        onClick={() => handleSort('net_balance')}
+                      >
+                        <span>Amount Owed</span>
+                        {getSortIcon('net_balance')}
+                      </button>
+                    </th>
+                    <th className="px-6 py-3 text-center text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                      <button
+                        className="flex items-center justify-center space-x-1 hover:text-foreground"
+                        onClick={() => handleSort('days_since_last_payment')}
+                      >
+                        <span>Days Since Last Payment</span>
+                        {getSortIcon('days_since_last_payment')}
+                      </button>
                     </th>
                   </tr>
                 </thead>
@@ -566,24 +589,24 @@ export default function PaymentLedgerPage() {
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-foreground">
                         {player.player_name}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-foreground">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-foreground text-center">
                         {formatCurrency(player.poker_net_winnings)}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-foreground">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-foreground text-center">
                         {formatCurrency(player.total_paid)}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-foreground">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-foreground text-center">
                         {formatCurrency(player.total_received)}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-center">
                         {(() => {
                           const realizedCashEarnings = player.total_received - player.total_paid;
                           return (
                             <span className={`font-medium ${
-                              realizedCashEarnings > 0 
-                                ? 'text-success' 
-                                : realizedCashEarnings < 0 
-                                ? 'text-destructive' 
+                              realizedCashEarnings > 0
+                                ? 'text-success'
+                                : realizedCashEarnings < 0
+                                ? 'text-destructive'
                                 : 'text-foreground'
                             }`}>
                               {formatCurrency(realizedCashEarnings)}
@@ -591,21 +614,27 @@ export default function PaymentLedgerPage() {
                           );
                         })()}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-center">
                         {(() => {
                           const netBalance = (player.poker_net_winnings + player.total_paid) - player.total_received;
                           return (
                             <span className={`font-medium ${
-                              netBalance > 0 
-                                ? 'text-success' 
-                                : netBalance < 0 
-                                ? 'text-destructive' 
+                              netBalance > 0.005
+                                ? 'text-success'
+                                : netBalance < -0.005
+                                ? 'text-destructive'
                                 : 'text-foreground'
                             }`}>
                               {formatCurrency(netBalance)}
                             </span>
                           );
                         })()}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-foreground text-center">
+                        {player.days_since_last_payment !== null && player.days_since_last_payment !== undefined
+                          ? `${player.days_since_last_payment} days`
+                          : 'Never'
+                        }
                       </td>
                     </tr>
                   ))}
@@ -626,35 +655,56 @@ export default function PaymentLedgerPage() {
             </div>
             {settlements.length > 0 ? (
               <div className="p-6">
-                <div className="space-y-2">
-                  {settlements.map((settlement, index) => (
-                    <div key={index} className="flex items-center justify-between p-4 hover:bg-accent hover:text-accent-foreground border-b border-border last:border-b-0">
-                      <div className="flex items-center space-x-4">
-                        <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
-                          <span className="text-xs font-medium text-primary">{index + 1}</span>
+                <div className="space-y-6">
+                  {Object.entries(groupedSettlements).map(([payerId, payerInfo]) => (
+                    <div key={payerId} className="bg-muted/50 rounded-lg p-4 border border-border">
+                      {/* Payer Header */}
+                      <div className="flex items-center justify-between mb-4 pb-3 border-b border-border">
+                        <div className="flex items-center space-x-3">
+                          <div className="w-10 h-10 bg-destructive/10 rounded-full flex items-center justify-center">
+                            <DollarSign className="w-5 h-5 text-destructive" />
+                          </div>
+                          <div>
+                            <h3 className="text-lg font-semibold text-foreground">
+                              {payerInfo.payer_name} owes
+                            </h3>
+                          </div>
                         </div>
-                        <div>
-                          <div className="text-sm font-medium text-foreground">
-                            <span className="font-bold text-primary">{settlement.payer_name}</span> pays{' '}
-                            <span className="font-bold text-success">{settlement.recipient_name}</span>
+                        <div className="text-right">
+                          <div className="text-2xl font-bold text-destructive">
+                            {formatCurrency(payerInfo.total_owed)}
                           </div>
                         </div>
                       </div>
-                      <div className="flex items-center space-x-4">
-                        <div className="text-right">
-                          <div className="text-lg font-semibold text-success">
-                            {formatCurrency(settlement.amount)}
+
+                      {/* Individual Payments */}
+                      <div className="space-y-0">
+                        {payerInfo.payments.map((payment, paymentIndex) => (
+                          <div key={paymentIndex}>
+                            {paymentIndex > 0 && <hr className="border-border" />}
+                            <div className="flex items-center justify-between py-3">
+                              <div className="text-sm font-medium text-foreground">
+                                <span className="font-bold text-foreground">{payment.recipient_name}</span>
+                              </div>
+                              <div className="flex items-center space-x-4">
+                                <div className="text-right">
+                                  <div className="text-lg font-semibold text-success">
+                                    {formatCurrency(payment.amount)}
+                                  </div>
+                                </div>
+                                <button
+                                  onClick={() => handleMarkSettlementPaid(payment)}
+                                  disabled={submitLoading}
+                                  className="px-2 py-1 text-xs font-medium text-white bg-black border border-transparent rounded-2xl hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-1"
+                                  title="Record this settlement as paid"
+                                >
+                                  <DollarSign className="w-4 h-4" />
+                                  <span>Mark as Paid</span>
+                                </button>
+                              </div>
+                            </div>
                           </div>
-                        </div>
-                        <button
-                          onClick={() => handleMarkSettlementPaid(settlement)}
-                          disabled={submitLoading}
-                          className="px-2 py-1 text-xs font-medium text-white bg-black border border-transparent rounded-2xl hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-1"
-                          title="Record this settlement as paid"
-                        >
-                          <DollarSign className="w-4 h-4" />
-                          <span>Mark as Paid</span>
-                        </button>
+                        ))}
                       </div>
                     </div>
                   ))}
@@ -718,21 +768,21 @@ export default function PaymentLedgerPage() {
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-foreground">
                           {payment.payment_method || '-'}
                         </td>
-                        <td className="px-6 py-4 text-sm text-gray-900">
+                        <td className="px-6 py-4 text-sm text-foreground">
                           {payment.notes || '-'}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-foreground">
                           <div className="flex space-x-2">
                             <button
                               onClick={() => handleEditPayment(payment)}
-                              className="text-blue-600 hover:text-blue-900 p-1"
+                              className="text-primary hover:text-primary/80 p-1"
                               title="Edit payment"
                             >
                               <Edit className="w-4 h-4" />
                             </button>
                             <button
                               onClick={() => handleDeletePayment(payment)}
-                              className="text-red-600 hover:text-red-900 p-1"
+                              className="text-destructive hover:text-destructive/80 p-1"
                               title="Delete payment"
                               disabled={submitLoading}
                             >
@@ -844,27 +894,27 @@ export default function PaymentLedgerPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-foreground mb-1">
                   Notes
                 </label>
                 <input
                   type="text"
                   value={recordForm.notes}
                   onChange={(e) => setRecordForm({...recordForm, notes: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-input bg-background text-foreground rounded-md focus:ring-ring focus:border-ring placeholder:text-muted-foreground"
                   placeholder="Optional notes about the payment"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-foreground mb-1">
                   Reference ID
                 </label>
                 <input
                   type="text"
                   value={recordForm.reference_id}
                   onChange={(e) => setRecordForm({...recordForm, reference_id: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-input bg-background text-foreground rounded-md focus:ring-ring focus:border-ring placeholder:text-muted-foreground"
                   placeholder="Venmo/Zelle transaction ID"
                 />
               </div>
@@ -919,7 +969,7 @@ export default function PaymentLedgerPage() {
         {editingPayment && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
             <div className="bg-card text-card-foreground rounded-lg shadow-xl border border-border max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
-              <div className="flex items-center justify-between p-6 border-b border-gray-200">
+              <div className="flex items-center justify-between p-6 border-b border-border">
                 <h3 className="text-lg font-medium text-foreground">Edit Payment</h3>
                 <button
                   onClick={() => setEditingPayment(null)}
@@ -1076,8 +1126,8 @@ export default function PaymentLedgerPage() {
         {!hasAdminSession && showAdminInput && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
             <div className="bg-card text-card-foreground rounded-lg shadow-xl border border-border max-w-md w-full mx-4">
-              <div className="flex items-center justify-between p-6 border-b border-gray-200">
-                <h3 className="text-lg font-medium text-gray-900">Admin Access Required</h3>
+              <div className="flex items-center justify-between p-6 border-b border-border">
+                <h3 className="text-lg font-medium text-foreground">Admin Access Required</h3>
                 <button
                   onClick={() => setShowAdminInput(false)}
                   className="text-muted-foreground hover:text-foreground"
@@ -1087,7 +1137,7 @@ export default function PaymentLedgerPage() {
               </div>
               
               <div className="p-6">
-                <p className="text-sm text-gray-600 mb-4">
+                <p className="text-sm text-muted-foreground mb-4">
                   Please enter your admin code to record this settlement payment.
                 </p>
                 <div>
@@ -1131,8 +1181,8 @@ export default function PaymentLedgerPage() {
         {paymentToDelete && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
             <div className="bg-card text-card-foreground rounded-lg shadow-xl border border-border max-w-md w-full mx-4">
-              <div className="flex items-center justify-between p-6 border-b border-gray-200">
-                <h3 className="text-lg font-medium text-gray-900">Confirm Delete</h3>
+              <div className="flex items-center justify-between p-6 border-b border-border">
+                <h3 className="text-lg font-medium text-foreground">Confirm Delete</h3>
                 <button
                   onClick={() => setPaymentToDelete(null)}
                   className="text-muted-foreground hover:text-foreground"
@@ -1144,33 +1194,33 @@ export default function PaymentLedgerPage() {
               
               <div className="p-6">
                 <div className="flex items-center mb-4">
-                  <div className="flex-shrink-0 w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
-                    <Trash2 className="w-6 h-6 text-red-600" />
+                  <div className="flex-shrink-0 w-10 h-10 bg-destructive/20 rounded-full flex items-center justify-center">
+                    <Trash2 className="w-6 h-6 text-destructive" />
                   </div>
                   <div className="ml-4">
-                    <h4 className="text-lg font-medium text-gray-900">Delete Payment</h4>
+                    <h4 className="text-lg font-medium text-foreground">Delete Payment</h4>
                     <p className="text-sm text-muted-foreground">This action cannot be undone.</p>
                   </div>
                 </div>
                 
                 <div className="bg-muted rounded-lg p-4 mb-4">
-                  <div className="text-sm text-gray-700">
+                  <div className="text-sm text-foreground">
                     <div className="font-medium mb-1">Payment Details:</div>
                     <div className="flex items-center justify-between">
                       <span>
-                        <span className="font-medium text-blue-600">{paymentToDelete.payer_name}</span>
-                        <span className="mx-2 text-gray-400">→</span>
-                        <span className="font-medium text-green-600">{paymentToDelete.recipient_name}</span>
+                        <span className="font-medium text-primary">{paymentToDelete.payer_name}</span>
+                        <span className="mx-2 text-muted-foreground">→</span>
+                        <span className="font-medium text-success">{paymentToDelete.recipient_name}</span>
                       </span>
                       <span className="font-bold text-lg">{formatCurrency(paymentToDelete.amount)}</span>
                     </div>
                     {paymentToDelete.payment_method && (
-                      <div className="text-xs text-gray-500 mt-1">
+                      <div className="text-xs text-muted-foreground mt-1">
                         via {paymentToDelete.payment_method}
                       </div>
                     )}
                     {paymentToDelete.notes && (
-                      <div className="text-xs text-gray-500 mt-1">
+                      <div className="text-xs text-muted-foreground mt-1">
                         Note: {paymentToDelete.notes}
                       </div>
                     )}

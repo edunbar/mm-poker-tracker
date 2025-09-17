@@ -18,7 +18,10 @@ interface GameDataTableProps {
 
 
 function formatNumber(n: number | null | undefined) {
-  return new Intl.NumberFormat().format(n ?? 0);
+  // Handle negative zero by normalizing very small values to 0
+  const value = n ?? 0;
+  const normalized = Math.abs(value) < 0.005 ? 0 : value;
+  return new Intl.NumberFormat().format(normalized);
 }
 
 const GameDataTable: React.FC<GameDataTableProps> = ({ playersInfos = [] }) => {
@@ -74,9 +77,9 @@ const GameDataTable: React.FC<GameDataTableProps> = ({ playersInfos = [] }) => {
                 </TableCell>
                 <TableCell
                   className={`px-3 py-2 text-right font-medium ${
-                    row.net === 0
+                    Math.abs(row.net) < 0.005
                       ? "text-muted-foreground"
-                      : row.net > 0
+                      : row.net > 0.005
                       ? "text-green-600 dark:text-green-400"
                       : "text-red-600 dark:text-red-400"
                   }`}
@@ -102,9 +105,9 @@ const GameDataTable: React.FC<GameDataTableProps> = ({ playersInfos = [] }) => {
               </TableCell>
               <TableCell
                 className={`text-right font-semibold ${
-                  derived.net === 0
+                  Math.abs(derived.net) < 0.005
                     ? "text-muted-foreground"
-                    : derived.net > 0
+                    : derived.net > 0.005
                     ? "text-green-600 dark:text-green-400"
                     : "text-red-600 dark:text-red-400"
                 }`}

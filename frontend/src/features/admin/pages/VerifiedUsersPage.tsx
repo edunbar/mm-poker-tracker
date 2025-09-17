@@ -365,50 +365,50 @@ export default function VerifiedUsersPage() {
       {/* Modal */}
       {showModal && editingPlayer && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-start justify-center z-50 p-4 overflow-y-auto">
-          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-2xl my-8">
-            <h3 className="text-lg font-medium text-gray-900 mb-6">
+          <div className="bg-card text-card-foreground rounded-lg shadow-xl p-6 w-full max-w-2xl my-8 border border-border">
+            <h3 className="text-lg font-medium text-foreground mb-6">
               {editingPlayer.is_verified ? 'Edit Verified Player' : 'Verify Player'}
             </h3>
             
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-foreground mb-2">
                   Display Name (read-only)
                 </label>
                 <input
                   type="text"
                   value={editingPlayer.display_name}
                   readOnly
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-500"
+                  className="w-full px-3 py-2 border border-input rounded-lg bg-muted text-muted-foreground"
                 />
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-foreground mb-2">
                   External ID (read-only)
                 </label>
                 <input
                   type="text"
                   value={editingPlayer.external_id || '-'}
                   readOnly
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-500"
+                  className="w-full px-3 py-2 border border-input rounded-lg bg-muted text-muted-foreground"
                 />
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-foreground mb-2">
                   All Names Used (read-only)
                 </label>
                 <input
                   type="text"
                   value={editingPlayer.all_names.join(', ')}
                   readOnly
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-500"
+                  className="w-full px-3 py-2 border border-input rounded-lg bg-muted text-muted-foreground"
                 />
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-foreground mb-2">
                   Verified Name *
                 </label>
                 <input
@@ -416,51 +416,51 @@ export default function VerifiedUsersPage() {
                   value={verifiedName}
                   onChange={(e) => handleVerifiedNameChange(e.target.value)}
                   placeholder="Enter real player name..."
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-input bg-background text-foreground rounded-lg focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring placeholder:text-muted-foreground"
                 />
-                <p className="text-sm text-gray-500 mt-1">
+                <p className="text-sm text-muted-foreground mt-1">
                   This will be used to identify the player across sessions
                 </p>
               </div>
               
               {/* Duplicate Detection Section */}
               {duplicateDetection && duplicateDetection.match_count > 0 && (
-                <div className="p-4 bg-sophisticated-gold-extralight border border-sophisticated-gold rounded-lg">
+                <div className="p-4 bg-warning/10 border border-warning rounded-lg">
                   <div className="flex items-center mb-3">
-                    <div className="text-sophisticated-gold mr-2">⚠️</div>
-                    <h4 className="font-medium text-sophisticated-gold-deep">
+                    <div className="text-warning mr-2">⚠️</div>
+                    <h4 className="font-medium text-warning">
                       Found {duplicateDetection.match_count} potential match{duplicateDetection.match_count > 1 ? 'es' : ''} for '{duplicateDetection.verified_name}'
                     </h4>
                   </div>
-                  <p className="text-sm text-sophisticated-gold-deep mb-3">
+                  <p className="text-sm text-warning mb-3">
                     Do you want to merge these players? This will combine all their session data.
                   </p>
                   
                   <div className="space-y-2 max-h-48 overflow-y-auto">
                     {duplicateDetection.potential_matches.map((match) => (
-                      <label key={match.player_id} className="flex items-start p-3 bg-white rounded border hover:bg-gray-50 cursor-pointer">
+                      <label key={match.player_id} className="flex items-start p-3 bg-card rounded border border-border hover:bg-accent/50 cursor-pointer">
                         <input
                           type="checkbox"
                           checked={selectedMergeTargets.includes(match.player_id)}
                           onChange={(e) => handleMergeToggle(match.player_id, e.target.checked)}
-                          className="mt-1 mr-3 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                          className="mt-1 mr-3 h-4 w-4 text-primary focus:ring-ring border-input rounded"
                         />
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between">
-                            <div className="font-medium text-gray-900">
+                            <div className="font-medium text-foreground">
                               {match.display_name} 
-                              {match.is_verified && <span className="ml-2 px-2 py-1 text-xs bg-green-100 text-green-800 rounded">Verified</span>}
+                              {match.is_verified && <span className="ml-2 px-2 py-1 text-xs bg-success/20 text-success rounded">Verified</span>}
                             </div>
-                            <div className="text-sm text-gray-500">{match.session_count} sessions</div>
+                            <div className="text-sm text-muted-foreground">{match.session_count} sessions</div>
                           </div>
                           {match.external_id && (
-                            <div className="text-sm text-gray-600">ID: {match.external_id}</div>
+                            <div className="text-sm text-muted-foreground">ID: {match.external_id}</div>
                           )}
-                          <div className="text-xs text-gray-500 mt-1">
+                          <div className="text-xs text-muted-foreground mt-1">
                             Used names: {match.session_names.slice(0, 3).join(', ')}
                             {match.session_names.length > 3 && ` (+${match.session_names.length - 3} more)`}
                           </div>
-                          <div className="text-xs text-blue-600 mt-1">
+                          <div className="text-xs text-primary mt-1">
                             {match.match_reasons.join(', ')}
                           </div>
                         </div>
@@ -469,8 +469,8 @@ export default function VerifiedUsersPage() {
                   </div>
                   
                   {selectedMergeTargets.length > 0 && (
-                    <div className="mt-3 p-3 bg-blue-50 rounded border">
-                      <div className="text-sm text-blue-800">
+                    <div className="mt-3 p-3 bg-primary/10 rounded border border-primary/20">
+                      <div className="text-sm text-primary">
                         <strong>Merge Preview:</strong> {selectedMergeTargets.length} player{selectedMergeTargets.length > 1 ? 's' : ''} will be merged into this verification.
                       </div>
                     </div>
@@ -479,7 +479,7 @@ export default function VerifiedUsersPage() {
               )}
               
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-foreground mb-2">
                   External ID {editingPlayer.is_verified ? '' : '*'}
                 </label>
                 <input
@@ -487,16 +487,16 @@ export default function VerifiedUsersPage() {
                   value={externalId}
                   onChange={(e) => setExternalId(e.target.value)}
                   placeholder="Enter PokerNow player ID..."
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-input bg-background text-foreground rounded-lg focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring placeholder:text-muted-foreground"
                 />
-                <p className="text-sm text-gray-500 mt-1">
+                <p className="text-sm text-muted-foreground mt-1">
                   {editingPlayer.is_verified ? 'Update the player\'s PokerNow ID' : 'Required to verify player - this is their PokerNow ID'}
                 </p>
               </div>
 
               {showAdminInput && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-foreground mb-2">
                     Admin Code *
                   </label>
                   <input
@@ -504,7 +504,7 @@ export default function VerifiedUsersPage() {
                     value={manualAdminCode}
                     onChange={(e) => setManualAdminCode(e.target.value)}
                     placeholder="Enter admin code..."
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-input bg-background text-foreground rounded-lg focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring placeholder:text-muted-foreground"
                   />
                 </div>
               )}
@@ -514,14 +514,14 @@ export default function VerifiedUsersPage() {
               <button
                 onClick={handleCancel}
                 disabled={modalLoading}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+                className="px-4 py-2 text-sm font-medium text-muted-foreground bg-muted border border-input rounded-lg hover:bg-accent hover:text-accent-foreground focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50"
               >
                 Cancel
               </button>
               <button
                 onClick={handleSave}
                 disabled={modalLoading || !verifiedName.trim() || (!editingPlayer.is_verified && !externalId.trim())}
-                className="px-4 py-2 text-sm font-medium text-white bg-black border border-transparent rounded-2xl hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50"
+                className="px-4 py-2 text-sm font-medium text-primary-foreground bg-primary border border-transparent rounded-lg hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50"
               >
                 {modalLoading ? (
                   selectedMergeTargets.length > 0 ? 'Merging...' : 'Saving...'
@@ -537,23 +537,23 @@ export default function VerifiedUsersPage() {
       {/* Merge Confirmation Modal */}
       {showMergeConfirmation && (
         <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-60">
-          <div className="bg-white rounded-lg shadow-xl p-6 w-96 max-w-md mx-4">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">
+          <div className="bg-card text-card-foreground rounded-lg shadow-xl p-6 w-96 max-w-md mx-4 border border-border">
+            <h3 className="text-lg font-medium text-foreground mb-4">
               Confirm Player Merge
             </h3>
-            <p className="text-sm text-gray-600 mb-4">
+            <p className="text-sm text-muted-foreground mb-4">
               This will merge {selectedMergeTargets.length} player{selectedMergeTargets.length > 1 ? 's' : ''} into one. All session data will be combined. This action cannot be undone.
             </p>
             <div className="flex justify-end gap-3">
               <button
                 onClick={() => setShowMergeConfirmation(false)}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+                className="px-4 py-2 text-sm font-medium text-muted-foreground bg-muted border border-input rounded-lg hover:bg-accent hover:text-accent-foreground"
               >
                 Cancel
               </button>
               <button
                 onClick={executeMerge}
-                className="px-4 py-2 text-sm font-medium text-white bg-red-600 border border-transparent rounded-2xl hover:bg-red-700"
+                className="px-4 py-2 text-sm font-medium text-destructive-foreground bg-destructive border border-transparent rounded-lg hover:bg-destructive/90"
               >
                 Confirm Merge
               </button>

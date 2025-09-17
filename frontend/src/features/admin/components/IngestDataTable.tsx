@@ -190,7 +190,7 @@ const GameDataTable: React.FC<GameDataTableProps> = ({
                     {(() => {
                       const status = verificationStatus[player.id];
                       if (status?.is_verified) {
-                        return <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-400" />;
+                        return <CheckCircle2 className="h-4 w-4 text-success" />;
                       } else if (status && !status.is_verified) {
                         return <AlertTriangle className="h-4 w-4 text-sophisticated-gold dark:text-sophisticated-gold" />;
                       } else {
@@ -276,8 +276,8 @@ const GameDataTable: React.FC<GameDataTableProps> = ({
                     player.net === 0
                       ? "text-muted-foreground"
                       : player.net > 0
-                      ? "text-green-600 dark:text-green-400"
-                      : "text-red-600 dark:text-red-400"
+                      ? "text-success"
+                      : "text-destructive"
                   }`}
                 >
                   <input
@@ -316,8 +316,8 @@ const GameDataTable: React.FC<GameDataTableProps> = ({
                   derived.net === 0
                     ? "text-muted-foreground"
                     : derived.net > 0
-                    ? "text-green-600 dark:text-green-400"
-                    : "text-red-600 dark:text-red-400"
+                    ? "text-success"
+                    : "text-destructive"
                 }`}
               >
                 {formatNumber(derived.net)}
@@ -330,14 +330,14 @@ const GameDataTable: React.FC<GameDataTableProps> = ({
       {/* Delete Confirmation Modal */}
       {showDeleteConfirm && playerToDelete && (
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+          <div className="relative top-20 mx-auto p-5 border border-border w-96 shadow-lg rounded-md bg-card text-card-foreground">
             <div className="mt-3 text-center">
-              <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100">
-                <Trash2 className="h-6 w-6 text-red-600" />
+              <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-destructive/20">
+                <Trash2 className="h-6 w-6 text-destructive" />
               </div>
-              <h3 className="text-lg leading-6 font-medium text-gray-900 mt-2">Delete Player Row</h3>
+              <h3 className="text-lg leading-6 font-medium text-foreground mt-2">Delete Player Row</h3>
               <div className="mt-2 px-7 py-3">
-                <p className="text-sm text-gray-500">
+                <p className="text-sm text-muted-foreground">
                   Are you sure you want to delete <strong>{playerToDelete.name}</strong>? 
                   This will remove this player from the session data.
                 </p>
@@ -346,13 +346,13 @@ const GameDataTable: React.FC<GameDataTableProps> = ({
                 <div className="flex space-x-2">
                   <button
                     onClick={cancelDelete}
-                    className="flex-1 px-4 py-2 bg-gray-200 text-gray-900 text-base font-medium rounded-md shadow-sm hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-300"
+                    className="flex-1 px-4 py-2 bg-muted text-foreground text-base font-medium rounded-md shadow-sm hover:bg-accent focus:outline-none focus:ring-2 focus:ring-ring"
                   >
                     Cancel
                   </button>
                   <button
                     onClick={confirmDelete}
-                    className="flex-1 px-4 py-2 bg-red-600 text-white text-base font-medium rounded-md shadow-sm hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500"
+                    className="flex-1 px-4 py-2 bg-destructive text-destructive-foreground text-base font-medium rounded-md shadow-sm hover:bg-destructive/90 focus:outline-none focus:ring-2 focus:ring-ring"
                   >
                     Delete
                   </button>

@@ -79,8 +79,8 @@ export default function LandingPage() {
         <div className="max-w-lg w-full">
           <div className="bg-card text-card-foreground rounded-lg border border-border shadow-sm p-8">
             <div className="text-center mb-6">
-              <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100 mb-4">
-                <svg className="h-6 w-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-success/20 mb-4">
+                <svg className="h-6 w-6 text-success" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
               </div>
@@ -89,49 +89,49 @@ export default function LandingPage() {
             </div>
             
             <div className="space-y-4 mb-6">
-              <div className="bg-gray-50 p-4 rounded-lg">
+              <div className="bg-muted p-4 rounded-lg">
                 <label className="block text-sm font-medium text-foreground mb-2">
                   Public Code (Share with players)
                 </label>
                 <div className="flex items-center space-x-2">
-                  <code className="flex-1 bg-background px-3 py-2 border border-input rounded font-mono text-lg font-bold text-center">
+                  <code className="flex-1 bg-background px-3 py-2 border border-input rounded font-mono text-lg font-bold text-center text-foreground">
                     {createdGame.public_code}
                   </code>
                   <button
                     onClick={() => navigator.clipboard.writeText(createdGame.public_code)}
-                    className="px-3 py-2 text-sm bg-black text-white rounded-2xl hover:opacity-90"
+                    className="px-3 py-2 text-sm bg-primary text-primary-foreground rounded-2xl hover:bg-primary/90"
                   >
                     Copy
                   </button>
                 </div>
               </div>
-              
-              <div className="bg-sophisticated-gold-extralight p-4 rounded-lg">
+
+              <div className="bg-warning/20 p-4 rounded-lg">
                 <label className="block text-sm font-medium text-foreground mb-2">
                   Admin Code (Keep secret!)
                 </label>
                 <div className="flex items-center space-x-2">
-                  <code className="flex-1 bg-background px-3 py-2 border border-input rounded font-mono text-sm break-all">
+                  <code className="flex-1 bg-background px-3 py-2 border border-input rounded font-mono text-sm break-all text-foreground">
                     {createdGame.admin_code}
                   </code>
                   <button
                     onClick={() => navigator.clipboard.writeText(createdGame.admin_code)}
-                    className="px-3 py-2 text-sm bg-black text-white rounded-2xl hover:opacity-90"
+                    className="px-3 py-2 text-sm bg-primary text-primary-foreground rounded-2xl hover:bg-primary/90"
                   >
                     Copy
                   </button>
                 </div>
-                <p className="mt-2 text-xs text-sophisticated-gold-deep">
+                <p className="mt-2 text-xs text-warning">
                   ⚠️ Save this admin code! You'll need it to manage sessions and import data.
                 </p>
               </div>
-              
+
               {createdGame.title && (
                 <div className="bg-muted p-4 rounded-lg">
                   <label className="block text-sm font-medium text-foreground mb-2">
                     Game Title
                   </label>
-                  <p className="text-gray-900">{createdGame.title}</p>
+                  <p className="text-foreground">{createdGame.title}</p>
                 </div>
               )}
             </div>
@@ -139,13 +139,13 @@ export default function LandingPage() {
             <div className="flex space-x-3">
               <button
                 onClick={handleGoToGame}
-                className="flex-1 px-4 py-2 bg-black text-white font-medium rounded-2xl hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2"
+                className="flex-1 px-4 py-2 bg-primary text-primary-foreground font-medium rounded-2xl hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
               >
                 Go to Game
               </button>
               <button
                 onClick={handleCreateAnother}
-                className="flex-1 px-4 py-2 border border-gray-300 bg-transparent text-gray-900 font-medium rounded-2xl hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2"
+                className="flex-1 px-4 py-2 border border-border bg-transparent text-foreground font-medium rounded-2xl hover:bg-muted focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
               >
                 Create Another
               </button>
@@ -159,20 +159,20 @@ export default function LandingPage() {
   return (
     <div className="min-h-screen bg-background flex items-center justify-center py-12 px-4">
       <div className="max-w-md w-full">
-        <div className="bg-white rounded-lg border shadow-sm p-8">
+        <div className="bg-card text-card-foreground rounded-lg border border-border shadow-sm p-8">
           <div className="text-center mb-8">
             <h1 className="text-3xl font-bold text-foreground">🃏 HomeGame</h1>
             <p className="mt-2 text-muted-foreground">Create a new game or join an existing one</p>
           </div>
           
           {/* Mode Toggle */}
-          <div className="flex mb-6 bg-gray-100 rounded-lg p-1">
+          <div className="flex mb-6 bg-muted rounded-lg p-1">
             <button
               type="button"
               className={`flex-1 py-2 px-4 text-sm font-medium rounded-md transition-colors ${
                 mode === 'join'
-                  ? 'bg-white text-gray-900 shadow-sm'
-                  : 'text-gray-600 hover:text-gray-900'
+                  ? 'bg-background text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
               }`}
               onClick={() => setMode('join')}
             >
@@ -182,8 +182,8 @@ export default function LandingPage() {
               type="button"
               className={`flex-1 py-2 px-4 text-sm font-medium rounded-md transition-colors ${
                 mode === 'create'
-                  ? 'bg-white text-gray-900 shadow-sm'
-                  : 'text-gray-600 hover:text-gray-900'
+                  ? 'bg-background text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
               }`}
               onClick={() => setMode('create')}
             >
@@ -192,16 +192,16 @@ export default function LandingPage() {
           </div>
           
           {error && (
-            <div className="mb-6 p-4 bg-red-50 border-l-4 border-red-400 rounded">
-              <div className="text-red-800 font-medium">Error</div>
-              <div className="text-red-700">{error}</div>
+            <div className="mb-6 p-4 bg-destructive/10 border-l-4 border-destructive rounded">
+              <div className="text-destructive font-medium">Error</div>
+              <div className="text-destructive/80">{error}</div>
             </div>
           )}
           
           {mode === 'join' ? (
             <form onSubmit={handleJoinGame} className="space-y-6">
               <div>
-                <label htmlFor="gameId" className="block text-sm font-medium text-gray-700 mb-2">
+                <label htmlFor="gameId" className="block text-sm font-medium text-foreground mb-2">
                   Game Code *
                 </label>
                 <input
@@ -216,7 +216,7 @@ export default function LandingPage() {
               </div>
               
               <div>
-                <label htmlFor="adminId" className="block text-sm font-medium text-gray-700 mb-2">
+                <label htmlFor="adminId" className="block text-sm font-medium text-foreground mb-2">
                   Admin Code (optional)
                 </label>
                 <input
@@ -227,14 +227,14 @@ export default function LandingPage() {
                   className="w-full px-3 py-2 border border-input bg-background text-foreground rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
                   placeholder="Enter admin code for management access"
                 />
-                <p className="mt-1 text-sm text-gray-500">
+                <p className="mt-1 text-sm text-muted-foreground">
                   Required for game management and data ingestion
                 </p>
               </div>
               
               <button
                 type="submit"
-                className="w-full px-4 py-2 bg-black text-white font-medium rounded-2xl hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2"
+                className="w-full px-4 py-2 bg-primary text-primary-foreground font-medium rounded-2xl hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
               >
                 Join Game
               </button>
@@ -242,7 +242,7 @@ export default function LandingPage() {
           ) : (
             <form onSubmit={handleCreateGame} className="space-y-6">
               <div>
-                <label htmlFor="gameTitle" className="block text-sm font-medium text-gray-700 mb-2">
+                <label htmlFor="gameTitle" className="block text-sm font-medium text-foreground mb-2">
                   Game Title (optional)
                 </label>
                 <input
@@ -254,7 +254,7 @@ export default function LandingPage() {
                   placeholder="e.g., Thursday Night Home Game"
                   maxLength={100}
                 />
-                <p className="mt-1 text-sm text-gray-500">
+                <p className="mt-1 text-sm text-muted-foreground">
                   Give your game a memorable name
                 </p>
               </div>
@@ -262,16 +262,16 @@ export default function LandingPage() {
               <button
                 type="submit"
                 disabled={isLoading}
-                className="w-full px-4 py-2 bg-black text-white font-medium rounded-2xl hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full px-4 py-2 bg-primary text-primary-foreground font-medium rounded-2xl hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isLoading ? 'Creating Game...' : 'Create New Game'}
               </button>
             </form>
           )}
           
-          <div className="mt-8 p-4 bg-blue-50 border-l-4 border-blue-400 rounded">
-            <h3 className="font-medium text-blue-800 mb-2">Features</h3>
-            <ul className="text-blue-700 text-sm space-y-1">
+          <div className="mt-8 p-4 bg-info/10 border-l-4 border-info rounded">
+            <h3 className="font-medium text-info mb-2">Features</h3>
+            <ul className="text-info/80 text-sm space-y-1">
               <li>• View player statistics and game summaries</li>
               <li>• Import PokerNow sessions automatically</li>
               <li>• Enter live game results manually</li>
