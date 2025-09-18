@@ -1,7 +1,7 @@
 import { PlayerSummaryRow } from "../../../entities/game/types";
+import { Heading, Text } from "../../../shared/ui/typography";
 import { usePlayerSummaries } from "../api/getPlayerSummaries";
 import GameDataTable from "../components/GameDataTable";
-import { Heading, Text } from "../../../shared/ui/typography";
 
 interface GameSummaryPageProps {
   publicCode: string;

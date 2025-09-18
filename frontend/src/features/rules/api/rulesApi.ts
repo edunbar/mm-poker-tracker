@@ -45,7 +45,6 @@ export async function getRules(publicCode: string): Promise<GameRule[]> {
 
     return result.rules;
   } catch (error) {
-    console.error('Error fetching rules:', error);
     throw error;
   }
 }
@@ -81,7 +80,6 @@ export async function createRule(
 
     return result.rule;
   } catch (error) {
-    console.error('Error creating rule:', error);
     throw error;
   }
 }
@@ -118,7 +116,6 @@ export async function updateRule(
 
     return result.rule;
   } catch (error) {
-    console.error('Error updating rule:', error);
     throw error;
   }
 }
@@ -150,7 +147,6 @@ export async function deleteRule(
       throw new Error(result.error || 'Failed to delete rule');
     }
   } catch (error) {
-    console.error('Error deleting rule:', error);
     throw error;
   }
 }
@@ -184,7 +180,6 @@ export async function reorderRules(
       throw new Error(result.error || 'Failed to reorder rules');
     }
   } catch (error) {
-    console.error('Error reordering rules:', error);
     throw error;
   }
 }

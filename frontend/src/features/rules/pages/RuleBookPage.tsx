@@ -40,7 +40,6 @@ export default function RuleBookPage({ publicCode }: RuleBookPageProps) {
       const rulesData = await getRules(publicCode);
       setRules(rulesData);
     } catch (error) {
-      console.error('Failed to load rules:', error);
       showError('Error', 'Failed to load rules');
     } finally {
       setLoading(false);
@@ -97,7 +96,6 @@ export default function RuleBookPage({ publicCode }: RuleBookPageProps) {
 
       setEditingRule(null);
     } catch (error) {
-      console.error('Failed to save rule:', error);
       showError('Error', 'Failed to save rule');
     } finally {
       setIsSubmitting(false);
@@ -117,7 +115,6 @@ export default function RuleBookPage({ publicCode }: RuleBookPageProps) {
       setRuleToDelete(null);
       showSuccess('Success', 'Rule deleted successfully');
     } catch (error) {
-      console.error('Failed to delete rule:', error);
       showError('Error', 'Failed to delete rule');
     }
   };
@@ -131,7 +128,7 @@ export default function RuleBookPage({ publicCode }: RuleBookPageProps) {
       <div className="min-h-screen bg-background">
         <div className="max-w-4xl mx-auto px-4 py-8">
           <div className="text-center">
-            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
             <Text variant="body" color="muted" className="mt-2">Loading rules...</Text>
           </div>
         </div>

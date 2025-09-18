@@ -1,4 +1,3 @@
-import React from 'react';
 import {
   CheckCircle,
   XCircle,
@@ -16,6 +15,7 @@ import {
   Flame,
   DollarSign
 } from 'lucide-react';
+import React from 'react';
 import { cn } from '../../lib/utils';
 
 // GitHub-inspired badge variants
