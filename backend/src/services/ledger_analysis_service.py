@@ -44,7 +44,10 @@ def get_ledger_analysis(public_code: str) -> Dict[str, Any]:
         
         # Business logic violations
         business_logic_violations = _check_business_logic_violations(db, game.id)
-        
+
+        # Payment ledger balance check
+        payment_balance_check = _check_payment_ledger_balance(db, game.id)
+
         return {
             "game_code": public_code,
             "overall_balance": overall_stats,
@@ -54,7 +57,8 @@ def get_ledger_analysis(public_code: str) -> Dict[str, Any]:
             "temporal_issues": temporal_issues,
             "statistical_outliers": statistical_outliers,
             "cross_session_issues": cross_session_issues,
-            "business_logic_violations": business_logic_violations
+            "business_logic_violations": business_logic_violations,
+            "payment_balance_check": payment_balance_check
         }
 
 
@@ -1047,3 +1051,106 @@ def recalculate_session_balance(session_id: str) -> Dict[str, Any]:
             "player_count": len(player_summaries),
             "is_balanced": calculated_balance == 0
         }
+
+
+def _check_payment_ledger_balance(db: Session, game_id: str) -> Dict[str, Any]:
+    """
+    Check if the payment ledger balances to zero.
+
+    The payment ledger should always sum to zero because:
+    - Poker winnings/losses sum to zero (zero-sum game)
+    - Payments made should equal payments received
+    - Total balance = (poker_winnings + payments_made) - payments_received should sum to zero
+    """
+    from db.models import PaymentBalance, Player
+
+    # Get all payment balances for this game
+    result = db.execute(text("""
+        SELECT
+            pb.player_id,
+            p.display_name,
+            pb.poker_net_winnings,
+            pb.total_paid,
+            pb.total_received,
+            pb.payment_balance
+        FROM payment_balances pb
+        JOIN players p ON pb.player_id = p.id
+        WHERE pb.game_id = :game_id
+        ORDER BY pb.payment_balance DESC
+    """), {"game_id": game_id}).fetchall()
+
+    if not result:
+        return {
+            "is_balanced": True,
+            "total_balance": 0,
+            "balance_in_dollars": 0.0,
+            "player_balances": [],
+            "issues": [],
+            "summary": "No payment balances found"
+        }
+
+    # Calculate total balance
+    total_poker_winnings = sum(row.poker_net_winnings for row in result)
+    total_paid = sum(row.total_paid for row in result)
+    total_received = sum(row.total_received for row in result)
+
+    # The sum of all payment_balance fields should be zero
+    total_balance = sum(row.payment_balance for row in result)
+
+    player_balances = []
+    issues = []
+
+    for row in result:
+        balance_dollars = row.payment_balance / 100.0
+        player_balances.append({
+            "player_id": str(row.player_id),
+            "player_name": row.display_name,
+            "poker_net_winnings": float(row.poker_net_winnings / 100.0),
+            "total_paid": float(row.total_paid / 100.0),
+            "total_received": float(row.total_received / 100.0),
+            "balance": float(balance_dollars),
+            "status": "owes" if balance_dollars < 0 else "owed" if balance_dollars > 0 else "settled"
+        })
+
+    # Check for issues
+    is_balanced = total_balance == 0
+    balance_in_dollars = total_balance / 100.0
+
+    if not is_balanced:
+        issues.append({
+            "type": "imbalance",
+            "severity": "high" if abs(balance_in_dollars) > 10 else "medium" if abs(balance_in_dollars) > 1 else "low",
+            "message": f"Payment ledger does not balance to $0. Current balance: ${balance_in_dollars:.2f}",
+            "imbalance_amount": balance_in_dollars
+        })
+
+    # Check if total payments in/out balance
+    payment_imbalance = total_paid - total_received
+    if payment_imbalance != 0:
+        issues.append({
+            "type": "payment_mismatch",
+            "severity": "high",
+            "message": f"Total paid (${total_paid/100:.2f}) does not equal total received (${total_received/100:.2f})",
+            "difference": payment_imbalance / 100.0
+        })
+
+    # Check if poker winnings sum to zero (they should in a zero-sum game)
+    if total_poker_winnings != 0:
+        issues.append({
+            "type": "poker_imbalance",
+            "severity": "high",
+            "message": f"Poker winnings do not sum to zero: ${total_poker_winnings/100:.2f}",
+            "imbalance": total_poker_winnings / 100.0
+        })
+
+    return {
+        "is_balanced": is_balanced,
+        "total_balance": total_balance,
+        "balance_in_dollars": balance_in_dollars,
+        "total_poker_winnings": total_poker_winnings / 100.0,
+        "total_paid": total_paid / 100.0,
+        "total_received": total_received / 100.0,
+        "player_balances": player_balances,
+        "issues": issues,
+        "summary": "Payment ledger is balanced" if is_balanced else f"Payment ledger has ${abs(balance_in_dollars):.2f} imbalance"
+    }

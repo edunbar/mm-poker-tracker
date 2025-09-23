@@ -101,6 +101,7 @@ export default function LedgerAnalysisPage() {
   const [loading, setLoading] = useState(false);
   const [sessionAnalysis, setSessionAnalysis] = useState<SessionAnalysis[]>([]);
   const [mathErrors, setMathErrors] = useState<MathError[]>([]);
+  const [paymentBalanceCheck, setPaymentBalanceCheck] = useState<any>(null);
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
   const [sessionDetail, setSessionDetail] = useState<SessionDetail | null>(null);
   const [sessionLoading, setSessionLoading] = useState(false);
@@ -141,10 +142,15 @@ export default function LedgerAnalysisPage() {
         const unbalanced = data.session_analysis.filter((session: SessionAnalysis) => !session.is_balanced);
         setSessionAnalysis(unbalanced);
       }
-      
+
       // Extract math errors from business logic violations
       if (data.business_logic_violations && data.business_logic_violations.mathematical_inconsistencies) {
         setMathErrors(data.business_logic_violations.mathematical_inconsistencies);
+      }
+
+      // Extract payment balance check
+      if (data.payment_balance_check) {
+        setPaymentBalanceCheck(data.payment_balance_check);
       }
     } catch (error) {
     } finally {
@@ -388,7 +394,7 @@ export default function LedgerAnalysisPage() {
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto" />
             <Text variant="body" color="muted" className="mt-4">Analyzing game data...</Text>
           </div>
-        ) : sessionAnalysis.length === 0 && mathErrors.length === 0 && !hasPlayerDebugIssues() ? (
+        ) : sessionAnalysis.length === 0 && mathErrors.length === 0 && !hasPlayerDebugIssues() && (!paymentBalanceCheck || paymentBalanceCheck.is_balanced) ? (
           <div className="space-y-8">
             <div className="bg-card text-card-foreground rounded-lg border border-border shadow-sm p-12 text-center">
               <div className="text-success text-6xl mb-4">✓</div>
@@ -398,37 +404,6 @@ export default function LedgerAnalysisPage() {
           </div>
         ) : (
           <div className="space-y-8">
-            {/* Wall of Fame Section */}
-            <div className="bg-card text-card-foreground rounded-lg border border-border shadow-sm">
-              <div className="border-b p-4">
-                <Heading variant="h3">Wall of Fame</Heading>
-              </div>
-              <div className="p-6">
-                <div className="grid grid-cols-2 gap-6">
-                  <div className="bg-accent p-6 rounded-lg border border-border text-center">
-                    <Text variant="bodySmall" weight="medium" color="muted" as="h4" className="mb-2">Biggest Winner</Text>
-                    <Heading variant="h4" color="success">Player Name</Heading>
-                    <Text variant="bodyLarge" color="success">$1,234.56</Text>
-                  </div>
-                  <div className="bg-accent p-6 rounded-lg border border-border text-center">
-                    <Text variant="bodySmall" weight="medium" color="muted" className="mb-2">Most Consistent</Text>
-                    <Heading variant="h4" color="primary">Player Name</Heading>
-                    <Text variant="bodyLarge" color="muted">98% sessions positive</Text>
-                  </div>
-                  <div className="bg-accent p-6 rounded-lg border border-border text-center">
-                    <Text variant="bodySmall" weight="medium" color="muted" className="mb-2">High Roller</Text>
-                    <Heading variant="h4" color="warning">Player Name</Heading>
-                    <Text variant="bodyLarge" color="muted">$5,000 avg buy-in</Text>
-                  </div>
-                  <div className="bg-accent p-6 rounded-lg border border-border text-center">
-                    <Text variant="bodySmall" weight="medium" color="muted" className="mb-2">Longest Hot Streak</Text>
-                    <Heading variant="h4" className="text-info">Player Name</Heading>
-                    <Text variant="bodyLarge" color="muted">12 sessions</Text>
-                  </div>
-                </div>
-              </div>
-            </div>
-
             {/* Player Debug Section - Show when there are issues */}
             {hasPlayerDebugIssues() && (
               <div className="bg-card text-card-foreground rounded-lg border border-border shadow-sm">
@@ -717,6 +692,51 @@ export default function LedgerAnalysisPage() {
                     </tbody>
                   </table>
                 </div>
+              </div>
+            )}
+
+            {/* Payment Balance Check Section */}
+            {paymentBalanceCheck && !paymentBalanceCheck.is_balanced && (
+              <div className="bg-card text-card-foreground rounded-lg border border-border shadow-sm">
+                <div className="border-b p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Heading variant="h3">Payment Ledger Imbalance</Heading>
+                      <Text variant="bodySmall" color="muted" className="mt-1">
+                        {paymentBalanceCheck.summary}
+                      </Text>
+                    </div>
+                    <div className="text-right">
+                      <Text variant="bodySmall" color="destructive" weight="bold">
+                        ${Math.abs(paymentBalanceCheck.balance_in_dollars).toFixed(2)} imbalance
+                      </Text>
+                    </div>
+                  </div>
+                </div>
+
+                {paymentBalanceCheck.issues && paymentBalanceCheck.issues.length > 0 && (
+                  <div className="p-4">
+                    <div className="space-y-2">
+                      {paymentBalanceCheck.issues.map((issue: any, idx: number) => (
+                        <div
+                          key={idx}
+                          className={`p-3 rounded-md ${
+                            issue.severity === 'high' ? 'bg-destructive/10 border border-destructive/20' :
+                            issue.severity === 'medium' ? 'bg-yellow-500/10 border border-yellow-500/20' :
+                            'bg-blue-500/10 border border-blue-500/20'
+                          }`}
+                        >
+                          <Text variant="bodySmall" weight="medium">
+                            {issue.type === 'imbalance' && '⚠️ '}
+                            {issue.type === 'payment_mismatch' && '💸 '}
+                            {issue.type === 'poker_imbalance' && '🎰 '}
+                            {issue.message}
+                          </Text>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 

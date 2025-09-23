@@ -412,6 +412,10 @@ def ingest_session(
         )
         db.commit()
 
+        # Invalidate cache for this game
+        from services.game_summary_service import invalidate_game_cache
+        invalidate_game_cache(public_code)
+
         # ----- Step 6: return -----
         return {
             "ok": True,

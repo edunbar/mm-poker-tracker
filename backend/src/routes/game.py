@@ -1413,6 +1413,65 @@ def check_verification_status(public_code: str):
         return jsonify({"error": str(e)}), 500
 
 
+@game_bp.post("/<public_code>/payments/cleanup-orphaned")
+def cleanup_orphaned_payment_balances(public_code: str):
+    """
+    Clean up orphaned payment balances for players with no session activity.
+    Admin only endpoint.
+    Header: X-Admin-Code: <admin_code>
+    """
+    admin_code = request.headers.get('X-Admin-Code')
+    if not admin_code:
+        return jsonify({"error": "Admin code required"}), 401
+
+    with SessionLocal() as db:
+        try:
+            # Verify admin access
+            game = db.query(Game).filter(Game.public_code == public_code).first()
+            if not game or game.admin_code != admin_code:
+                return jsonify({"error": "Game not found or invalid admin code"}), 404
+
+            # Find orphaned balances for this game
+            balances = db.query(PaymentBalance).filter(
+                PaymentBalance.game_id == game.id
+            ).all()
+
+            deleted_count = 0
+            deleted_players = []
+
+            for balance in balances:
+                # Check if player has any session activity in this game
+                has_activity = db.query(SessionPlayerSummary).join(
+                    SessionModel, SessionPlayerSummary.session_id == SessionModel.id
+                ).filter(
+                    SessionModel.game_id == game.id,
+                    SessionPlayerSummary.player_id == balance.player_id
+                ).count() > 0
+
+                if not has_activity:
+                    player = db.query(Player).filter(Player.id == balance.player_id).first()
+                    deleted_players.append({
+                        "player_id": str(balance.player_id),
+                        "player_name": player.display_name if player else "Unknown"
+                    })
+                    db.delete(balance)
+                    deleted_count += 1
+
+            if deleted_count > 0:
+                db.commit()
+
+            return jsonify({
+                "message": f"Cleaned up {deleted_count} orphaned payment balance(s)",
+                "deleted_count": deleted_count,
+                "deleted_players": deleted_players
+            }), 200
+
+        except Exception as e:
+            db.rollback()
+            logging.error(f"Error cleaning up orphaned balances: {e}")
+            return jsonify({"error": str(e)}), 500
+
+
 @game_bp.put("/<public_code>/ledger/manual/new")
 def add_manual_ledger_row(public_code: str):
     """

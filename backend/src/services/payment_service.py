@@ -402,3 +402,5 @@ class PaymentService:
                     payment_balance=payment_balance
                 )
                 db.add(balance)
+
+            db.flush()

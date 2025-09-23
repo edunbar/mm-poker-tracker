@@ -144,23 +144,57 @@ def delete_session_summary(session_id: str, player_id: str) -> Dict[str, Any]:
                     "names": summary.names
                 }
 
+                # Get game_id for payment balance update
+                session = db.query(Session).filter(Session.id == session_id).first()
+                game_id = str(session.game_id) if session else None
+                affected_player_id = str(player_id)
+
                 db.delete(summary)
-                
+
                 # Check if this was the last player in the session
                 remaining_players = db.query(SessionPlayerSummary).filter(
                     SessionPlayerSummary.session_id == session_id
                 ).count()
-                
+
                 orphaned_session = False
                 if remaining_players == 0:
                     # Delete the orphaned session
-                    session = db.query(Session).filter(Session.id == session_id).first()
                     if session:
                         db.delete(session)
                         orphaned_session = True
                         logger.info(f"Deleted orphaned session {session_id}")
 
+                db.flush()
+
+                # Update payment balances after deletion
+                if game_id:
+                    from services.payment_service import PaymentService
+                    from db.models import PaymentBalance
+                    payment_service = PaymentService()
+                    payment_service._update_payment_balances(db, game_id, [affected_player_id])
+
+                    # Check if player still has any activity in this game
+                    player_has_activity = db.query(SessionPlayerSummary).join(
+                        Session, SessionPlayerSummary.session_id == Session.id
+                    ).filter(
+                        Session.game_id == game_id,
+                        SessionPlayerSummary.player_id == affected_player_id
+                    ).count() > 0
+
+                    # If no activity, remove their payment balance record
+                    if not player_has_activity:
+                        db.query(PaymentBalance).filter(
+                            PaymentBalance.game_id == game_id,
+                            PaymentBalance.player_id == affected_player_id
+                        ).delete()
+
                 db.commit()
+
+                # Invalidate cache
+                game = db.query(Game).filter(Game.id == game_id).first()
+                if game:
+                    from services.game_summary_service import invalidate_game_cache
+                    invalidate_game_cache(game.public_code)
 
                 return {
                     "message": "SessionPlayerSummary deleted successfully",
@@ -191,6 +225,7 @@ def delete_entire_session(session_id: str) -> Dict[str, Any]:
                 ).all()
 
                 deleted_players = []
+                affected_player_ids = []
                 for summary in summaries:
                     deleted_players.append({
                         "player_id": str(summary.player_id),
@@ -201,6 +236,7 @@ def delete_entire_session(session_id: str) -> Dict[str, Any]:
                         "net": summary.net,
                         "names": summary.names
                     })
+                    affected_player_ids.append(str(summary.player_id))
 
                 # Store session info before deletion
                 session_info = {
@@ -211,9 +247,41 @@ def delete_entire_session(session_id: str) -> Dict[str, Any]:
                     "ended_at": session.ended_at.isoformat() if session.ended_at else None
                 }
 
+                game_id = str(session.game_id)
+
                 # Delete the session (CASCADE will delete summaries)
                 db.delete(session)
+                db.flush()
+
+                # Update payment balances for all affected players
+                if affected_player_ids:
+                    from services.payment_service import PaymentService
+                    from db.models import PaymentBalance
+                    payment_service = PaymentService()
+                    payment_service._update_payment_balances(db, game_id, affected_player_ids)
+
+                    # Remove payment balance records for players with no remaining activity
+                    for player_id in affected_player_ids:
+                        player_has_activity = db.query(SessionPlayerSummary).join(
+                            Session, SessionPlayerSummary.session_id == Session.id
+                        ).filter(
+                            Session.game_id == game_id,
+                            SessionPlayerSummary.player_id == player_id
+                        ).count() > 0
+
+                        if not player_has_activity:
+                            db.query(PaymentBalance).filter(
+                                PaymentBalance.game_id == game_id,
+                                PaymentBalance.player_id == player_id
+                            ).delete()
+
                 db.commit()
+
+                # Invalidate cache
+                game = db.query(Game).filter(Game.id == game_id).first()
+                if game:
+                    from services.game_summary_service import invalidate_game_cache
+                    invalidate_game_cache(game.public_code)
 
                 return {
                     "message": "Entire session deleted successfully",
