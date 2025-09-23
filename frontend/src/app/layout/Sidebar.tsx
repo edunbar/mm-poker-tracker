@@ -5,18 +5,16 @@ import {
   Download,
   FileText,
   Home,
+  LogOut,
   Receipt,
   Shield,
   Users,
   Zap
 } from "lucide-react";
-import React, { useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import { useAdminSession } from "../../contexts/AdminSessionContext";
 import { adminNav, publicNav } from "../../features/admin/nav";
 import { useGameTitle } from "../../shared/hooks/useGameTitle";
-import { Button } from "../../shared/ui/button";
-import { Input } from "../../shared/ui/input";
 import { Text } from "../../shared/ui/typography";
 
 // Icon mapping for navigation items
@@ -85,24 +83,13 @@ function extractPublicCodeFromPath(pathname: string): string | null {
 }
 
 export default function Sidebar() {
-  const { hasAdminSession, setAdminSession, publicCode: contextPublicCode } = useAdminSession();
-  const [showAdminLogin, setShowAdminLogin] = useState(false);
-  const [adminCode, setAdminCode] = useState('');
+  const { hasAdminSession, clearAdminSession, publicCode: contextPublicCode } = useAdminSession();
   const location = useLocation();
 
   // Get public code from URL first (prioritize current page), then fall back to admin session context
   const urlPublicCode = extractPublicCodeFromPath(location.pathname);
   const currentPublicCode = urlPublicCode || contextPublicCode;
   const { title } = useGameTitle(currentPublicCode || '');
-
-  const handleAdminLogin = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (adminCode && currentPublicCode) {
-      setAdminSession(adminCode, currentPublicCode);
-      setAdminCode('');
-      setShowAdminLogin(false);
-    }
-  };
 
   return (
     <nav className="h-full bg-card flex flex-col">
@@ -115,9 +102,18 @@ export default function Sidebar() {
             {hasAdminSession && (
               <>
                 <span className="mx-2">•</span>
-                <div className="flex items-center px-2 py-1 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors duration-150">
-                  <Shield className="w-3 h-3 mr-1" />
-                  <Text variant="caption" weight="medium">Admin</Text>
+                <div className="relative group">
+                  <div className="flex items-center px-2 py-1 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors duration-150 cursor-pointer">
+                    <Shield className="w-3 h-3 mr-1" />
+                    <Text variant="caption" weight="medium">Admin</Text>
+                  </div>
+
+                  {/* Hover overlay with logout button */}
+                  <div className="absolute top-0 left-0 right-0 opacity-0 group-hover:opacity-100 transition-opacity duration-150 bg-destructive text-destructive-foreground rounded-md px-2 py-1 flex items-center cursor-pointer"
+                       onClick={clearAdminSession}>
+                    <LogOut className="w-3 h-3 mr-1" />
+                    <Text variant="caption" weight="medium">Leave</Text>
+                  </div>
                 </div>
               </>
             )}
@@ -205,54 +201,6 @@ export default function Sidebar() {
         </div>
       </div>
 
-      {/* Bottom Admin Login Section */}
-      {!hasAdminSession && (
-        <div className="px-3 py-5 border-t border-border bg-muted">
-          {!showAdminLogin ? (
-            <Button
-              onClick={() => setShowAdminLogin(true)}
-              variant="ghost"
-              className="w-full justify-start px-3 py-2 hover:bg-card"
-            >
-              <Shield className="w-4 h-4 mr-3" />
-              <Text variant="bodySmall" weight="medium">Admin Access</Text>
-            </Button>
-          ) : (
-            <form onSubmit={handleAdminLogin} className="space-y-3">
-              <Text variant="bodySmall" weight="medium">Admin Login</Text>
-              <Input
-                type="password"
-                value={adminCode}
-                onChange={(e) => setAdminCode(e.target.value)}
-                placeholder="Enter admin code"
-                size="sm"
-                autoFocus
-              />
-              <div className="flex space-x-2">
-                <Button
-                  type="submit"
-                  size="sm"
-                  className="flex-1"
-                >
-                  <Text variant="bodySmall" weight="medium">Login</Text>
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    setShowAdminLogin(false);
-                    setAdminCode('');
-                  }}
-                  className="flex-1"
-                >
-                  <Text variant="bodySmall" weight="medium">Cancel</Text>
-                </Button>
-              </div>
-            </form>
-          )}
-        </div>
-      )}
     </nav>
   );
 }

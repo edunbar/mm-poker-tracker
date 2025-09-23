@@ -4,11 +4,11 @@ import AuditPage from "../features/admin/pages/AuditPage";
 import GameLedgerPage from "../features/admin/pages/GameLedgerPage";
 import LedgerAnalysisPage from "../features/admin/pages/LedgerAnalysisPage";
 import LiveGameIngestPage from "../features/admin/pages/LiveGameIngestPage";
-import PaymentLedgerPage from "../features/admin/pages/PaymentLedgerPage";
 import GameIngestPage from "../features/admin/pages/SessionIngestPage";
 import VerifiedUsersPage from "../features/admin/pages/VerifiedUsersPage";
 import AdvancedAnalyticsPage from "../features/game/pages/AdvancedAnalyticsPage";
 import GameSummaryPage from "../features/game/pages/GameSummaryPage";
+import PaymentLedgerPage from "../features/payment/pages/PaymentLedgerPage";
 import RuleBookPage from "../features/rules/pages/RuleBookPage";
 import LandingPage from "../pages/Landing/LandingPage";
 
@@ -46,11 +46,7 @@ export default function AppRoutes() {
           <AuditPage />
         </ProtectedRoute>
       } />
-      <Route path="/payments/:publicCode" element={
-        <ProtectedRoute requireAdmin={true}>
-          <PaymentLedgerPage />
-        </ProtectedRoute>
-      } />
+      <Route path="/payments/:publicCode" element={<PaymentLedgerPageWrapper />} />
     </Routes>
   );
 }
@@ -68,4 +64,8 @@ function RuleBookPageWrapper() {
 function AdvancedAnalyticsPageWrapper() {
   const { publicCode } = useParams();
   return <AdvancedAnalyticsPage publicCode={publicCode || ""} />;
+}
+
+function PaymentLedgerPageWrapper() {
+  return <PaymentLedgerPage />;
 }
