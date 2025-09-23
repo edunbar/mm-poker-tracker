@@ -23,12 +23,18 @@ interface GameDataTableProps {
   playersInfos: PlayerInfo[];
   setEditableData: React.Dispatch<React.SetStateAction<PlayerInfo[]>>;
   publicCode: string;
+  mergeMode?: boolean;
+  selectedPlayers?: Set<number>;
+  onPlayerSelect?: (index: number) => void;
 }
 
 const GameDataTable: React.FC<GameDataTableProps> = ({
   playersInfos,
   setEditableData,
   publicCode,
+  mergeMode = false,
+  selectedPlayers = new Set(),
+  onPlayerSelect,
 }) => {
   const [verificationStatus, setVerificationStatus] = useState<{[key: string]: {is_verified: boolean, display_name: string | null}}>({});
   const [hoveredPlayer, setHoveredPlayer] = useState<string | null>(null);
@@ -133,6 +139,12 @@ const GameDataTable: React.FC<GameDataTableProps> = ({
     setPlayerToDelete(null);
   };
 
+  const handleRowClick = (index: number) => {
+    if (mergeMode && onPlayerSelect) {
+      onPlayerSelect(index);
+    }
+  };
+
   if (!Array.isArray(playersInfos) || playersInfos.length === 0) {
     return <div>No player data available.</div>;
   }
@@ -155,40 +167,59 @@ const GameDataTable: React.FC<GameDataTableProps> = ({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {sortedPlayers.map((player) => (
+            {sortedPlayers.map((player) => {
+              const isSelected = selectedPlayers.has(player.originalIdx);
+              const isClickable = mergeMode;
+
+              return (
               <TableRow
                 key={player.id || player.originalIdx}
-                className=""
+                onClick={() => handleRowClick(player.originalIdx)}
+                className={`${isClickable ? 'cursor-pointer' : ''} ${
+                  isSelected
+                    ? 'bg-blue-100 dark:bg-blue-900/40 ring-2 ring-inset ring-blue-500'
+                    : isClickable
+                    ? 'hover:bg-blue-50 dark:hover:bg-blue-950/20'
+                    : ''
+                }`}
               >
-                <TableCell>
-                  <Input
-                    type="text"
-                    value={player.id}
-                    variant="ghost"
-                    size="sm"
-                    className="w-full bg-transparent"
-                    onChange={(e) =>
-                      handleChange(player.originalIdx, "id", e.target.value)
-                    }
-                  />
+                <TableCell onClick={(e) => !mergeMode && e.stopPropagation()}>
+                  {mergeMode ? (
+                    <div className="px-2 py-1">{player.id}</div>
+                  ) : (
+                    <Input
+                      type="text"
+                      value={player.id}
+                      variant="ghost"
+                      size="sm"
+                      className="w-full bg-transparent"
+                      onChange={(e) =>
+                        handleChange(player.originalIdx, "id", e.target.value)
+                      }
+                    />
+                  )}
                 </TableCell>
-                <TableCell>
-                  <Input
-                    type="text"
-                    value={player.validated_name || ""}
-                    variant="ghost"
-                    size="sm"
-                    className="w-full bg-transparent"
-                    onChange={(e) =>
-                      handleChange(
-                        player.originalIdx,
-                        "validated_name",
-                        e.target.value
-                      )
-                    }
-                  />
+                <TableCell onClick={(e) => !mergeMode && e.stopPropagation()}>
+                  {mergeMode ? (
+                    <div className="px-2 py-1">{player.validated_name || ""}</div>
+                  ) : (
+                    <Input
+                      type="text"
+                      value={player.validated_name || ""}
+                      variant="ghost"
+                      size="sm"
+                      className="w-full bg-transparent"
+                      onChange={(e) =>
+                        handleChange(
+                          player.originalIdx,
+                          "validated_name",
+                          e.target.value
+                        )
+                      }
+                    />
+                  )}
                 </TableCell>
-                <TableCell className="text-center relative">
+                <TableCell className="text-center relative" onClick={(e) => e.stopPropagation()}>
                   <div 
                     className="flex items-center justify-center cursor-help relative"
                     onMouseEnter={() => setHoveredPlayer(player.id)}
@@ -222,61 +253,80 @@ const GameDataTable: React.FC<GameDataTableProps> = ({
                     )}
                   </div>
                 </TableCell>
-                <TableCell>
-                  <Input
-                    type="text"
-                    value={
-                      Array.isArray(player.names)
+                <TableCell onClick={(e) => !mergeMode && e.stopPropagation()}>
+                  {mergeMode ? (
+                    <div className="px-2 py-1">
+                      {Array.isArray(player.names)
                         ? player.names.join(", ")
-                        : player.names
-                    }
-                    variant="ghost"
-                    size="sm"
-                    className="w-full bg-transparent"
-                    onChange={(e) =>
-                      handleChange(player.originalIdx, "names", e.target.value)
-                    }
-                  />
+                        : player.names}
+                    </div>
+                  ) : (
+                    <Input
+                      type="text"
+                      value={
+                        Array.isArray(player.names)
+                          ? player.names.join(", ")
+                          : player.names
+                      }
+                      variant="ghost"
+                      size="sm"
+                      className="w-full bg-transparent"
+                      onChange={(e) =>
+                        handleChange(player.originalIdx, "names", e.target.value)
+                      }
+                    />
+                  )}
                 </TableCell>
-                <TableCell className="text-right">
-                  <Input
-                    type="number"
-                    value={player.buyInSum as any}
-                    variant={!isNumeric(player.buyInSum) ? "error" : "ghost"}
-                    size="sm"
-                    className="w-full text-right bg-transparent"
-                    onChange={(e) =>
-                      handleChange(
-                        player.originalIdx,
-                        "buyInSum",
-                        e.target.value
-                      )
-                    }
-                  />
+                <TableCell className="text-right" onClick={(e) => !mergeMode && e.stopPropagation()}>
+                  {mergeMode ? (
+                    <div className="px-2 py-1">{player.buyInSum}</div>
+                  ) : (
+                    <Input
+                      type="number"
+                      value={player.buyInSum as any}
+                      variant={!isNumeric(player.buyInSum) ? "error" : "ghost"}
+                      size="sm"
+                      className="w-full text-right bg-transparent"
+                      onChange={(e) =>
+                        handleChange(
+                          player.originalIdx,
+                          "buyInSum",
+                          e.target.value
+                        )
+                      }
+                    />
+                  )}
                 </TableCell>
-                <TableCell className="text-right">
-                  <Input
-                    type="number"
-                    value={
-                      player.buyOutSum === 0 ? player.inGame : player.buyOutSum
-                    }
-                    variant={!isNumeric(
-                      player.buyOutSum === 0
-                        ? player.inGame
-                        : player.buyOutSum
-                    ) ? "error" : "ghost"}
-                    size="sm"
-                    className="w-full text-right bg-transparent"
-                    onChange={(e) =>
-                      handleChange(
-                        player.originalIdx,
-                        "buyOutSum",
-                        e.target.value
-                      )
-                    }
-                  />
+                <TableCell className="text-right" onClick={(e) => !mergeMode && e.stopPropagation()}>
+                  {mergeMode ? (
+                    <div className="px-2 py-1">
+                      {player.buyOutSum === 0 ? player.inGame : player.buyOutSum}
+                    </div>
+                  ) : (
+                    <Input
+                      type="number"
+                      value={
+                        player.buyOutSum === 0 ? player.inGame : player.buyOutSum
+                      }
+                      variant={!isNumeric(
+                        player.buyOutSum === 0
+                          ? player.inGame
+                          : player.buyOutSum
+                      ) ? "error" : "ghost"}
+                      size="sm"
+                      className="w-full text-right bg-transparent"
+                      onChange={(e) =>
+                        handleChange(
+                          player.originalIdx,
+                          "buyOutSum",
+                          e.target.value
+                        )
+                      }
+                    />
+                  )}
                 </TableCell>
                 <TableCell
+                  onClick={(e) => !mergeMode && e.stopPropagation()}
                   className={`text-right font-medium ${
                     player.net === 0
                       ? "text-muted-foreground"
@@ -285,18 +335,22 @@ const GameDataTable: React.FC<GameDataTableProps> = ({
                       : "text-destructive"
                   }`}
                 >
-                  <Input
-                    type="number"
-                    value={player.net as any}
-                    variant="ghost"
-                    size="sm"
-                    className="w-full text-right bg-transparent"
-                    onChange={(e) =>
-                      handleChange(player.originalIdx, "net", e.target.value)
-                    }
-                  />
+                  {mergeMode ? (
+                    <div className="px-2 py-1">{player.net}</div>
+                  ) : (
+                    <Input
+                      type="number"
+                      value={player.net as any}
+                      variant="ghost"
+                      size="sm"
+                      className="w-full text-right bg-transparent"
+                      onChange={(e) =>
+                        handleChange(player.originalIdx, "net", e.target.value)
+                      }
+                    />
+                  )}
                 </TableCell>
-                <TableCell className="text-center">
+                <TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
                   <Button
                     onClick={() => handleDelete(player.originalIdx)}
                     variant="ghost"
@@ -308,7 +362,8 @@ const GameDataTable: React.FC<GameDataTableProps> = ({
                   </Button>
                 </TableCell>
               </TableRow>
-            ))}
+            );
+            })}
             {/* Totals Row uses shared deriveTotals */}
             <TableRow className="bg-muted">
               <TableCell colSpan={4} className="font-medium">

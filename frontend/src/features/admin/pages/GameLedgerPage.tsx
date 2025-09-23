@@ -42,6 +42,11 @@ interface SessionGroup {
   players: SessionPlayerSummary[];
 }
 
+interface EditingDate {
+  session_id: string;
+  date: string;
+}
+
 export default function GameLedgerPage() {
   const { publicCode } = useParams<{ publicCode: string }>();
   const { adminCode: sessionAdminCode, hasAdminSession } = useAdminSession();
@@ -58,6 +63,7 @@ export default function GameLedgerPage() {
   const [showSessionDeleteModal, setShowSessionDeleteModal] = useState(false);
   const [sessionDeleteTarget, setSessionDeleteTarget] = useState<{sessionId: string, gameNumber: number, playerCount: number} | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [editingDate, setEditingDate] = useState<EditingDate | null>(null);
   const [showAddRowModal, setShowAddRowModal] = useState(false);
   const [newRowData, setNewRowData] = useState({
     sessionId: '',
@@ -270,6 +276,36 @@ export default function GameLedgerPage() {
     setShowAdminInput(false);
     setManualAdminCode('');
     setPendingDelete(null);
+    setEditingDate(null);
+  };
+
+  const handleDateEdit = (sessionId: string, currentDate: string | null) => {
+    const dateStr = currentDate ? new Date(currentDate).toISOString() : new Date().toISOString();
+    const dateValue = dateStr.split('T')[0] || '';
+    setEditingDate({ session_id: sessionId, date: dateValue });
+  };
+
+  const handleDateSave = async () => {
+    if (!editingDate || !effectiveAdminCode) return;
+
+    try {
+      await axios.put(
+        `${API_BASE_URL}/api/games/${publicCode}/sessions/${editingDate.session_id}/date`,
+        { started_at: editingDate.date },
+        {
+          headers: {
+            'X-Admin-Code': effectiveAdminCode,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+
+      setEditingDate(null);
+      fetchLedgerData();
+    } catch (error) {
+      setErrorMessage('Failed to update session date. Please check your admin code.');
+      setTimeout(() => setErrorMessage(null), 5000);
+    }
   };
 
   const formatCurrency = (amount: number) => {
@@ -278,7 +314,7 @@ export default function GameLedgerPage() {
 
   const formatDate = (dateString: string | null) => {
     if (!dateString) return 'N/A';
-    return new Date(dateString).toLocaleDateString();
+    return new Date(dateString).toLocaleDateString('en-US', { timeZone: 'UTC' });
   };
 
   // Group summaries by session
@@ -503,9 +539,48 @@ export default function GameLedgerPage() {
                   </td>
                   <td className="px-6 py-4">
                     <Text variant="bodySmall" weight="semibold" className="text-accent-foreground">Game #{sessionGroup.game_number}</Text>
-                    <Text variant="caption" className="text-accent-foreground opacity-80">
-                      {formatDate(sessionGroup.session_started_at)} • ({sessionGroup.players.length} players)
-                    </Text>
+                    {editingDate?.session_id === sessionGroup.session_id ? (
+                      <div className="flex items-center gap-2 mt-1">
+                        <input
+                          type="date"
+                          value={editingDate.date}
+                          onChange={(e) => setEditingDate({ ...editingDate, date: e.target.value })}
+                          className="px-2 py-1 border border-input rounded text-xs bg-background text-foreground"
+                        />
+                        <Button
+                          onClick={handleDateSave}
+                          variant="ghost"
+                          size="icon-sm"
+                          className="p-1 text-green-600 hover:text-green-900"
+                        >
+                          <Save className="h-3 w-3" />
+                        </Button>
+                        <Button
+                          onClick={() => setEditingDate(null)}
+                          variant="ghost"
+                          size="icon-sm"
+                          className="p-1 text-gray-600 hover:text-gray-900"
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2 group">
+                        <Text variant="caption" className="text-accent-foreground opacity-80">
+                          {formatDate(sessionGroup.session_started_at)} • ({sessionGroup.players.length} players)
+                        </Text>
+                        {hasAdminSession && (
+                          <Button
+                            onClick={() => handleDateEdit(sessionGroup.session_id, sessionGroup.session_started_at)}
+                            variant="ghost"
+                            size="icon-sm"
+                            className="p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            <Edit className="h-3 w-3" />
+                          </Button>
+                        )}
+                      </div>
+                    )}
                   </td>
                   <td className="px-6 py-4 text-right">
                     <Text variant="bodySmall" weight="medium" className="text-accent-foreground">${formatCurrency(sessionGroup.players.reduce((sum, p) => sum + p.buy_in_sum, 0))}</Text>
