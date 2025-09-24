@@ -48,7 +48,8 @@ def get_all_session_summaries(public_code: str) -> Dict[str, Any]:
                     "in_game": summary.in_game,
                     "net": summary.net,
                     "names": summary.names,
-                    "game_number": summary.session.game_number
+                    "game_number": summary.session.game_number,
+                    "has_csv": bool(summary.session.ledger_csv_content)
                 })
 
             return {

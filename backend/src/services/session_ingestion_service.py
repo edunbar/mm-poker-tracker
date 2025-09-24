@@ -100,6 +100,7 @@ def _upsert_db_for_session(
     manual_game_number: int | None = None,
     session_type: str = "pokernow",
     session_name: str | None = None,
+    ledger_csv_content: str | None = None,
 ) -> Tuple[str, int]:
     """
     Upsert session + summaries + players + links. Returns (session_id, affected_rows).
@@ -141,6 +142,7 @@ def _upsert_db_for_session(
             game_number=game_number,
             started_at=when,
             end_session_json=payload_json,   # keep raw snapshot
+            ledger_csv_content=ledger_csv_content,
         )
         db.add(sess)
         db.flush()
@@ -157,12 +159,14 @@ def _upsert_db_for_session(
                     SessionModel.id != sess.id
                 )
             ).scalar_one_or_none()
-            
+
             if existing_session:
                 raise ValueError(f"Game number {manual_game_number} already exists. Please delete the existing game {manual_game_number} first or choose a different number.")
-            
+
             sess.game_number = manual_game_number
         sess.end_session_json = payload_json
+        if ledger_csv_content:
+            sess.ledger_csv_content = ledger_csv_content
 
     # Optional: store ledger game number in session JSON meta if you later add a meta column; for now store into end_session_json
     try:
@@ -308,7 +312,8 @@ def ingest_session(
     game_data: Dict[str, Any],  # payload with playersInfos as dict
     date_iso: str | None = None, # optional ISO date, uses today if None
     manual_game_number: int | None = None,  # optional manual override for game number
-    session_type: str = "pokernow"  # 'pokernow' | 'live'
+    session_type: str = "pokernow",  # 'pokernow' | 'live'
+    ledger_csv_content: str | None = None  # optional ledger CSV content from PokerNow
 ) -> Dict[str, Any]:
     """
     End-to-end:
@@ -384,6 +389,7 @@ def ingest_session(
             manual_game_number=manual_game_number,
             session_type=session_type,
             session_name=session_name_from_data,
+            ledger_csv_content=ledger_csv_content,
         )
 
         # Update the stored JSON with ledger number

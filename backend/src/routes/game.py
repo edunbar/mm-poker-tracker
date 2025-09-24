@@ -139,6 +139,8 @@ def upload_dual():
         if not admin_code:
             return jsonify({"error": "X-Admin-Code header required"}), 401
 
+        ledger_csv_content = body.get("ledger_csv_content")
+
         result = ingest_session(
             public_code=public_code,
             admin_code=admin_code,
@@ -146,6 +148,7 @@ def upload_dual():
             game_data=game_data,
             date_iso=date_iso,
             manual_game_number=game_number,
+            ledger_csv_content=ledger_csv_content,
         )
         return jsonify(result), 200
 
@@ -383,6 +386,77 @@ def delete_ledger_entry(public_code: str, session_id: str, player_id: str):
         return jsonify({"error": str(e)}), 404
     except Exception as e:
         logging.error(f"Error deleting ledger entry: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@game_bp.put("/<public_code>/sessions/<session_id>/date")
+def update_session_date(public_code: str, session_id: str):
+    """
+    Update the session started_at date.
+    Header: X-Admin-Code: <admin_code>
+    Body: { "started_at": "2025-01-15" }
+    """
+    try:
+        admin_code = request.headers.get("X-Admin-Code")
+        if not admin_code:
+            return jsonify({"error": "X-Admin-Code header required"}), 401
+
+        body = request.get_json()
+        started_at_str = body.get("started_at")
+
+        if not started_at_str:
+            return jsonify({"error": "started_at is required"}), 400
+
+        # Validate admin code for this game
+        from services.session_ingestion_service import _require_admin_for_game
+        with SessionLocal() as db:
+            game = _require_admin_for_game(db, public_code, admin_code)
+
+            # Find the session
+            session = db.query(SessionModel).filter(
+                SessionModel.id == session_id,
+                SessionModel.game_id == game.id
+            ).first()
+
+            if not session:
+                return jsonify({"error": "Session not found"}), 404
+
+            # Parse and update the date
+            from datetime import datetime
+            try:
+                new_date = datetime.fromisoformat(started_at_str.replace('Z', '+00:00'))
+                old_date = session.started_at
+                session.started_at = new_date
+
+                # Create audit log entry
+                audit_entry = AuditLog(
+                    game_id=str(game.id),
+                    session_id=str(session.id),
+                    actor_kind="admin_code",
+                    actor_id=admin_code[:8] + "…",
+                    action="UPDATE_SESSION_DATE",
+                    target_table="sessions",
+                    target_id=str(session.id),
+                    before={"started_at": old_date.isoformat() if old_date else None},
+                    after={"started_at": new_date.isoformat()}
+                )
+                db.add(audit_entry)
+
+                db.commit()
+
+                return jsonify({
+                    "message": "Session date updated successfully",
+                    "session_id": str(session.id),
+                    "old_date": old_date.isoformat() if old_date else None,
+                    "new_date": new_date.isoformat()
+                }), 200
+
+            except ValueError as e:
+                return jsonify({"error": f"Invalid date format: {str(e)}"}), 400
+
+    except PermissionError as e:
+        return jsonify({"error": str(e)}), 401
+    except Exception as e:
+        logging.error(f"Error updating session date: {e}")
         return jsonify({"error": str(e)}), 500
 
 @game_bp.delete("/<public_code>/sessions/<session_id>")
@@ -1470,6 +1544,106 @@ def cleanup_orphaned_payment_balances(public_code: str):
             db.rollback()
             logging.error(f"Error cleaning up orphaned balances: {e}")
             return jsonify({"error": str(e)}), 500
+
+
+@game_bp.get("/<public_code>/sessions/<session_id>/ledger-csv")
+def get_session_ledger_csv(public_code: str, session_id: str):
+    """
+    Get the ledger CSV content for a specific session.
+    """
+    try:
+        with SessionLocal() as db:
+            game = db.query(Game).filter(Game.public_code == public_code).first()
+            if not game:
+                return jsonify({"error": "Game not found"}), 404
+
+            session = db.query(SessionModel).filter(
+                SessionModel.id == session_id,
+                SessionModel.game_id == game.id
+            ).first()
+
+            if not session:
+                return jsonify({"error": "Session not found"}), 404
+
+            if not session.ledger_csv_content:
+                return jsonify({"error": "No ledger CSV available for this session"}), 404
+
+            return jsonify({
+                "session_id": str(session.id),
+                "game_number": session.game_number,
+                "csv_content": session.ledger_csv_content
+            }), 200
+
+    except Exception as e:
+        logging.error(f"Error fetching ledger CSV: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@game_bp.post("/<public_code>/sessions/<session_id>/fetch-ledger-csv")
+def fetch_and_save_ledger_csv(public_code: str, session_id: str):
+    """
+    Fetch ledger CSV from PokerNow and save it to an existing session.
+    Header: X-Admin-Code: <admin_code>
+    """
+    try:
+        admin_code = request.headers.get("X-Admin-Code")
+        if not admin_code:
+            return jsonify({"error": "X-Admin-Code header required"}), 401
+
+        # Get game and validate admin access
+        from services.session_ingestion_service import _require_admin_for_game
+        with SessionLocal() as db:
+            game = _require_admin_for_game(db, public_code, admin_code)
+
+            # Find the session
+            session = db.query(SessionModel).filter(
+                SessionModel.id == session_id,
+                SessionModel.game_id == game.id
+            ).first()
+
+            if not session:
+                return jsonify({"error": "Session not found"}), 404
+
+            if not session.external_id:
+                return jsonify({"error": "Session has no external_id (PokerNow session ID)"}), 400
+
+            # Build PokerNow URL from external_id
+            base_url = f"https://www.pokernow.club/games/{session.external_id}"
+
+            # Fetch CSV using existing service
+            from services.transaction_service import fetch_ledger_csv
+            ledger_result = fetch_ledger_csv(base_url)
+
+            if not ledger_result.get("success"):
+                return jsonify({
+                    "error": f"Failed to fetch CSV: {ledger_result.get('error', 'Unknown error')}"
+                }), 400
+
+            # Save CSV content to session
+            session.ledger_csv_content = ledger_result.get("content")
+
+            # Create audit log
+            from services.audit_middleware import audit_context
+            with audit_context(
+                operation_type="LEDGER_CSV_FETCH",
+                game_id=str(game.id),
+                actor_kind="admin_code",
+                actor_id=admin_code[:8] + "…"
+            ):
+                db.commit()
+
+            return jsonify({
+                "message": "Ledger CSV fetched and saved successfully",
+                "session_id": str(session.id),
+                "game_number": session.game_number,
+                "size_bytes": ledger_result.get("size_bytes")
+            }), 200
+
+    except PermissionError as e:
+        return jsonify({"error": str(e)}), 401
+    except Exception as e:
+        logging.error(f"Error fetching and saving ledger CSV: {e}")
+        return jsonify({"error": str(e)}), 500
 
 
 @game_bp.put("/<public_code>/ledger/manual/new")

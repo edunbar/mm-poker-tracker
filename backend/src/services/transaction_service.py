@@ -38,6 +38,43 @@ def map_validated_names_to_players(player_data):
     logging.debug(f"Merged player data: {merged_players}")
     return merged_players
 
+def fetch_ledger_csv(base_url):
+    """
+    Attempt to fetch the ledger CSV from PokerNow.
+    Returns dict with success status, content, and optional error message.
+    """
+    try:
+        game_id = base_url.rstrip('/').split('/')[-1]
+        ledger_url = f"https://www.pokernow.club/games/{game_id}/ledger_{game_id}.csv"
+        logging.debug(f"Attempting to fetch ledger CSV from: {ledger_url}")
+
+        response = requests.get(ledger_url, timeout=10)
+
+        if response.status_code == 200:
+            csv_content = response.text
+            logging.info(f"Successfully fetched ledger CSV ({len(csv_content)} bytes)")
+            return {
+                "success": True,
+                "url": ledger_url,
+                "size_bytes": len(csv_content),
+                "content": csv_content
+            }
+        else:
+            logging.warning(f"Failed to fetch ledger CSV: HTTP {response.status_code}")
+            return {
+                "success": False,
+                "error": f"HTTP {response.status_code}",
+                "url": ledger_url,
+                "content": None
+            }
+    except Exception as e:
+        logging.error(f"Exception fetching ledger CSV: {e}")
+        return {
+            "success": False,
+            "error": str(e),
+            "content": None
+        }
+
 def get_game_transactions(base_url):
     url = base_url + '/players_sessions'
     logging.debug(f"Constructed URL: {url}")
@@ -72,4 +109,8 @@ def get_game_transactions(base_url):
     # Merge validated names
     merged_players = map_validated_names_to_players({"playersInfos": players_infos_list})
     data["playersInfos"] = merged_players
+
+    ledger_status = fetch_ledger_csv(base_url)
+    data["ledger_csv"] = ledger_status
+
     return data

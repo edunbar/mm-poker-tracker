@@ -140,6 +140,7 @@ class Session(Base):
     started_at = Column(TIMESTAMP(timezone=True), nullable=True)
     ended_at = Column(TIMESTAMP(timezone=True), nullable=True)
     end_session_json = Column(JSONB, nullable=True)
+    ledger_csv_content = Column(Text, nullable=True)
     created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
 
     game = relationship('Game', back_populates='sessions')

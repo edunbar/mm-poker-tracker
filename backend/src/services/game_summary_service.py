@@ -371,7 +371,7 @@ def get_session_extremes(public_code: str) -> Dict[str, Any]:
                     cash_out_sum,
                     in_game
                 FROM session_performances
-                WHERE best_rank <= 3 AND net > 0
+                WHERE best_rank <= 25 AND net > 0
 
                 UNION ALL
 
@@ -386,7 +386,7 @@ def get_session_extremes(public_code: str) -> Dict[str, Any]:
                     cash_out_sum,
                     in_game
                 FROM session_performances
-                WHERE worst_rank <= 3
+                WHERE worst_rank <= 25 AND net < 0
             )
             SELECT * FROM combined_results
             ORDER BY
