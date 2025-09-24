@@ -8,6 +8,7 @@ import GameIngestPage from "../features/admin/pages/SessionIngestPage";
 import VerifiedUsersPage from "../features/admin/pages/VerifiedUsersPage";
 import AdvancedAnalyticsPage from "../features/game/pages/AdvancedAnalyticsPage";
 import GameSummaryPage from "../features/game/pages/GameSummaryPage";
+import HandAnalyticsPage from "../features/game/pages/HandAnalyticsPage";
 import PaymentLedgerPage from "../features/payment/pages/PaymentLedgerPage";
 import RuleBookPage from "../features/rules/pages/RuleBookPage";
 import LandingPage from "../pages/Landing/LandingPage";
@@ -36,6 +37,7 @@ export default function AppRoutes() {
       <Route path="/summary/:publicCode" element={<GameSummaryPageWrapper />} />
       <Route path="/rules/:publicCode" element={<RuleBookPageWrapper />} />
       <Route path="/analytics/:publicCode" element={<AdvancedAnalyticsPageWrapper />} />
+      <Route path="/session-analytics/:publicCode" element={<HandAnalyticsPageWrapper />} />
       <Route path="/ledger-analysis/:publicCode" element={
         <ProtectedRoute requireAdmin={true}>
           <LedgerAnalysisPage />
@@ -68,4 +70,9 @@ function AdvancedAnalyticsPageWrapper() {
 
 function PaymentLedgerPageWrapper() {
   return <PaymentLedgerPage />;
+}
+
+function HandAnalyticsPageWrapper() {
+  const { publicCode } = useParams();
+  return <HandAnalyticsPage publicCode={publicCode || ""} />;
 }

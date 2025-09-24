@@ -8,6 +8,7 @@ import {
   LogOut,
   Receipt,
   Shield,
+  Spade,
   Users,
   Zap
 } from "lucide-react";
@@ -38,6 +39,8 @@ const getNavIcon = (label: string) => {
       return <BarChart3 className="w-4 h-4" />;
     case "Audit Log":
       return <FileText className="w-4 h-4" />;
+    case "Hand Analytics":
+      return <Spade className="w-4 h-4" />;
     default:
       return <Home className="w-4 h-4" />;
   }

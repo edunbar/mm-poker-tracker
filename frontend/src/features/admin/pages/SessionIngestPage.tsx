@@ -1,5 +1,5 @@
 import { ChevronDown, GitMerge, HelpCircle, X } from "lucide-react";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { useAdminSession } from "../../../contexts/AdminSessionContext";
 import { useToast } from "../../../contexts/ToastContext";
@@ -8,11 +8,13 @@ import { useGameTitle } from "../../../shared/hooks/useGameTitle";
 import { Button } from "../../../shared/ui/button";
 import { Heading, Text } from "../../../shared/ui/typography";
 import { useGetGame } from "../api/getSession";
+import { useUploadHandLog } from "../api/uploadHandLog";
 import { useUploadGame } from "../api/uploadSession";
+import HandLogUpload from "../components/HandLogUpload";
 import GameDataTable from "../components/IngestDataTable";
+import PlayerMappingModal from "../components/PlayerMappingModal";
 import GameActionBar from "../components/SessionActionBar";
 import GameStatusCard from "../components/SessionStatusCard";
-import GameSummaryTiles from "../components/SessionSummaryTiles";
 import GameUrlForm from "../components/SessionUrlForm";
 import { deriveTotals } from "../lib/deriveTotals";
 import { formatErrorMessage } from "../lib/validation";
@@ -36,6 +38,14 @@ export default function GameIngestPage() {
   const [showOptionalSettings, setShowOptionalSettings] = useState(false);
   const [hoveredTooltip, setHoveredTooltip] = useState<string | null>(null);
   const [csvViewerOpen, setCsvViewerOpen] = useState(false);
+  const [handLogFile, setHandLogFile] = useState<File | null>(null);
+  const [uploadedSessionId, setUploadedSessionId] = useState<string | null>(null);
+  const [handLogUploadStatus, setHandLogUploadStatus] = useState<'idle' | 'uploading' | 'success' | 'needs_mapping' | 'error'>('idle');
+  const [unmatchedPlayers, setUnmatchedPlayers] = useState<any[]>([]);
+  const [showPlayerMapping, setShowPlayerMapping] = useState(false);
+  const [handLogError, setHandLogError] = useState<string>('');
+  const [handLogResult, setHandLogResult] = useState<any>(null);
+  const handLogUploadTriggered = useRef(false);
 
   // Get public code from URL params and admin session context
   const { publicCode } = useParams<{ publicCode: string }>();
@@ -46,6 +56,7 @@ export default function GameIngestPage() {
   // All hooks must be called before any conditional returns
   const game = useGetGame(submittedUrl);
   const upload = useUploadGame();
+  const uploadHandLog = useUploadHandLog();
 
   useEffect(() => {
     if (game.data?.playersInfos) {
@@ -62,14 +73,48 @@ export default function GameIngestPage() {
 
   // Handle upload success/error with toast notifications
   useEffect(() => {
-    if (upload.isSuccess) {
+    if (upload.isSuccess && upload.data?.session_id && !handLogUploadTriggered.current) {
       showSuccess(
         "Upload Successful!",
         "Session has been saved to the database successfully.",
         5000
       );
+
+      const sessionId = upload.data.session_id;
+      setUploadedSessionId(sessionId);
+
+      // If hand log file is selected, automatically upload it (only once)
+      if (handLogFile && publicCode) {
+        handLogUploadTriggered.current = true;
+        setHandLogUploadStatus('uploading');
+        uploadHandLog.mutateAsync({
+          publicCode,
+          sessionId,
+          file: handLogFile,
+        })
+          .then((result) => {
+            if (result.status === 'needs_mapping') {
+              setUnmatchedPlayers(result.unmatched_players || []);
+              setShowPlayerMapping(true);
+              setHandLogUploadStatus('needs_mapping');
+            } else if (result.status === 'success') {
+              setHandLogUploadStatus('success');
+              setHandLogResult(result);
+              showSuccess(
+                'Hand Log Uploaded!',
+                `${result.events_created} events from ${result.hands_created} hands imported successfully.`,
+                5000
+              );
+            }
+          })
+          .catch((error: any) => {
+            setHandLogUploadStatus('error');
+            setHandLogError(error.message || 'Failed to upload hand log');
+            showError('Upload Failed', error.message || 'Failed to upload hand log');
+          });
+      }
     }
-  }, [upload.isSuccess, showSuccess]);
+  }, [upload.isSuccess, upload.data, handLogFile, publicCode, uploadHandLog, showSuccess, showError]);
 
   useEffect(() => {
     if (upload.isError) {
@@ -125,6 +170,9 @@ export default function GameIngestPage() {
   };
 
   const handleUpload = () => {
+    // Reset hand log upload trigger
+    handLogUploadTriggered.current = false;
+
     // Show info toast when upload starts
     showInfo("Upload Started", "Processing your session data...", 3000);
 
@@ -226,6 +274,49 @@ export default function GameIngestPage() {
     setMergeMode(false);
   };
 
+  const handleHandLogFileSelect = (file: File) => {
+    setHandLogFile(file);
+    setHandLogUploadStatus('idle');
+    setHandLogError('');
+  };
+
+  const handlePlayerMappingConfirm = async (mappings: Record<string, string>) => {
+    if (!handLogFile || !uploadedSessionId || !publicCode) return;
+
+    setShowPlayerMapping(false);
+    setHandLogUploadStatus('uploading');
+
+    try {
+      const result = await uploadHandLog.mutateAsync({
+        publicCode,
+        sessionId: uploadedSessionId,
+        file: handLogFile,
+        playerMappings: mappings,
+      });
+
+      if (result.status === 'success') {
+        setHandLogUploadStatus('success');
+        setHandLogResult(result);
+        showSuccess(
+          'Hand Log Uploaded!',
+          `${result.events_created} events from ${result.hands_created} hands imported successfully.`,
+          5000
+        );
+      }
+    } catch (error: any) {
+      setHandLogUploadStatus('error');
+      setHandLogError(error.message || 'Failed to upload hand log');
+      showError('Upload Failed', error.message || 'Failed to upload hand log');
+    }
+  };
+
+  const handleClearHandLog = () => {
+    setHandLogFile(null);
+    setHandLogUploadStatus('idle');
+    setHandLogError('');
+    setHandLogResult(null);
+  };
+
   return (
     <div className="min-h-screen bg-background py-8">
       <div className="max-w-6xl mx-auto px-4">
@@ -253,6 +344,16 @@ export default function GameIngestPage() {
             onViewCsv={() => setCsvViewerOpen(true)}
           />
 
+          {rows.length > 0 && (
+            <HandLogUpload
+              onFileSelect={handleHandLogFileSelect}
+              uploadStatus={handLogUploadStatus}
+              uploadResult={handLogResult}
+              error={handLogError}
+              onClearFile={handleClearHandLog}
+            />
+          )}
+
           {game.isLoading && <Text variant="body">Loading game data...</Text>}
           {game.isError && (
             <Text variant="body" color="destructive">Error loading game data.</Text>
@@ -260,11 +361,6 @@ export default function GameIngestPage() {
 
           {rows.length > 0 && (
             <>
-              <GameSummaryTiles
-                buyInTotal={totals.buyInTotal}
-                cashOutTotal={totals.cashOutTotal}
-                net={totals.net}
-              />
               <GameDataTable
                 playersInfos={rows}
                 setEditableData={setRows}
@@ -596,6 +692,23 @@ export default function GameIngestPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Player Mapping Modal */}
+      {showPlayerMapping && (
+        <PlayerMappingModal
+          unmatchedPlayers={unmatchedPlayers}
+          existingPlayers={rows.map(row => ({
+            id: row.id || '',
+            display_name: row.validated_name || row.names?.[0] || '',
+            external_id: row.id
+          }))}
+          onConfirm={handlePlayerMappingConfirm}
+          onCancel={() => {
+            setShowPlayerMapping(false);
+            setHandLogUploadStatus('idle');
+          }}
+        />
       )}
       </div>
     </div>

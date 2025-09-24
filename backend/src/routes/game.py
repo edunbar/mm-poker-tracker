@@ -42,10 +42,13 @@ from services.game_creation_service import (
 )
 from services.payment_service import PaymentService
 from services.audit_middleware import audit_context
+from services.hand_log_service import HandLogService
+from services.hand_analytics_service import get_hand_analytics
 from decimal import Decimal
 from datetime import timezone, datetime
 from sqlalchemy import func
 from db.models import Game, Player, PaymentTransaction, PaymentBalance, Session as SessionModel, SessionPlayerSummary, GamePlayer, AuditLog
+from werkzeug.datastructures import FileStorage
 
 game_bp = Blueprint('game', __name__)
 
@@ -1646,6 +1649,68 @@ def fetch_and_save_ledger_csv(public_code: str, session_id: str):
         return jsonify({"error": str(e)}), 500
 
 
+@game_bp.post("/<public_code>/sessions/<session_id>/upload-hand-log")
+def upload_hand_log(public_code: str, session_id: str):
+    admin_code = request.headers.get('X-Admin-Code')
+    if not admin_code:
+        return jsonify({"error": "Admin code required"}), 401
+
+    if 'file' not in request.files:
+        return jsonify({"error": "No file provided"}), 400
+
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({"error": "No file selected"}), 400
+
+    if not file.filename.endswith('.csv'):
+        return jsonify({"error": "File must be a CSV"}), 400
+
+    with SessionLocal() as db:
+        try:
+            game = db.query(Game).filter(Game.public_code == public_code).first()
+            if not game or game.admin_code != admin_code:
+                return jsonify({"error": "Game not found or invalid admin code"}), 404
+
+            session = db.query(SessionModel).filter(
+                SessionModel.id == session_id,
+                SessionModel.game_id == game.id
+            ).first()
+
+            if not session:
+                return jsonify({"error": "Session not found"}), 404
+
+            csv_content = file.read().decode('utf-8')
+
+            player_mappings_json = request.form.get('player_mappings')
+            player_mappings = None
+            if player_mappings_json:
+                import json
+                player_mappings = json.loads(player_mappings_json)
+
+            with audit_context(
+                operation_type="HAND_LOG_UPLOAD",
+                game_id=str(game.id),
+                actor_kind="admin_code",
+                actor_id=admin_code[:8] + "…"
+            ):
+                result = HandLogService.import_hand_log(
+                    db=db,
+                    session_id=session_id,
+                    csv_content=csv_content,
+                    player_mappings=player_mappings
+                )
+
+            return jsonify(result), 200 if result['status'] == 'success' else 202
+
+        except ValueError as e:
+            db.rollback()
+            return jsonify({"error": str(e)}), 400
+        except Exception as e:
+            db.rollback()
+            logging.error(f"Error uploading hand log: {e}")
+            return jsonify({"error": str(e)}), 500
+
+
 @game_bp.put("/<public_code>/ledger/manual/new")
 def add_manual_ledger_row(public_code: str):
     """
@@ -1704,7 +1769,7 @@ def add_manual_ledger_row(public_code: str):
                 player = Player(display_name=player_name)
                 db.add(player)
                 db.flush()
-                
+
                 # Link player to game
                 db.add(GamePlayer(game_id=game.id, player_id=player.id))
 
@@ -1768,3 +1833,18 @@ def add_manual_ledger_row(public_code: str):
             db.rollback()
             logging.error(f"Error adding manual row: {e}")
             return jsonify({"error": str(e)}), 500
+
+
+@game_bp.get("/<public_code>/hand-analytics")
+def get_session_hand_analytics(public_code: str):
+    """
+    Get hand analytics for all sessions with hand data.
+    """
+    try:
+        result = get_hand_analytics(public_code)
+        return jsonify(result), 200
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 404
+    except Exception as e:
+        logging.error(f"Error fetching hand analytics: {e}")
+        return jsonify({"error": str(e)}), 500

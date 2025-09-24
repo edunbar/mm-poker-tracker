@@ -35,6 +35,8 @@ class Player(Base):
     payments_sent = relationship('PaymentTransaction', back_populates='payer', foreign_keys='PaymentTransaction.payer_id', cascade="all, delete-orphan")
     payments_received = relationship('PaymentTransaction', back_populates='recipient', foreign_keys='PaymentTransaction.recipient_id', cascade="all, delete-orphan")
     payment_balances = relationship('PaymentBalance', back_populates='player', cascade="all, delete-orphan")
+    poker_events = relationship('PokerEvent', back_populates='player', cascade="all, delete-orphan")
+    hands_won = relationship('HandSummary', back_populates='winner', cascade="all, delete-orphan")
 
 
 # ==========================================================
@@ -146,6 +148,8 @@ class Session(Base):
     game = relationship('Game', back_populates='sessions')
     summaries = relationship('SessionPlayerSummary', back_populates='session', cascade="all, delete-orphan")
     audit_logs = relationship('AuditLog', back_populates='session')
+    poker_events = relationship('PokerEvent', back_populates='session', cascade="all, delete-orphan")
+    hand_summaries = relationship('HandSummary', back_populates='session', cascade="all, delete-orphan")
 
     __table_args__ = (
         UniqueConstraint('game_id', 'external_id', name='uq_sessions_game_external'),
@@ -378,4 +382,55 @@ class GameRule(Base):
 
     __table_args__ = (
         Index('ix_game_rules_game_order', 'game_id', 'order_index'),
+    )
+
+
+class PokerEvent(Base):
+    __tablename__ = 'poker_events'
+
+    id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
+    session_id = Column(UUID(as_uuid=True), ForeignKey('sessions.id', ondelete='CASCADE'), nullable=False)
+    hand_number = Column(BigInteger, nullable=True)
+    event_type = Column(Text, nullable=False)
+    player_id = Column(UUID(as_uuid=True), ForeignKey('players.id', ondelete='SET NULL'), nullable=True)
+    player_name = Column(Text, nullable=True)
+    amount = Column(BigInteger, nullable=True)
+    cards = Column(Text, nullable=True)
+    event_timestamp = Column(TIMESTAMP(timezone=True), nullable=True)
+    order_number = Column(BigInteger, nullable=True)
+    raw_entry = Column(Text, nullable=True)
+    created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
+
+    session = relationship('Session', back_populates='poker_events')
+    player = relationship('Player', back_populates='poker_events')
+
+    __table_args__ = (
+        Index('ix_poker_events_session_id', 'session_id'),
+        Index('ix_poker_events_hand_number', 'session_id', 'hand_number'),
+        Index('ix_poker_events_player_id', 'player_id'),
+    )
+
+
+class HandSummary(Base):
+    __tablename__ = 'hand_summaries'
+
+    id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
+    session_id = Column(UUID(as_uuid=True), ForeignKey('sessions.id', ondelete='CASCADE'), nullable=False)
+    hand_number = Column(BigInteger, nullable=False)
+    started_at = Column(TIMESTAMP(timezone=True), nullable=True)
+    ended_at = Column(TIMESTAMP(timezone=True), nullable=True)
+    pot_size = Column(BigInteger, nullable=True)
+    winner_id = Column(UUID(as_uuid=True), ForeignKey('players.id', ondelete='SET NULL'), nullable=True)
+    winner_name = Column(Text, nullable=True)
+    board_cards = Column(Text, nullable=True)
+    num_players = Column(BigInteger, nullable=True)
+    created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
+
+    session = relationship('Session', back_populates='hand_summaries')
+    winner = relationship('Player', back_populates='hands_won')
+
+    __table_args__ = (
+        UniqueConstraint('session_id', 'hand_number', name='uq_hand_summaries_session_hand'),
+        Index('ix_hand_summaries_session_id', 'session_id'),
+        Index('ix_hand_summaries_winner_id', 'winner_id'),
     )
