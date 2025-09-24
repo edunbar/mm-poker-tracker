@@ -1,5 +1,7 @@
+import { useState } from "react";
 import { Heading, Text } from "../../../shared/ui/typography";
 import { useHandAnalytics } from "../api/getHandAnalytics";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 interface HandAnalyticsPageProps {
   publicCode: string;
@@ -7,6 +9,7 @@ interface HandAnalyticsPageProps {
 
 export default function HandAnalyticsPage({ publicCode }: HandAnalyticsPageProps) {
   const { data, isLoading, error } = useHandAnalytics(publicCode);
+  const [currentHandIndex, setCurrentHandIndex] = useState<Record<string, number>>({});
 
   return (
     <div className="min-h-screen bg-background py-8">
@@ -98,6 +101,77 @@ export default function HandAnalyticsPage({ publicCode }: HandAnalyticsPageProps
                     </div>
                   </div>
                 )}
+
+                {session.top_10_hands && session.top_10_hands.length > 0 && (() => {
+                  const sessionHandIndex = currentHandIndex[session.session_id] ?? 0;
+                  const currentHand = session.top_10_hands[sessionHandIndex];
+                  const totalHands = session.top_10_hands.length;
+
+                  if (!currentHand) return null;
+
+                  return (
+                    <div className="mt-6">
+                      <div className="flex items-center justify-between mb-3">
+                        <Heading variant="h4">
+                          Top 10 Largest Hands
+                        </Heading>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => setCurrentHandIndex(prev => ({
+                              ...prev,
+                              [session.session_id]: Math.max(0, sessionHandIndex - 1)
+                            }))}
+                            disabled={sessionHandIndex === 0}
+                            className="p-2 rounded-md hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                          >
+                            <ChevronLeft className="w-5 h-5" />
+                          </button>
+                          <Text variant="body" className="min-w-[80px] text-center">
+                            {sessionHandIndex + 1} of {totalHands}
+                          </Text>
+                          <button
+                            onClick={() => setCurrentHandIndex(prev => ({
+                              ...prev,
+                              [session.session_id]: Math.min(totalHands - 1, sessionHandIndex + 1)
+                            }))}
+                            disabled={sessionHandIndex === totalHands - 1}
+                            className="p-2 rounded-md hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                          >
+                            <ChevronRight className="w-5 h-5" />
+                          </button>
+                        </div>
+                      </div>
+                      <div className="border border-border rounded-md p-4 bg-card">
+                        <div className="flex items-center justify-between mb-3">
+                          <div>
+                            <Text variant="body" weight="semibold">
+                              Hand #{currentHand.hand_number}
+                            </Text>
+                          </div>
+                          <div className="text-right">
+                            <Text variant="body" weight="semibold" className="text-primary">
+                              ${(currentHand.pot_size / 100).toFixed(2)}
+                            </Text>
+                            {currentHand.winner_name && (
+                              <Text variant="bodySmall" color="muted">
+                                Won by {currentHand.winner_name}
+                              </Text>
+                            )}
+                          </div>
+                        </div>
+                        <div className="bg-muted/30 rounded p-3 font-mono text-sm">
+                          {currentHand.action_log.map((action, idx) => (
+                            <div key={idx} className="py-0.5">
+                              <Text variant="bodySmall" className="font-mono">
+                                {action}
+                              </Text>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
             ))}
           </div>

@@ -99,6 +99,76 @@ def get_hand_analytics(public_code: str) -> Dict[str, Any]:
                     'biggest_pot': winner.biggest_pot or 0
                 })
 
+            top_10_hands = db.query(
+                HandSummary.hand_number,
+                HandSummary.pot_size,
+                HandSummary.winner_name,
+                HandSummary.board_cards,
+                HandSummary.started_at,
+                HandSummary.ended_at
+            ).filter(
+                HandSummary.session_id == session.id,
+                HandSummary.pot_size.isnot(None)
+            ).order_by(
+                HandSummary.pot_size.desc()
+            ).limit(10).all()
+
+            hand_replays = []
+            for hand in top_10_hands:
+                events = db.query(
+                    PokerEvent.event_type,
+                    PokerEvent.player_name,
+                    PokerEvent.amount,
+                    PokerEvent.cards,
+                    PokerEvent.event_timestamp,
+                    PokerEvent.raw_entry,
+                    PokerEvent.order_number
+                ).filter(
+                    PokerEvent.session_id == session.id,
+                    PokerEvent.hand_number == hand.hand_number
+                ).order_by(
+                    PokerEvent.order_number.asc().nulls_last()
+                ).all()
+
+                action_log = []
+                seen_hand_end = False
+                for event in events:
+                    if event.event_type == 'hand_end':
+                        seen_hand_end = True
+                        continue
+                    elif event.event_type == 'hand_start' and not seen_hand_end:
+                        action_log.append(f"-- Starting Hand #{hand.hand_number} --")
+                    elif event.event_type == 'hand_start' and seen_hand_end:
+                        continue
+                    elif event.event_type == 'bet':
+                        action_log.append(f"{event.player_name} bets ${event.amount / 100:.2f}")
+                    elif event.event_type == 'call':
+                        action_log.append(f"{event.player_name} calls ${event.amount / 100:.2f}")
+                    elif event.event_type == 'fold':
+                        action_log.append(f"{event.player_name} folds")
+                    elif event.event_type == 'check':
+                        action_log.append(f"{event.player_name} checks")
+                    elif event.event_type == 'collected':
+                        action_log.append(f"{event.player_name} collected ${event.amount / 100:.2f} from pot")
+                    elif event.event_type == 'shows':
+                        action_log.append(f"{event.player_name} shows {event.cards}")
+                    elif event.event_type == 'flop':
+                        action_log.append(f"Flop: {event.cards}")
+                    elif event.event_type == 'turn':
+                        action_log.append(f"Turn: {event.cards}")
+                    elif event.event_type == 'river':
+                        action_log.append(f"River: {event.cards}")
+                    elif event.event_type == 'unknown':
+                        continue
+
+                hand_replays.append({
+                    'hand_number': hand.hand_number,
+                    'pot_size': hand.pot_size or 0,
+                    'winner_name': hand.winner_name,
+                    'board_cards': hand.board_cards,
+                    'action_log': action_log
+                })
+
             session_analytics.append({
                 'session_id': str(session.id),
                 'session_number': session.game_number,
@@ -108,7 +178,8 @@ def get_hand_analytics(public_code: str) -> Dict[str, Any]:
                 'total_hands': session.total_hands,
                 'hands_per_hour': hands_per_hour,
                 'active_players': session.active_players,
-                'top_winners': top_winners_formatted
+                'top_winners': top_winners_formatted,
+                'top_10_hands': hand_replays
             })
 
         return {

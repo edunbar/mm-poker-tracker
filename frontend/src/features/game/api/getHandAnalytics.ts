@@ -2,6 +2,14 @@ import axios from "axios";
 import { useQuery } from "react-query";
 import { API_BASE_URL } from "../../../config/api";
 
+export interface HandReplay {
+  hand_number: number;
+  pot_size: number;
+  winner_name: string;
+  board_cards: string;
+  action_log: string[];
+}
+
 export interface SessionHandAnalytics {
   session_id: string;
   session_number: number;
@@ -18,6 +26,7 @@ export interface SessionHandAnalytics {
     win_percentage: number;
     biggest_pot: number;
   }>;
+  top_10_hands: HandReplay[];
 }
 
 export interface HandAnalyticsResponse {
