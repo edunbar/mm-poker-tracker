@@ -1,4 +1,4 @@
-import { ChevronDown, GitMerge, HelpCircle } from "lucide-react";
+import { ChevronDown, GitMerge, HelpCircle, X } from "lucide-react";
 import React, { useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import { useAdminSession } from "../../../contexts/AdminSessionContext";
@@ -35,6 +35,7 @@ export default function GameIngestPage() {
   const [mergingPlayers, setMergingPlayers] = useState(false);
   const [showOptionalSettings, setShowOptionalSettings] = useState(false);
   const [hoveredTooltip, setHoveredTooltip] = useState<string | null>(null);
+  const [csvViewerOpen, setCsvViewerOpen] = useState(false);
 
   // Get public code from URL params and admin session context
   const { publicCode } = useParams<{ publicCode: string }>();
@@ -126,7 +127,7 @@ export default function GameIngestPage() {
   const handleUpload = () => {
     // Show info toast when upload starts
     showInfo("Upload Started", "Processing your session data...", 3000);
-    
+
     // Extract sessionId from submittedUrl after '/games/'
     let sessionId = "";
     const match = submittedUrl.match(/\/games\/([^/?#]+)/);
@@ -143,6 +144,7 @@ export default function GameIngestPage() {
       game_data,
       ...(date && { date: `${date}T00:00:00Z` }),
       ...(gameNumber && { gameNumber: parseInt(gameNumber) }),
+      ...(game.data?.ledger_csv?.content && { ledger_csv_content: game.data.ledger_csv.content }),
     });
   };
 
@@ -247,6 +249,8 @@ export default function GameIngestPage() {
             status={status}
             balanced={totals.balanced}
             errorMessage={errorMessage}
+            ledgerCsvStatus={game.data?.ledger_csv || null}
+            onViewCsv={() => setCsvViewerOpen(true)}
           />
 
           {game.isLoading && <Text variant="body">Loading game data...</Text>}
@@ -533,6 +537,62 @@ export default function GameIngestPage() {
                   </Button>
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* CSV Viewer Modal */}
+      {csvViewerOpen && game.data?.ledger_csv?.content && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-card rounded-lg shadow-xl max-w-6xl w-full max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between p-6 border-b border-border">
+              <div>
+                <Heading variant="h3">Ledger CSV</Heading>
+                <Text variant="caption" color="muted" className="mt-1">PokerNow Historical Data</Text>
+              </div>
+              <Button
+                onClick={() => setCsvViewerOpen(false)}
+                variant="ghost"
+                size="icon-sm"
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="h-5 w-5" />
+              </Button>
+            </div>
+
+            <div className="flex-1 overflow-auto p-6">
+              <div className="bg-muted rounded-md p-4 overflow-x-auto">
+                <table className="min-w-full text-sm font-mono">
+                  <tbody>
+                    {game.data.ledger_csv.content.split('\n').map((row: string, rowIndex: number) => {
+                      const cells = row.split(',');
+                      const isHeader = rowIndex === 0;
+                      return (
+                        <tr key={rowIndex} className={isHeader ? 'font-bold border-b-2 border-border' : 'border-b border-border/50'}>
+                          {cells.map((cell: string, cellIndex: number) => (
+                            <td
+                              key={cellIndex}
+                              className={`px-3 py-2 ${isHeader ? 'text-foreground' : 'text-muted-foreground'}`}
+                            >
+                              {cell.replace(/^"(.*)"$/, '$1')}
+                            </td>
+                          ))}
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div className="flex justify-end p-6 border-t border-border">
+              <Button
+                onClick={() => setCsvViewerOpen(false)}
+                variant="outline"
+              >
+                Close
+              </Button>
             </div>
           </div>
         </div>

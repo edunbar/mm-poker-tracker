@@ -9,6 +9,7 @@ export const uploadGameDualWrite = async ({
   game_data,
   date,
   gameNumber,
+  ledger_csv_content,
 }: {
   public_code: string;
   admin_code: string;
@@ -16,6 +17,7 @@ export const uploadGameDualWrite = async ({
   game_data: any;
   date?: string;
   gameNumber?: number;
+  ledger_csv_content?: string;
 }) => {
   const response = await axios.post(
     `${API_BASE_URL}/api/games/upload`,
@@ -25,6 +27,7 @@ export const uploadGameDualWrite = async ({
       game_data,
       date,
       gameNumber,
+      ledger_csv_content,
     },
     {
       headers: {

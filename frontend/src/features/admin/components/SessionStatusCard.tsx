@@ -4,12 +4,22 @@ interface GameStatusCardProps {
   status: "success" | "error" | null;
   balanced: boolean;
   errorMessage?: string | null;
+  ledgerCsvStatus?: {
+    success: boolean;
+    size_bytes?: number;
+    error?: string;
+    url?: string;
+    content?: string;
+  } | null;
+  onViewCsv?: () => void;
 }
 
 const GameStatusCard: React.FC<GameStatusCardProps> = ({
   status,
   balanced,
   errorMessage,
+  ledgerCsvStatus,
+  onViewCsv,
 }) => {
   if (status === "success") {
     return (
@@ -45,7 +55,7 @@ const GameStatusCard: React.FC<GameStatusCardProps> = ({
         ) : (
           <AlertTriangle className="h-5 w-5 text-destructive mr-3" />
         )}
-        <div>
+        <div className="flex-1">
           <div
             className={`font-medium ${
               balanced ? "text-success" : "text-destructive"
@@ -62,6 +72,46 @@ const GameStatusCard: React.FC<GameStatusCardProps> = ({
           </div>
         </div>
       </div>
+
+      {ledgerCsvStatus && (
+        <div className={`mt-3 pt-3 border-t border-border flex items-center gap-3 ${
+          ledgerCsvStatus.success
+            ? 'text-success'
+            : 'text-destructive'
+        }`}>
+          {ledgerCsvStatus.success ? (
+            <CheckCircle2 className="h-5 w-5 flex-shrink-0" />
+          ) : (
+            <AlertTriangle className="h-5 w-5 flex-shrink-0" />
+          )}
+          <div className="flex-1">
+            <div
+              className={`font-medium ${
+                ledgerCsvStatus.success ? "text-success" : "text-destructive"
+              }`}
+            >
+              Ledger CSV {ledgerCsvStatus.success ? 'Retrieved' : 'Failed'}
+            </div>
+            <div className={`text-sm ${
+              ledgerCsvStatus.success ? "text-success/80" : "text-destructive/80"
+            }`}>
+              {ledgerCsvStatus.success ? (
+                <>
+                  Successfully fetched ledger data ({ledgerCsvStatus.size_bytes} bytes) -{' '}
+                  <button
+                    onClick={onViewCsv}
+                    className="underline hover:opacity-80"
+                  >
+                    View CSV
+                  </button>
+                </>
+              ) : (
+                `Could not retrieve ledger CSV: ${ledgerCsvStatus.error || 'Unknown error'}`
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

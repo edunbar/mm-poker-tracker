@@ -1,9 +1,10 @@
 import axios from 'axios';
-import { Edit, MoreVertical, Plus, Save, Trash2, X } from 'lucide-react';
+import { Edit, MoreVertical, Plus, Save, Trash2, X, FileText, Loader2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { API_BASE_URL } from '../../../config/api';
 import { useAdminSession } from '../../../contexts/AdminSessionContext';
+import { useToast } from '../../../contexts/ToastContext';
 import { useGameTitle } from '../../../shared/hooks/useGameTitle';
 import { Button } from '../../../shared/ui/button';
 import { Pagination, usePagination } from '../../../shared/ui/pagination';
@@ -22,6 +23,7 @@ interface SessionPlayerSummary {
   net: number;
   names: string[];
   game_number: number;
+  has_csv?: boolean;
 }
 
 interface EditingRow {
@@ -40,6 +42,7 @@ interface SessionGroup {
   session_started_at: string | null;
   game_number: number;
   players: SessionPlayerSummary[];
+  has_csv: boolean;
 }
 
 interface EditingDate {
@@ -51,6 +54,7 @@ export default function GameLedgerPage() {
   const { publicCode } = useParams<{ publicCode: string }>();
   const { adminCode: sessionAdminCode, hasAdminSession } = useAdminSession();
   const { title: _title } = useGameTitle(publicCode || '');
+  const { showSuccess, showError } = useToast();
   const [summaries, setSummaries] = useState<SessionPlayerSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingRow, setEditingRow] = useState<EditingRow | null>(null);
@@ -72,7 +76,12 @@ export default function GameLedgerPage() {
     cashOutSum: '',
     inGame: ''
   });
-  
+  const [csvViewerOpen, setCsvViewerOpen] = useState(false);
+  const [csvData, setCsvData] = useState<string | null>(null);
+  const [csvSessionInfo, setCsvSessionInfo] = useState<{gameNumber: number, sessionId: string} | null>(null);
+  const [loadingCsv, setLoadingCsv] = useState(false);
+  const [addingCsvForSession, setAddingCsvForSession] = useState<string | null>(null);
+
   // Use session admin code if available, otherwise manual input
   const effectiveAdminCode = sessionAdminCode || manualAdminCode;
 
@@ -93,6 +102,58 @@ export default function GameLedgerPage() {
       document.documentElement.style.overscrollBehavior = 'auto';
     };
   }, []);
+
+  const fetchCsvData = async (sessionId: string, gameNumber: number) => {
+    try {
+      setLoadingCsv(true);
+      const response = await axios.get(`${API_BASE_URL}/api/games/${publicCode}/sessions/${sessionId}/ledger-csv`);
+      setCsvData(response.data.csv_content);
+      setCsvSessionInfo({ gameNumber, sessionId });
+      setCsvViewerOpen(true);
+    } catch (error: any) {
+      if (error.response?.status === 404) {
+        alert('No ledger CSV available for this session');
+      } else {
+        alert('Error loading CSV: ' + (error.response?.data?.error || error.message));
+      }
+    } finally {
+      setLoadingCsv(false);
+    }
+  };
+
+  const addCsvToSession = async (sessionId: string, gameNumber: number) => {
+    if (!effectiveAdminCode) {
+      showError('Admin Required', 'Admin code is required to add CSV');
+      return;
+    }
+
+    try {
+      setAddingCsvForSession(sessionId);
+      const response = await axios.post(
+        `${API_BASE_URL}/api/games/${publicCode}/sessions/${sessionId}/fetch-ledger-csv`,
+        {},
+        {
+          headers: {
+            'X-Admin-Code': effectiveAdminCode
+          }
+        }
+      );
+      showSuccess('CSV Added', `Successfully added ledger CSV for Game #${gameNumber} (${response.data.size_bytes} bytes)`);
+
+      // Update the state directly instead of refetching
+      setSummaries(prevSummaries =>
+        prevSummaries.map(summary =>
+          summary.session_id === sessionId
+            ? { ...summary, has_csv: true }
+            : summary
+        )
+      );
+    } catch (error: any) {
+      showError('Error Adding CSV', error.response?.data?.error || error.message);
+    } finally {
+      setAddingCsvForSession(null);
+    }
+  };
 
   const fetchLedgerData = async () => {
     try {
@@ -328,7 +389,8 @@ export default function GameLedgerPage() {
         session_external_id: summary.session_external_id,
         session_started_at: summary.session_started_at,
         game_number: summary.game_number,
-        players: [summary]
+        players: [summary],
+        has_csv: summary.has_csv || false
       });
     }
     return groups;
@@ -615,7 +677,39 @@ export default function GameLedgerPage() {
                           <MoreVertical className="h-4 w-4" />
                         </Button>
                         {activeDropdown === `session-${sessionGroup.session_id}` && (
-                          <div className="absolute right-0 top-8 bg-popover border border-border rounded-md shadow-lg z-10 min-w-[120px]">
+                          <div className="absolute right-0 top-8 bg-popover border border-border rounded-md shadow-lg z-10 min-w-[140px]">
+                            {sessionGroup.has_csv ? (
+                              <Button
+                                onClick={() => {
+                                  fetchCsvData(sessionGroup.session_id, sessionGroup.game_number);
+                                  setActiveDropdown(null);
+                                }}
+                                variant="ghost"
+                                className="flex items-center gap-2 w-full justify-start px-3 py-2 hover:bg-accent"
+                                disabled={loadingCsv}
+                              >
+                                <FileText className="h-3 w-3" />
+                                <Text variant="bodySmall">{loadingCsv ? 'Loading...' : 'View CSV'}</Text>
+                              </Button>
+                            ) : (
+                              <Button
+                                onClick={() => {
+                                  addCsvToSession(sessionGroup.session_id, sessionGroup.game_number);
+                                }}
+                                variant="ghost"
+                                className="flex items-center gap-2 w-full justify-start px-3 py-2 hover:bg-accent"
+                                disabled={addingCsvForSession === sessionGroup.session_id}
+                              >
+                                {addingCsvForSession === sessionGroup.session_id ? (
+                                  <Loader2 className="h-3 w-3 animate-spin" />
+                                ) : (
+                                  <FileText className="h-3 w-3" />
+                                )}
+                                <Text variant="bodySmall">
+                                  {addingCsvForSession === sessionGroup.session_id ? 'Adding CSV...' : 'Add CSV'}
+                                </Text>
+                              </Button>
+                            )}
                             <Button
                               onClick={() => {
                                 setNewRowData({
@@ -1085,6 +1179,70 @@ export default function GameLedgerPage() {
                 className="bg-black text-white hover:opacity-90"
               >
                 <Text variant="bodySmall" weight="medium">Add Row</Text>
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* CSV Viewer Modal */}
+      {csvViewerOpen && csvData && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-card rounded-lg shadow-xl max-w-6xl w-full max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between p-6 border-b border-border">
+              <div>
+                <Heading variant="h3">Ledger CSV - Game #{csvSessionInfo?.gameNumber}</Heading>
+                <Text variant="caption" color="muted" className="mt-1">PokerNow Historical Data</Text>
+              </div>
+              <Button
+                onClick={() => {
+                  setCsvViewerOpen(false);
+                  setCsvData(null);
+                  setCsvSessionInfo(null);
+                }}
+                variant="ghost"
+                size="icon-sm"
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="h-5 w-5" />
+              </Button>
+            </div>
+
+            <div className="flex-1 overflow-auto p-6">
+              <div className="bg-muted rounded-md p-4 overflow-x-auto">
+                <table className="min-w-full text-sm font-mono">
+                  <tbody>
+                    {csvData.split('\n').map((row, rowIndex) => {
+                      const cells = row.split(',');
+                      const isHeader = rowIndex === 0;
+                      return (
+                        <tr key={rowIndex} className={isHeader ? 'font-bold border-b-2 border-border' : 'border-b border-border/50'}>
+                          {cells.map((cell, cellIndex) => (
+                            <td
+                              key={cellIndex}
+                              className={`px-3 py-2 ${isHeader ? 'text-foreground' : 'text-muted-foreground'}`}
+                            >
+                              {cell.replace(/^"(.*)"$/, '$1')}
+                            </td>
+                          ))}
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div className="flex justify-end p-6 border-t border-border">
+              <Button
+                onClick={() => {
+                  setCsvViewerOpen(false);
+                  setCsvData(null);
+                  setCsvSessionInfo(null);
+                }}
+                variant="outline"
+              >
+                Close
               </Button>
             </div>
           </div>
