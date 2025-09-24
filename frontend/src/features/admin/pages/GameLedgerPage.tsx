@@ -81,6 +81,10 @@ export default function GameLedgerPage() {
   const [csvSessionInfo, setCsvSessionInfo] = useState<{gameNumber: number, sessionId: string} | null>(null);
   const [loadingCsv, setLoadingCsv] = useState(false);
   const [addingCsvForSession, setAddingCsvForSession] = useState<string | null>(null);
+  const [showHandUploadModal, setShowHandUploadModal] = useState(false);
+  const [handFile, setHandFile] = useState<File | null>(null);
+  const [uploadingHands, setUploadingHands] = useState(false);
+  const [handUploadSessionId, setHandUploadSessionId] = useState<string | null>(null);
 
   // Use session admin code if available, otherwise manual input
   const effectiveAdminCode = sessionAdminCode || manualAdminCode;
@@ -89,6 +93,7 @@ export default function GameLedgerPage() {
     if (publicCode) {
       fetchLedgerData();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [publicCode]);
 
   useEffect(() => {
@@ -140,7 +145,6 @@ export default function GameLedgerPage() {
       );
       showSuccess('CSV Added', `Successfully added ledger CSV for Game #${gameNumber} (${response.data.size_bytes} bytes)`);
 
-      // Update the state directly instead of refetching
       setSummaries(prevSummaries =>
         prevSummaries.map(summary =>
           summary.session_id === sessionId
@@ -152,6 +156,46 @@ export default function GameLedgerPage() {
       showError('Error Adding CSV', error.response?.data?.error || error.message);
     } finally {
       setAddingCsvForSession(null);
+    }
+  };
+
+  const uploadHandLog = async () => {
+    if (!handUploadSessionId || !handFile || !effectiveAdminCode) return;
+
+    setUploadingHands(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', handFile);
+
+      const response = await axios.post(
+        `${API_BASE_URL}/api/games/${publicCode}/sessions/${handUploadSessionId}/upload-hand-log`,
+        formData,
+        {
+          headers: {
+            'X-Admin-Code': effectiveAdminCode,
+            'Content-Type': 'multipart/form-data'
+          }
+        }
+      );
+
+      if (response.data.status === 'success') {
+        showSuccess(
+          'Hand Log Uploaded',
+          `Successfully imported ${response.data.hands_created} hands with ${response.data.events_created} events`
+        );
+        setShowHandUploadModal(false);
+        setHandFile(null);
+        setHandUploadSessionId(null);
+      } else if (response.data.status === 'needs_mapping') {
+        showError(
+          'Player Mapping Required',
+          `Found ${response.data.unmatched_players.length} unmatched players. Please contact support for manual mapping.`
+        );
+      }
+    } catch (error) {
+      showError('Upload Failed', 'Failed to upload hand log. Please try again.');
+    } finally {
+      setUploadingHands(false);
     }
   };
 
@@ -712,6 +756,18 @@ export default function GameLedgerPage() {
                             )}
                             <Button
                               onClick={() => {
+                                setHandUploadSessionId(sessionGroup.session_id);
+                                setShowHandUploadModal(true);
+                                setActiveDropdown(null);
+                              }}
+                              variant="ghost"
+                              className="flex items-center gap-2 w-full justify-start px-3 py-2 hover:bg-accent"
+                            >
+                              <FileText className="h-3 w-3" />
+                              <Text variant="bodySmall">Upload Hand Log</Text>
+                            </Button>
+                            <Button
+                              onClick={() => {
                                 setNewRowData({
                                   ...newRowData,
                                   sessionId: sessionGroup.session_external_id
@@ -1243,6 +1299,83 @@ export default function GameLedgerPage() {
                 variant="outline"
               >
                 Close
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Upload Hand Log Modal */}
+      {showHandUploadModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border border-border w-96 shadow-lg rounded-md bg-card text-card-foreground">
+            <div className="flex items-center justify-between border-b pb-3 mb-4">
+              <Heading variant="h4">Upload Hand Log</Heading>
+              <Button
+                onClick={() => {
+                  setShowHandUploadModal(false);
+                  setHandFile(null);
+                  setHandUploadSessionId(null);
+                }}
+                variant="ghost"
+                size="icon-sm"
+                className="text-muted-foreground hover:text-foreground"
+              >
+                <X className="h-5 w-5" />
+              </Button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <Text variant="bodySmall" color="muted" className="mb-3">
+                  Upload the hand history CSV file from PokerNow for this session. This will enable hand analytics for this session.
+                </Text>
+              </div>
+
+              <div>
+                <Text variant="bodySmall" weight="medium" as="label" htmlFor="handFile" className="block mb-2">
+                  Select CSV File
+                </Text>
+                <input
+                  type="file"
+                  id="handFile"
+                  accept=".csv"
+                  onChange={(e) => setHandFile(e.target.files?.[0] || null)}
+                  className="block w-full text-sm text-foreground
+                    file:mr-4 file:py-2 file:px-4
+                    file:rounded-md file:border-0
+                    file:text-sm file:font-semibold
+                    file:bg-primary file:text-primary-foreground
+                    hover:file:opacity-90
+                    file:cursor-pointer cursor-pointer"
+                />
+                {handFile && (
+                  <Text variant="caption" color="muted" className="mt-2">
+                    Selected: {handFile.name}
+                  </Text>
+                )}
+              </div>
+            </div>
+
+            <div className="mt-6 flex space-x-2">
+              <Button
+                onClick={() => {
+                  setShowHandUploadModal(false);
+                  setHandFile(null);
+                  setHandUploadSessionId(null);
+                }}
+                variant="secondary"
+                className="flex-1"
+                disabled={uploadingHands}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={uploadHandLog}
+                disabled={!handFile || uploadingHands}
+                className="flex-1 bg-black text-white hover:opacity-90"
+              >
+                {uploadingHands ? 'Uploading...' : 'Upload'}
               </Button>
             </div>
           </div>

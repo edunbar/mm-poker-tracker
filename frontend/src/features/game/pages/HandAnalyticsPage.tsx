@@ -1,7 +1,7 @@
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useState } from "react";
 import { Heading, Text } from "../../../shared/ui/typography";
 import { useHandAnalytics } from "../api/getHandAnalytics";
-import { ChevronLeft, ChevronRight } from "lucide-react";
 
 interface HandAnalyticsPageProps {
   publicCode: string;

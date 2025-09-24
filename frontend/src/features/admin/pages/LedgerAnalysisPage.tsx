@@ -119,12 +119,16 @@ export default function LedgerAnalysisPage() {
     cashOutSum: '',
     inGame: ''
   });
+  const [showHandUploadModal, setShowHandUploadModal] = useState(false);
+  const [handFile, setHandFile] = useState<File | null>(null);
+  const [uploadingHands, setUploadingHands] = useState(false);
 
   useEffect(() => {
     if (publicCode && hasAdminSession) {
       fetchAnalysisData();
       fetchPlayerDebugData();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [publicCode, hasAdminSession]);
 
   const fetchAnalysisData = async () => {
@@ -328,12 +332,12 @@ export default function LedgerAnalysisPage() {
 
   const addPlayerToSession = async () => {
     if (!selectedSessionId) return;
-    
+
     try {
-      const buyIn = parseFloat(newPlayerData.buyInSum) * 100; // Convert to cents
+      const buyIn = parseFloat(newPlayerData.buyInSum) * 100;
       const cashOut = parseFloat(newPlayerData.cashOutSum || '0') * 100;
       const inGame = parseFloat(newPlayerData.inGame || '0') * 100;
-      
+
       await axios.put(`${API_BASE_URL}/api/games/${publicCode}/ledger/manual/new`, {
         session_external_id: sessionDetail?.external_id || selectedSessionId,
         player_name: newPlayerData.playerName,
@@ -347,7 +351,6 @@ export default function LedgerAnalysisPage() {
         }
       });
 
-      // Reset form and close modal
       setNewPlayerData({
         playerName: '',
         buyInSum: '',
@@ -355,12 +358,50 @@ export default function LedgerAnalysisPage() {
         inGame: ''
       });
       setShowAddPlayerModal(false);
-      
-      // Refresh the session detail and analysis data
+
       await openSessionModal(selectedSessionId);
       fetchAnalysisData();
     } catch (error) {
       showError('Add Failed', 'Failed to add player. Please try again.');
+    }
+  };
+
+  const uploadHandLog = async () => {
+    if (!selectedSessionId || !handFile) return;
+
+    setUploadingHands(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', handFile);
+
+      const response = await axios.post(
+        `${API_BASE_URL}/api/games/${publicCode}/sessions/${selectedSessionId}/upload-hand-log`,
+        formData,
+        {
+          headers: {
+            'X-Admin-Code': adminCode || '',
+            'Content-Type': 'multipart/form-data'
+          }
+        }
+      );
+
+      if (response.data.status === 'success') {
+        showSuccess(
+          'Hand Log Uploaded',
+          `Successfully imported ${response.data.hands_created} hands with ${response.data.events_created} events`
+        );
+        setShowHandUploadModal(false);
+        setHandFile(null);
+      } else if (response.data.status === 'needs_mapping') {
+        showError(
+          'Player Mapping Required',
+          `Found ${response.data.unmatched_players.length} unmatched players. Please contact support for manual mapping.`
+        );
+      }
+    } catch (error) {
+      showError('Upload Failed', 'Failed to upload hand log. Please try again.');
+    } finally {
+      setUploadingHands(false);
     }
   };
 
@@ -843,6 +884,13 @@ export default function LedgerAnalysisPage() {
                 <Heading variant="h2">Session Details</Heading>
                 <div className="flex items-center space-x-3">
                   <Button
+                    onClick={() => setShowHandUploadModal(true)}
+                    size="sm"
+                    variant="secondary"
+                  >
+                    Upload Hand Log
+                  </Button>
+                  <Button
                     onClick={() => setShowAddPlayerModal(true)}
                     size="sm"
                     className="bg-black text-white hover:opacity-90"
@@ -1195,7 +1243,7 @@ export default function LedgerAnalysisPage() {
                   </svg>
                 </Button>
               </div>
-              
+
               <div className="space-y-4">
                 <div>
                   <Text variant="bodySmall" weight="medium" as="label" htmlFor="playerName" className="block">Player Name</Text>
@@ -1209,7 +1257,7 @@ export default function LedgerAnalysisPage() {
                     required
                   />
                 </div>
-                
+
                 <div>
                   <Text variant="bodySmall" weight="medium" as="label" htmlFor="buyInSum" className="block">Buy In Amount</Text>
                   <input
@@ -1224,7 +1272,7 @@ export default function LedgerAnalysisPage() {
                     required
                   />
                 </div>
-                
+
                 <div>
                   <Text variant="bodySmall" weight="medium" as="label" htmlFor="cashOutSum" className="block">Cash Out Amount</Text>
                   <input
@@ -1238,7 +1286,7 @@ export default function LedgerAnalysisPage() {
                     step="0.01"
                   />
                 </div>
-                
+
                 <div>
                   <Text variant="bodySmall" weight="medium" as="label" htmlFor="inGame" className="block">In Game Amount</Text>
                   <input
@@ -1253,7 +1301,7 @@ export default function LedgerAnalysisPage() {
                   />
                 </div>
               </div>
-              
+
               <div className="mt-6 flex space-x-2">
                 <Button
                   onClick={() => {
@@ -1276,6 +1324,83 @@ export default function LedgerAnalysisPage() {
                   className="flex-1 bg-black text-white hover:opacity-90"
                 >
                   Add Player
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Upload Hand Log Modal */}
+        {showHandUploadModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 overflow-y-auto h-full w-full z-50">
+            <div className="relative top-20 mx-auto p-5 border border-border w-96 shadow-lg rounded-md bg-card text-card-foreground">
+              <div className="flex items-center justify-between border-b pb-3 mb-4">
+                <Heading variant="h3">Upload Hand Log</Heading>
+                <Button
+                  onClick={() => {
+                    setShowHandUploadModal(false);
+                    setHandFile(null);
+                  }}
+                  variant="ghost"
+                  size="icon-sm"
+                  className="text-muted-foreground hover:text-foreground"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </Button>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <Text variant="bodySmall" color="muted" className="mb-3">
+                    Upload the hand history CSV file from PokerNow for this session. This will enable hand analytics for this session.
+                  </Text>
+                </div>
+
+                <div>
+                  <Text variant="bodySmall" weight="medium" as="label" htmlFor="handFile" className="block mb-2">
+                    Select CSV File
+                  </Text>
+                  <input
+                    type="file"
+                    id="handFile"
+                    accept=".csv"
+                    onChange={(e) => setHandFile(e.target.files?.[0] || null)}
+                    className="block w-full text-sm text-foreground
+                      file:mr-4 file:py-2 file:px-4
+                      file:rounded-md file:border-0
+                      file:text-sm file:font-semibold
+                      file:bg-primary file:text-primary-foreground
+                      hover:file:opacity-90
+                      file:cursor-pointer cursor-pointer"
+                  />
+                  {handFile && (
+                    <Text variant="caption" color="muted" className="mt-2">
+                      Selected: {handFile.name}
+                    </Text>
+                  )}
+                </div>
+              </div>
+
+              <div className="mt-6 flex space-x-2">
+                <Button
+                  onClick={() => {
+                    setShowHandUploadModal(false);
+                    setHandFile(null);
+                  }}
+                  variant="secondary"
+                  className="flex-1"
+                  disabled={uploadingHands}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={uploadHandLog}
+                  disabled={!handFile || uploadingHands}
+                  className="flex-1 bg-black text-white hover:opacity-90"
+                >
+                  {uploadingHands ? 'Uploading...' : 'Upload'}
                 </Button>
               </div>
             </div>

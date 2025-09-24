@@ -114,7 +114,8 @@ export default function GameIngestPage() {
           });
       }
     }
-  }, [upload.isSuccess, upload.data, handLogFile, publicCode, uploadHandLog, showSuccess, showError]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [upload.isSuccess, upload.data?.session_id]);
 
   useEffect(() => {
     if (upload.isError) {
