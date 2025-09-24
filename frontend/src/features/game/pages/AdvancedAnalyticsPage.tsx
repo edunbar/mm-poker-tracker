@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { Crown, Target, Diamond, Flame, Skull, Clock, Frown, Users, Trophy, HelpCircle } from 'lucide-react';
+import { Crown, Target, Diamond, Flame, Skull, Clock, Frown, Users, Trophy, HelpCircle, Maximize2, X } from 'lucide-react';
 import { useState } from 'react';
 import { Heading, Text } from '../../../shared/ui/typography';
 import { usePlayerAnalytics } from '../api/getPlayerAnalytics';
@@ -62,6 +62,8 @@ export default function AdvancedAnalyticsPage({ publicCode }: AdvancedAnalyticsP
   const { data: sessionExtremesData, isLoading: sessionExtremesLoading } = useSessionExtremes(publicCode);
   const rows: PlayerSummaryRow[] = data?.rows || [];
   const [activeTab, setActiveTab] = useState<'fame' | 'shame'>('fame');
+  const [expandedCategory, setExpandedCategory] = useState<AnalyticsCategory | null>(null);
+  const [expandedData, setExpandedData] = useState<AnalyticsPlayer[]>([]);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-US', {
@@ -85,7 +87,7 @@ export default function AdvancedAnalyticsPage({ publicCode }: AdvancedAnalyticsP
       iconColor: 'text-sophisticated-gold',
       iconBg: 'bg-sophisticated-gold-extralight',
       description: 'Players with the highest net winnings',
-      getData: (): AnalyticsPlayer[] => [...rows].sort((a, b) => b.net - a.net).slice(0, 3).filter(p => p.net > 0).map(p => ({
+      getData: (): AnalyticsPlayer[] => [...rows].sort((a, b) => b.net - a.net).filter(p => p.net > 0).slice(0, 3).map(p => ({
         player: p.player,
         gamesPlayed: p.gamesPlayed,
         net: p.net,
@@ -238,7 +240,7 @@ export default function AdvancedAnalyticsPage({ publicCode }: AdvancedAnalyticsP
       iconColor: 'text-red-600',
       iconBg: 'bg-red-100',
       description: 'Players with the biggest losses',
-      getData: (): AnalyticsPlayer[] => [...rows].sort((a, b) => a.net - b.net).slice(0, 3).filter(p => p.net < 0).map(p => ({
+      getData: (): AnalyticsPlayer[] => [...rows].sort((a, b) => a.net - b.net).filter(p => p.net < 0).slice(0, 3).map(p => ({
         player: p.player,
         gamesPlayed: p.gamesPlayed,
         net: p.net,
@@ -387,6 +389,184 @@ export default function AdvancedAnalyticsPage({ publicCode }: AdvancedAnalyticsP
     }
   };
 
+  const handleExpand = (category: AnalyticsCategory) => {
+    const fullData = (() => {
+      const key = Object.entries(activeTab === 'fame' ? fameCategories : shameCategories)
+        .find(([, cat]) => cat.title === category.title)?.[0];
+
+      if (!key) return [];
+
+      switch (key) {
+        case 'biggest-winners':
+          return [...rows].sort((a, b) => b.net - a.net).filter(p => p.net > 0).map(p => ({
+            player: p.player,
+            gamesPlayed: p.gamesPlayed,
+            net: p.net,
+            rank: p.rank,
+            buyIn: p.buyIn,
+            cashOut: p.cashOut
+          }));
+        case 'biggest-losers':
+          return [...rows].sort((a, b) => a.net - b.net).filter(p => p.net < 0).map(p => ({
+            player: p.player,
+            gamesPlayed: p.gamesPlayed,
+            net: p.net,
+            rank: p.rank,
+            buyIn: p.buyIn,
+            cashOut: p.cashOut
+          }));
+        case 'most-consistent':
+          return [...rows]
+            .filter(p => p.gamesPlayed >= 3 && p.net > 0)
+            .sort((a, b) => (b.net / b.gamesPlayed) - (a.net / a.gamesPlayed))
+            .map(p => ({
+              player: p.player,
+              gamesPlayed: p.gamesPlayed,
+              net: p.net,
+              rank: p.rank,
+              buyIn: p.buyIn,
+              cashOut: p.cashOut
+            }));
+        case 'high-roller':
+          return [...rows].sort((a, b) => b.buyIn - a.buyIn).map(p => ({
+            player: p.player,
+            gamesPlayed: p.gamesPlayed,
+            net: p.net,
+            rank: p.rank,
+            buyIn: p.buyIn,
+            cashOut: p.cashOut
+          }));
+        case 'longest-hot-streak':
+          if (!analyticsData?.analytics) return [];
+          return Object.values(analyticsData.analytics)
+            .filter(p => p.longest_winning_streak > 0)
+            .sort((a, b) => b.longest_winning_streak - a.longest_winning_streak)
+            .map(p => ({
+              player: p.player_name,
+              gamesPlayed: p.total_games,
+              net: p.longest_winning_streak_net,
+              longestStreak: p.longest_winning_streak
+            }));
+        case 'best-single-session':
+          if (!sessionExtremesData?.best_sessions) return [];
+          return sessionExtremesData.best_sessions.map(session => ({
+            player: session.player_name,
+            gamesPlayed: session.game_number || 1,
+            net: session.net / 100,
+            sessionInfo: `Game #${session.game_number || 'N/A'}`
+          }));
+        case 'highest-win-rate':
+          if (!analyticsData?.analytics) return [];
+          return Object.values(analyticsData.analytics)
+            .filter(p => p.total_games >= 10)
+            .map(p => {
+              const winRate = (p.total_wins / p.total_games) * 100;
+              return {
+                player: p.player_name,
+                gamesPlayed: p.total_games,
+                net: p.total_wins,
+                longestStreak: p.longest_winning_streak,
+                winRate: winRate
+              };
+            })
+            .sort((a, b) => b.winRate - a.winRate);
+        case 'most-sessions-won':
+          if (!analyticsData?.analytics) return [];
+          return Object.values(analyticsData.analytics)
+            .filter(p => p.total_games > 0 && p.total_wins > 0)
+            .map(p => {
+              const winRate = (p.total_wins / p.total_games) * 100;
+              return {
+                player: p.player_name,
+                gamesPlayed: p.total_games,
+                net: p.total_wins,
+                longestStreak: p.longest_winning_streak,
+                winRate: winRate
+              };
+            })
+            .sort((a, b) => b.net - a.net);
+        case 'longest-cold-streak':
+          if (!analyticsData?.analytics) return [];
+          return Object.values(analyticsData.analytics)
+            .filter(p => p.longest_losing_streak > 0)
+            .sort((a, b) => b.longest_losing_streak - a.longest_losing_streak)
+            .map(p => ({
+              player: p.player_name,
+              gamesPlayed: p.total_games,
+              net: p.longest_losing_streak_net,
+              longestStreak: p.longest_losing_streak
+            }));
+        case 'worst-efficiency':
+          return [...rows]
+            .filter(p => p.net < 0 && p.gamesPlayed >= 2)
+            .sort((a, b) => (a.net / a.gamesPlayed) - (b.net / b.gamesPlayed))
+            .map(p => ({
+              player: p.player,
+              gamesPlayed: p.gamesPlayed,
+              net: p.net,
+              rank: p.rank,
+              buyIn: p.buyIn,
+              cashOut: p.cashOut
+            }));
+        case 'most-committed-loser':
+          return [...rows]
+            .filter(p => p.net < 0 && p.gamesPlayed >= 3)
+            .sort((a, b) => b.gamesPlayed - a.gamesPlayed)
+            .map(p => ({
+              player: p.player,
+              gamesPlayed: p.gamesPlayed,
+              net: p.net,
+              rank: p.rank,
+              buyIn: p.buyIn,
+              cashOut: p.cashOut
+            }));
+        case 'biggest-single-loss':
+          if (!sessionExtremesData?.worst_sessions) return [];
+          return sessionExtremesData.worst_sessions.map(session => ({
+            player: session.player_name,
+            gamesPlayed: session.game_number || 1,
+            net: session.net / 100,
+            sessionInfo: `Game #${session.game_number || 'N/A'}`
+          }));
+        case 'highest-loss-rate':
+          if (!analyticsData?.analytics) return [];
+          return Object.values(analyticsData.analytics)
+            .filter(p => p.total_games >= 10)
+            .map(p => {
+              const lossRate = (p.total_losses / p.total_games) * 100;
+              return {
+                player: p.player_name,
+                gamesPlayed: p.total_games,
+                net: p.total_losses,
+                longestStreak: p.longest_losing_streak,
+                lossRate: lossRate
+              };
+            })
+            .sort((a, b) => b.lossRate - a.lossRate);
+        case 'most-sessions-lost':
+          if (!analyticsData?.analytics) return [];
+          return Object.values(analyticsData.analytics)
+            .filter(p => p.total_games > 0 && p.total_losses > 0)
+            .map(p => {
+              const lossRate = (p.total_losses / p.total_games) * 100;
+              return {
+                player: p.player_name,
+                gamesPlayed: p.total_games,
+                net: p.total_losses,
+                longestStreak: p.longest_losing_streak,
+                lossRate: lossRate
+              };
+            })
+            .sort((a, b) => b.net - a.net);
+        default:
+          return [];
+      }
+    })();
+
+    setExpandedData(fullData);
+    setExpandedCategory(category);
+  };
+
   return (
     <div className="min-h-screen bg-background py-8">
       <div className="max-w-full mx-auto" style={{ paddingLeft: '200px', paddingRight: '200px' }}>
@@ -454,16 +634,27 @@ export default function AdvancedAnalyticsPage({ publicCode }: AdvancedAnalyticsP
                     return (
                       <div key={key} className="p-6 rounded-lg border border-border">
                         <div className="mb-4">
-                          <div className="flex items-center justify-center gap-2">
-                            <Heading variant="h5" className="text-center">{category.title}</Heading>
-                            <div className="relative group">
-                              <HelpCircle className="w-4 h-4 text-gray-400 hover:text-gray-600 cursor-help" />
-                              <div className="absolute right-0 top-full mt-2 hidden group-hover:block z-50 w-64 p-3 bg-popover border border-border rounded-lg shadow-xl">
-                                <div className="absolute -top-1 right-4 w-2 h-2 bg-popover border-l border-t border-border rotate-45" />
-                                <Text variant="bodySmall" weight="bold">{category.title}</Text><br />
-                                <Text variant="bodySmall">{category.description}</Text>
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center justify-center gap-2 flex-1">
+                              <Heading variant="h5" className="text-center">{category.title}</Heading>
+                              <div className="relative group">
+                                <HelpCircle className="w-4 h-4 text-gray-400 hover:text-gray-600 cursor-help" />
+                                <div className="absolute right-0 top-full mt-2 hidden group-hover:block z-50 w-64 p-3 bg-popover border border-border rounded-lg shadow-xl">
+                                  <div className="absolute -top-1 right-4 w-2 h-2 bg-popover border-l border-t border-border rotate-45" />
+                                  <Text variant="bodySmall" weight="bold">{category.title}</Text><br />
+                                  <Text variant="bodySmall">{category.description}</Text>
+                                </div>
                               </div>
                             </div>
+                            {categoryData.length > 0 && (
+                              <button
+                                onClick={() => handleExpand(category)}
+                                className="p-1 hover:bg-accent rounded transition-colors"
+                                title="View full list"
+                              >
+                                <Maximize2 className="w-4 h-4 text-muted-foreground hover:text-foreground" />
+                              </button>
+                            )}
                           </div>
                         </div>
 
@@ -525,16 +716,27 @@ export default function AdvancedAnalyticsPage({ publicCode }: AdvancedAnalyticsP
                     return (
                       <div key={key} className="p-6 rounded-lg border border-border">
                         <div className="mb-4">
-                          <div className="flex items-center justify-center gap-2">
-                            <Heading variant="h5" className="text-center">{category.title}</Heading>
-                            <div className="relative group">
-                              <HelpCircle className="w-4 h-4 text-gray-400 hover:text-gray-600 cursor-help" />
-                              <div className="absolute right-0 top-full mt-2 hidden group-hover:block z-50 w-64 p-3 bg-popover border border-border rounded-lg shadow-xl">
-                                <div className="absolute -top-1 right-4 w-2 h-2 bg-popover border-l border-t border-border rotate-45" />
-                                <Text variant="bodySmall" weight="bold">{category.title}</Text><br />
-                                <Text variant="bodySmall">{category.description}</Text>
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center justify-center gap-2 flex-1">
+                              <Heading variant="h5" className="text-center">{category.title}</Heading>
+                              <div className="relative group">
+                                <HelpCircle className="w-4 h-4 text-gray-400 hover:text-gray-600 cursor-help" />
+                                <div className="absolute right-0 top-full mt-2 hidden group-hover:block z-50 w-64 p-3 bg-popover border border-border rounded-lg shadow-xl">
+                                  <div className="absolute -top-1 right-4 w-2 h-2 bg-popover border-l border-t border-border rotate-45" />
+                                  <Text variant="bodySmall" weight="bold">{category.title}</Text><br />
+                                  <Text variant="bodySmall">{category.description}</Text>
+                                </div>
                               </div>
                             </div>
+                            {categoryData.length > 0 && (
+                              <button
+                                onClick={() => handleExpand(category)}
+                                className="p-1 hover:bg-accent rounded transition-colors"
+                                title="View full list"
+                              >
+                                <Maximize2 className="w-4 h-4 text-muted-foreground hover:text-foreground" />
+                              </button>
+                            )}
                           </div>
                         </div>
 
@@ -595,6 +797,76 @@ export default function AdvancedAnalyticsPage({ publicCode }: AdvancedAnalyticsP
           </div>
         )}
       </div>
+
+      {expandedCategory && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setExpandedCategory(null)}>
+          <div className="bg-card rounded-lg border border-border shadow-xl max-w-2xl w-full max-h-[80vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+            <div className="p-6 border-b border-border flex items-center justify-between">
+              <Heading variant="h4">{expandedCategory.title}</Heading>
+              <button
+                onClick={() => setExpandedCategory(null)}
+                className="p-1 hover:bg-accent rounded transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-6 overflow-y-auto flex-1">
+              {expandedData.length === 0 ? (
+                <div className="text-center py-8">
+                  <Text variant="body" color="muted">No data available</Text>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {expandedData.map((player, index) => (
+                    <div key={`${player.player}-${index}`}>
+                      <div className="flex items-center justify-between py-2 gap-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full bg-accent flex items-center justify-center">
+                            <Text variant="bodySmall" weight="bold">{index + 1}</Text>
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <Text
+                                variant="bodySmall"
+                                weight={index === 0 ? 'bold' : 'semibold'}
+                                className={index === 0 ? (activeTab === 'fame' ? 'text-yellow-500' : 'text-red-400') : ''}
+                                style={index === 0 ? { filter: `drop-shadow(0 0 4px ${activeTab === 'fame' ? 'rgba(234, 179, 8, 0.2)' : 'rgba(248, 113, 113, 0.2)'})` } : {}}
+                              >
+                                {player.player}
+                              </Text>
+                              {index === 0 && activeTab === 'fame' && (
+                                <Crown className="h-4 w-4 text-yellow-500" style={{ filter: 'drop-shadow(0 0 4px rgba(234, 179, 8, 0.2))' }} />
+                              )}
+                              {index === 0 && activeTab === 'shame' && (
+                                <SkullIcon className="h-4 w-4 text-red-400" />
+                              )}
+                            </div>
+                            <Text variant="caption" color="muted">{expandedCategory.getSubtext(player)}</Text>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <Text
+                            variant="bodySmall"
+                            weight="bold"
+                            color={index === 0 ? (activeTab === 'fame' ? 'success' : 'destructive') : undefined}
+                            className={index === 0 ? '' : 'text-white'}
+                            style={index === 0 && activeTab === 'fame' ? { filter: 'drop-shadow(0 0 4px rgba(34, 197, 94, 0.2))' } : {}}
+                          >
+                            {expandedCategory.getValue(player)}
+                          </Text>
+                        </div>
+                      </div>
+                      {index < expandedData.length - 1 && (
+                        <hr className="border-border" />
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

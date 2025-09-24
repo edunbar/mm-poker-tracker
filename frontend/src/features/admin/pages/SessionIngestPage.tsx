@@ -1,9 +1,11 @@
+import { ChevronDown, GitMerge, HelpCircle } from "lucide-react";
 import React, { useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import { useAdminSession } from "../../../contexts/AdminSessionContext";
 import { useToast } from "../../../contexts/ToastContext";
 import { PlayerInfo } from "../../../entities/game/types";
 import { useGameTitle } from "../../../shared/hooks/useGameTitle";
+import { Button } from "../../../shared/ui/button";
 import { Heading, Text } from "../../../shared/ui/typography";
 import { useGetGame } from "../api/getSession";
 import { useUploadGame } from "../api/uploadSession";
@@ -14,8 +16,6 @@ import GameSummaryTiles from "../components/SessionSummaryTiles";
 import GameUrlForm from "../components/SessionUrlForm";
 import { deriveTotals } from "../lib/deriveTotals";
 import { formatErrorMessage } from "../lib/validation";
-import { Button } from "../../../shared/ui/button";
-import { GitMerge, ChevronDown, HelpCircle } from "lucide-react";
 
 interface GameDataTableProps {
   playersInfos: PlayerInfo[];

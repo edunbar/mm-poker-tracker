@@ -185,7 +185,7 @@ const GameDataTable: React.FC<GameDataTableProps> = ({
               >
                 <TableCell onClick={(e) => !mergeMode && e.stopPropagation()}>
                   {mergeMode ? (
-                    <div className="px-2 py-1">{player.id}</div>
+                    <div className="h-8 px-2 py-1 text-xs flex items-center w-full">{player.id}</div>
                   ) : (
                     <Input
                       type="text"
@@ -201,7 +201,7 @@ const GameDataTable: React.FC<GameDataTableProps> = ({
                 </TableCell>
                 <TableCell onClick={(e) => !mergeMode && e.stopPropagation()}>
                   {mergeMode ? (
-                    <div className="px-2 py-1">{player.validated_name || ""}</div>
+                    <div className="h-8 px-2 py-1 text-xs flex items-center w-full">{player.validated_name || ""}</div>
                   ) : (
                     <Input
                       type="text"
@@ -255,7 +255,7 @@ const GameDataTable: React.FC<GameDataTableProps> = ({
                 </TableCell>
                 <TableCell onClick={(e) => !mergeMode && e.stopPropagation()}>
                   {mergeMode ? (
-                    <div className="px-2 py-1">
+                    <div className="h-8 px-2 py-1 text-xs flex items-center w-full">
                       {Array.isArray(player.names)
                         ? player.names.join(", ")
                         : player.names}
@@ -279,7 +279,7 @@ const GameDataTable: React.FC<GameDataTableProps> = ({
                 </TableCell>
                 <TableCell className="text-right" onClick={(e) => !mergeMode && e.stopPropagation()}>
                   {mergeMode ? (
-                    <div className="px-2 py-1">{player.buyInSum}</div>
+                    <div className="h-8 px-2 py-1 text-xs flex items-center justify-end w-full">{player.buyInSum}</div>
                   ) : (
                     <Input
                       type="number"
@@ -299,7 +299,7 @@ const GameDataTable: React.FC<GameDataTableProps> = ({
                 </TableCell>
                 <TableCell className="text-right" onClick={(e) => !mergeMode && e.stopPropagation()}>
                   {mergeMode ? (
-                    <div className="px-2 py-1">
+                    <div className="h-8 px-2 py-1 text-xs flex items-center justify-end w-full">
                       {player.buyOutSum === 0 ? player.inGame : player.buyOutSum}
                     </div>
                   ) : (
@@ -327,23 +327,29 @@ const GameDataTable: React.FC<GameDataTableProps> = ({
                 </TableCell>
                 <TableCell
                   onClick={(e) => !mergeMode && e.stopPropagation()}
-                  className={`text-right font-medium ${
-                    player.net === 0
-                      ? "text-muted-foreground"
-                      : player.net > 0
-                      ? "text-success"
-                      : "text-destructive"
-                  }`}
+                  className="text-right font-medium"
                 >
                   {mergeMode ? (
-                    <div className="px-2 py-1">{player.net}</div>
+                    <div className={`h-8 px-2 py-1 text-xs flex items-center justify-end w-full ${
+                      player.net === 0
+                        ? "text-muted-foreground"
+                        : player.net > 0
+                        ? "text-success"
+                        : "text-destructive"
+                    }`}>{player.net}</div>
                   ) : (
                     <Input
                       type="number"
                       value={player.net as any}
                       variant="ghost"
                       size="sm"
-                      className="w-full text-right bg-transparent"
+                      className={`w-full text-right bg-transparent ${
+                        player.net === 0
+                          ? "text-muted-foreground"
+                          : player.net > 0
+                          ? "text-success"
+                          : "text-destructive"
+                      }`}
                       onChange={(e) =>
                         handleChange(player.originalIdx, "net", e.target.value)
                       }
