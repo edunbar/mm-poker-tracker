@@ -633,7 +633,7 @@ export default function GameLedgerPage() {
             ) : paginatedSessions.map((sessionGroup) => (
               <>
                 {/* Session Header Row */}
-                <tr key={`session-${sessionGroup.session_id}`} className="bg-accent hover:bg-accent/80 border-l-4 border-primary border-b border-border">
+                <tr key={`session-${sessionGroup.session_id}`} className="bg-muted/50 hover:bg-muted/70 border-l-4 border-primary border-b border-border">
                   <td className="px-4 py-4">
                     <Button
                       onClick={() => toggleSession(sessionGroup.session_id)}
@@ -644,7 +644,7 @@ export default function GameLedgerPage() {
                     </Button>
                   </td>
                   <td className="px-6 py-4">
-                    <Text variant="bodySmall" weight="semibold" className="text-accent-foreground">Game #{sessionGroup.game_number}</Text>
+                    <Text variant="body" weight="bold" className="text-white">Game #{sessionGroup.game_number}</Text>
                     {editingDate?.session_id === sessionGroup.session_id ? (
                       <div className="flex items-center gap-2 mt-1">
                         <input
@@ -672,7 +672,7 @@ export default function GameLedgerPage() {
                       </div>
                     ) : (
                       <div className="flex items-center gap-2 group">
-                        <Text variant="caption" className="text-accent-foreground opacity-80">
+                        <Text variant="caption" className="text-white opacity-80">
                           {formatDate(sessionGroup.session_started_at)} • ({sessionGroup.players.length} players)
                         </Text>
                         {hasAdminSession && (
@@ -689,10 +689,10 @@ export default function GameLedgerPage() {
                     )}
                   </td>
                   <td className="px-6 py-4 text-right">
-                    <Text variant="bodySmall" weight="medium" className="text-accent-foreground">${formatCurrency(sessionGroup.players.reduce((sum, p) => sum + p.buy_in_sum, 0))}</Text>
+                    <Text variant="bodySmall" weight="medium" className="text-white">${formatCurrency(sessionGroup.players.reduce((sum, p) => sum + p.buy_in_sum, 0))}</Text>
                   </td>
                   <td className="px-6 py-4 text-right">
-                    <Text variant="bodySmall" weight="medium" className="text-accent-foreground">${formatCurrency(sessionGroup.players.reduce((sum, p) => sum + p.cash_out_sum + p.in_game, 0))}</Text>
+                    <Text variant="bodySmall" weight="medium" className="text-white">${formatCurrency(sessionGroup.players.reduce((sum, p) => sum + p.cash_out_sum + p.in_game, 0))}</Text>
                   </td>
                   <td className="px-6 py-4 text-right">
                     <Text
@@ -705,7 +705,7 @@ export default function GameLedgerPage() {
                   </td>
                   <td className="px-6 py-4">
                     <div className="truncate max-w-32" title={sessionGroup.session_external_id || 'N/A'}>
-                      <Text variant="bodySmall" className="text-accent-foreground opacity-75">{sessionGroup.session_external_id || 'N/A'}</Text>
+                      <Text variant="bodySmall" className="text-white opacity-75">{sessionGroup.session_external_id || 'N/A'}</Text>
                     </div>
                   </td>
                   {hasAdminSession && (

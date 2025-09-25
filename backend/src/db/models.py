@@ -1,6 +1,6 @@
 from sqlalchemy import (
     Column, String, Text, ForeignKey, UniqueConstraint,
-    BigInteger, TIMESTAMP, func, Table, ARRAY, Index, text, Boolean
+    BigInteger, TIMESTAMP, func, Table, ARRAY, Index, text, Boolean, Numeric
 )
 from sqlalchemy.dialects.postgresql import UUID, CITEXT, JSONB
 from sqlalchemy.orm import relationship
@@ -75,6 +75,7 @@ class Game(Base):
     payment_transactions = relationship('PaymentTransaction', back_populates='game', cascade="all, delete-orphan")
     payment_balances = relationship('PaymentBalance', back_populates='game', cascade="all, delete-orphan")
     rules = relationship('GameRule', back_populates='game', cascade="all, delete-orphan")
+    statistics_config = relationship('GameStatisticsConfig', back_populates='game', uselist=False, cascade="all, delete-orphan")
 
     __table_args__ = (
         # public_code is already UNIQUE → PG will create an index
@@ -433,4 +434,176 @@ class HandSummary(Base):
         UniqueConstraint('session_id', 'hand_number', name='uq_hand_summaries_session_hand'),
         Index('ix_hand_summaries_session_id', 'session_id'),
         Index('ix_hand_summaries_winner_id', 'winner_id'),
+    )
+
+
+# ==========================================================
+# PlayerHandParticipation Table
+# ----------------------------------------------------------
+# Tracks each player's actions and participation in each hand
+# for calculating poker statistics like VPIP, PFR, and AF.
+#
+# Columns:
+# - session_id, player_id, hand_number: Unique per participation
+# - was_dealt_cards: Whether player was dealt cards (denominator for stats)
+# - posted_blind: Whether player posted small/big blind this hand
+# - vpip_eligible: Player had opportunity to act pre-flop
+# - vpip_action: Player voluntarily put money in pot pre-flop (not blinds)
+# - pfr_action: Player raised or re-raised pre-flop
+# - postflop_*: Counts for aggression frequency calculations
+# ==========================================================
+class PlayerHandParticipation(Base):
+    __tablename__ = 'player_hand_participation'
+
+    id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
+    session_id = Column(UUID(as_uuid=True), ForeignKey('sessions.id', ondelete='CASCADE'), nullable=False)
+    player_id = Column(UUID(as_uuid=True), ForeignKey('players.id', ondelete='CASCADE'), nullable=False)
+    hand_number = Column(BigInteger, nullable=False)
+
+    # Hand participation flags
+    was_dealt_cards = Column(Boolean, nullable=False, server_default=text("false"))
+    posted_blind = Column(Boolean, nullable=False, server_default=text("false"))
+    posted_sb_amount = Column(BigInteger, nullable=True)
+    posted_bb_amount = Column(BigInteger, nullable=True)
+
+    # Pre-flop actions for VPIP/PFR
+    vpip_eligible = Column(Boolean, nullable=False, server_default=text("false"))
+    vpip_action = Column(Boolean, nullable=False, server_default=text("false"))
+    pfr_action = Column(Boolean, nullable=False, server_default=text("false"))
+    preflop_fold = Column(Boolean, nullable=False, server_default=text("false"))
+
+    # Post-flop actions for Aggression Frequency
+    postflop_actions = Column(BigInteger, nullable=False, server_default=text("0"))
+    postflop_aggressive = Column(BigInteger, nullable=False, server_default=text("0"))
+    postflop_passive = Column(BigInteger, nullable=False, server_default=text("0"))
+
+    # Street breakdown for detailed analysis
+    flop_actions = Column(BigInteger, nullable=False, server_default=text("0"))
+    flop_aggressive = Column(BigInteger, nullable=False, server_default=text("0"))
+    turn_actions = Column(BigInteger, nullable=False, server_default=text("0"))
+    turn_aggressive = Column(BigInteger, nullable=False, server_default=text("0"))
+    river_actions = Column(BigInteger, nullable=False, server_default=text("0"))
+    river_aggressive = Column(BigInteger, nullable=False, server_default=text("0"))
+
+    # Metadata
+    created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
+
+    # Relationships
+    session = relationship('Session')
+    player = relationship('Player')
+
+    __table_args__ = (
+        UniqueConstraint('session_id', 'player_id', 'hand_number', name='uq_player_hand_participation'),
+        Index('ix_player_hand_participation_session', 'session_id'),
+        Index('ix_player_hand_participation_player', 'player_id'),
+        Index('ix_player_hand_participation_session_player', 'session_id', 'player_id'),
+    )
+
+
+# ==========================================================
+# PlayerStatisticsCache Table
+# ----------------------------------------------------------
+# Cached aggregated poker statistics for performance.
+# Updated after each session import.
+#
+# Columns:
+# - session_id, player_id: Unique per session/player combination
+# - hands_dealt: Total hands where player was dealt cards
+# - vpip_hands, pfr_hands: Count of hands for VPIP/PFR
+# - vpip_percentage, pfr_percentage: Calculated percentages
+# - aggression_frequency: Post-flop aggression percentage
+# - play_style: Classified playing style (TAG, LAG, TP, LP)
+# ==========================================================
+class PlayerStatisticsCache(Base):
+    __tablename__ = 'player_statistics_cache'
+
+    id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
+    session_id = Column(UUID(as_uuid=True), ForeignKey('sessions.id', ondelete='CASCADE'), nullable=False)
+    player_id = Column(UUID(as_uuid=True), ForeignKey('players.id', ondelete='CASCADE'), nullable=False)
+
+    # Hand counts for percentage calculations
+    hands_dealt = Column(BigInteger, nullable=False, server_default=text("0"))
+    vpip_hands = Column(BigInteger, nullable=False, server_default=text("0"))
+    pfr_hands = Column(BigInteger, nullable=False, server_default=text("0"))
+    postflop_hands = Column(BigInteger, nullable=False, server_default=text("0"))
+
+    # Action counts for aggression frequency
+    postflop_total_actions = Column(BigInteger, nullable=False, server_default=text("0"))
+    postflop_aggressive_actions = Column(BigInteger, nullable=False, server_default=text("0"))
+    postflop_passive_actions = Column(BigInteger, nullable=False, server_default=text("0"))
+
+    # Calculated percentages (stored for performance)
+    vpip_percentage = Column(Numeric(5, 2), nullable=True)
+    pfr_percentage = Column(Numeric(5, 2), nullable=True)
+    aggression_frequency = Column(Numeric(5, 2), nullable=True)
+
+    # Street-specific aggression frequencies
+    flop_af = Column(Numeric(5, 2), nullable=True)
+    turn_af = Column(Numeric(5, 2), nullable=True)
+    river_af = Column(Numeric(5, 2), nullable=True)
+
+    # Play style classification
+    play_style = Column(Text, nullable=True)
+
+    # Timestamps
+    calculated_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
+    updated_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
+
+    # Relationships
+    session = relationship('Session')
+    player = relationship('Player')
+
+    __table_args__ = (
+        UniqueConstraint('session_id', 'player_id', name='uq_player_statistics_cache'),
+        Index('ix_player_statistics_session', 'session_id'),
+        Index('ix_player_statistics_player', 'player_id'),
+        Index('ix_player_statistics_vpip', 'vpip_percentage'),
+        Index('ix_player_statistics_pfr', 'pfr_percentage'),
+        Index('ix_player_statistics_style', 'play_style'),
+    )
+
+
+# ==========================================================
+# Game Statistics Configuration Table
+# ----------------------------------------------------------
+# Stores configurable thresholds for poker statistics
+# classification based on game type (tournament, cash, etc.)
+#
+# Allows each game to have customized classification thresholds
+# that make sense for that specific game type and player pool.
+# ==========================================================
+
+class GameStatisticsConfig(Base):
+    __tablename__ = 'game_statistics_config'
+
+    id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
+    game_id = Column(UUID(as_uuid=True), ForeignKey('games.id', ondelete='CASCADE'), nullable=False, unique=True)
+
+    # Configuration type
+    config_name = Column(String(50), nullable=False, server_default="'friendlyHighStack'")
+
+    # VPIP thresholds (percentages)
+    vpip_tight_threshold = Column(BigInteger, nullable=False, server_default="45")      # Below this = tight
+    vpip_normal_threshold = Column(BigInteger, nullable=False, server_default="55")     # Below this = normal
+    vpip_loose_threshold = Column(BigInteger, nullable=False, server_default="65")      # Below this = loose, above = very loose
+
+    # PFR thresholds (percentages)
+    pfr_passive_threshold = Column(BigInteger, nullable=False, server_default="10")     # Below this = passive
+    pfr_normal_threshold = Column(BigInteger, nullable=False, server_default="20")      # Below this = normal
+    pfr_aggressive_threshold = Column(BigInteger, nullable=False, server_default="30")  # Above this = very aggressive
+
+    # AF thresholds (percentages)
+    af_passive_threshold = Column(BigInteger, nullable=False, server_default="30")      # Below this = passive
+    af_aggressive_threshold = Column(BigInteger, nullable=False, server_default="45")   # Above this = aggressive
+
+    # Timestamps
+    created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
+    updated_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
+
+    # Relationships
+    game = relationship("Game", back_populates="statistics_config")
+
+    __table_args__ = (
+        Index('ix_game_statistics_config_game_id', 'game_id'),
+        Index('ix_game_statistics_config_type', 'config_name'),
     )

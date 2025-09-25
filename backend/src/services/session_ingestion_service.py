@@ -422,6 +422,19 @@ def ingest_session(
         from services.game_summary_service import invalidate_game_cache
         invalidate_game_cache(public_code)
 
+        # ----- Step 5: Process poker statistics if this is a PokerNow session -----
+        statistics_processed = False
+        try:
+            if session_type == "pokernow" and ledger_csv_content:
+                from services.poker_statistics_service import PokerStatisticsProcessor
+                processor = PokerStatisticsProcessor(db)
+                stats_result = processor.process_session_statistics(sess_id)
+                statistics_processed = True
+                log.info(f"Processed statistics for session {sess_id}: {stats_result}")
+        except Exception as e:
+            # Don't fail the entire ingestion if statistics processing fails
+            log.warning(f"Failed to process statistics for session {sess_id}: {e}")
+
         # ----- Step 6: return -----
         return {
             "ok": True,
@@ -430,4 +443,5 @@ def ingest_session(
                 "game_number": game_number,
             },
             "affected_player_summaries": affected_rows,
+            "statistics_processed": statistics_processed,
         }

@@ -2,6 +2,9 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useState } from "react";
 import { Heading, Text } from "../../../shared/ui/typography";
 import { useHandAnalytics } from "../api/getHandAnalytics";
+import { useAdaptivePokerStatistics } from "../api/getPokerStatistics";
+import PlayingStylesReference from "../components/PlayingStylesReference";
+import PokerStatisticsTable from "../components/PokerStatisticsTable";
 
 interface HandAnalyticsPageProps {
   publicCode: string;
@@ -9,6 +12,7 @@ interface HandAnalyticsPageProps {
 
 export default function HandAnalyticsPage({ publicCode }: HandAnalyticsPageProps) {
   const { data, isLoading, error } = useHandAnalytics(publicCode);
+  const { data: statsData, isLoading: statsLoading } = useAdaptivePokerStatistics(publicCode);
   const [currentHandIndex, setCurrentHandIndex] = useState<Record<string, number>>({});
 
   return (
@@ -23,6 +27,26 @@ export default function HandAnalyticsPage({ publicCode }: HandAnalyticsPageProps
             <Text variant="body" color="muted" className="mt-1">
               Hand data available for {data.total_sessions_with_hand_data} of {data.total_sessions_in_game} sessions
             </Text>
+          )}
+        </div>
+
+        {/* Poker Statistics Section */}
+        <div className="mb-8">
+          {statsLoading ? (
+            <div className="bg-card text-card-foreground rounded-lg border border-border shadow-sm p-6">
+              <Text variant="body" color="muted">Loading poker statistics...</Text>
+            </div>
+          ) : statsData && statsData.players.length > 0 ? (
+            <div className="space-y-6">
+              <PokerStatisticsTable players={statsData.players} />
+              <PlayingStylesReference />
+            </div>
+          ) : (
+            <div className="bg-card text-card-foreground rounded-lg border border-border shadow-sm p-6">
+              <Text variant="body" color="muted">
+                No poker statistics available. Statistics are calculated from sessions with detailed hand logs.
+              </Text>
+            </div>
           )}
         </div>
 

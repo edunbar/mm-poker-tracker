@@ -44,6 +44,8 @@ from services.payment_service import PaymentService
 from services.audit_middleware import audit_context
 from services.hand_log_service import HandLogService
 from services.hand_analytics_service import get_hand_analytics
+from services.poker_statistics_service import PokerStatisticsProcessor
+from services.game_statistics_config_service import GameStatisticsConfigService
 from decimal import Decimal
 from datetime import timezone, datetime
 from sqlalchemy import func
@@ -1848,3 +1850,527 @@ def get_session_hand_analytics(public_code: str):
     except Exception as e:
         logging.error(f"Error fetching hand analytics: {e}")
         return jsonify({"error": str(e)}), 500
+
+
+# ==========================================================
+# Poker Statistics Endpoints
+# ==========================================================
+
+@game_bp.route('/<public_code>/sessions/<session_id>/statistics', methods=['GET'])
+def get_session_statistics(public_code: str, session_id: str):
+    """
+    Get poker statistics (VPIP, PFR, AF) for all players in a session.
+
+    Returns:
+    {
+        "players": [
+            {
+                "playerId": "uuid",
+                "playerName": "thomo!",
+                "handsPlayed": 245,
+                "vpip": 28.5,
+                "pfr": 22.0,
+                "aggressionFrequency": 65.3,
+                "playStyle": "TAG",
+                "flopAF": 70.2,
+                "turnAF": 60.1,
+                "riverAF": 65.8
+            }
+        ]
+    }
+    """
+    try:
+        with SessionLocal() as db:
+            # Validate public code
+            game = db.query(Game).filter(Game.public_code == public_code.upper()).first()
+            if not game:
+                return jsonify({"error": "Game not found"}), 404
+
+            # Validate session belongs to game
+            session = db.query(SessionModel).filter(
+                SessionModel.id == session_id,
+                SessionModel.game_id == game.id
+            ).first()
+
+            if not session:
+                return jsonify({"error": "Session not found"}), 404
+
+            # Get statistics
+            processor = PokerStatisticsProcessor(db)
+            players = processor.get_session_statistics(session_id)
+
+            return jsonify({
+                "session_id": session_id,
+                "session_name": session.session_name,
+                "game_number": session.game_number,
+                "players": players
+            }), 200
+
+    except Exception as e:
+        logging.error(f"Error fetching session statistics: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@game_bp.route('/<public_code>/sessions/<session_id>/statistics/calculate', methods=['POST'])
+def calculate_session_statistics(public_code: str, session_id: str):
+    """
+    Calculate/recalculate poker statistics for a session.
+    Requires admin_code for authorization.
+
+    Headers:
+    X-Admin-Code: <admin_code>
+
+    Returns:
+    {
+        "session_id": "uuid",
+        "hands_processed": 150,
+        "message": "Statistics calculated successfully"
+    }
+    """
+    try:
+        # Check admin authorization
+        admin_code = request.headers.get('X-Admin-Code')
+        if not admin_code:
+            return jsonify({"error": "X-Admin-Code header required"}), 401
+
+        with SessionLocal() as db:
+            # Validate admin code
+            game = db.query(Game).filter(Game.admin_code == admin_code).first()
+            if not game:
+                return jsonify({"error": "Invalid admin code"}), 401
+
+            # Validate public code matches
+            if game.public_code.upper() != public_code.upper():
+                return jsonify({"error": "Public code mismatch"}), 400
+
+            # Validate session belongs to game
+            session = db.query(SessionModel).filter(
+                SessionModel.id == session_id,
+                SessionModel.game_id == game.id
+            ).first()
+
+            if not session:
+                return jsonify({"error": "Session not found"}), 404
+
+            # Process statistics
+            processor = PokerStatisticsProcessor(db)
+            result = processor.process_session_statistics(session_id)
+
+            # Create audit log
+            with audit_context(
+                operation_type="CALCULATE_STATISTICS",
+                game_id=str(game.id),
+                actor_kind="admin_code",
+                actor_id=admin_code[:8] + "…"
+            ):
+                db.commit()
+
+            return jsonify(result), 200
+
+    except Exception as e:
+        db.rollback() if 'db' in locals() else None
+        logging.error(f"Error calculating session statistics: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@game_bp.route('/<public_code>/players/<player_id>/statistics', methods=['GET'])
+def get_player_statistics_across_sessions(public_code: str, player_id: str):
+    """
+    Get player statistics across all sessions in a game.
+
+    Returns:
+    {
+        "player": {
+            "playerId": "uuid",
+            "playerName": "thomo!",
+            "overall": {
+                "totalHands": 850,
+                "vpip": 27.2,
+                "pfr": 21.5,
+                "aggressionFrequency": 66.8,
+                "playStyle": "TAG"
+            },
+            "bySession": [
+                {
+                    "sessionId": "uuid",
+                    "gameNumber": 5,
+                    "handsPlayed": 245,
+                    "vpip": 28.5,
+                    "pfr": 22.0,
+                    "aggressionFrequency": 65.3,
+                    "playStyle": "TAG"
+                }
+            ]
+        }
+    }
+    """
+    try:
+        with SessionLocal() as db:
+            # Validate public code
+            game = db.query(Game).filter(Game.public_code == public_code.upper()).first()
+            if not game:
+                return jsonify({"error": "Game not found"}), 404
+
+            # Validate player exists
+            player = db.query(Player).filter(Player.id == player_id).first()
+            if not player:
+                return jsonify({"error": "Player not found"}), 404
+
+            # Get all session statistics for this player in this game
+            from db.models import PlayerStatisticsCache
+            stats = (db.query(PlayerStatisticsCache, SessionModel.game_number, SessionModel.session_name)
+                    .join(SessionModel, PlayerStatisticsCache.session_id == SessionModel.id)
+                    .filter(
+                        PlayerStatisticsCache.player_id == player_id,
+                        SessionModel.game_id == game.id
+                    )
+                    .order_by(SessionModel.game_number)
+                    .all())
+
+            if not stats:
+                return jsonify({"error": "No statistics found for this player in this game"}), 404
+
+            # Calculate overall statistics
+            total_hands = sum(stat.hands_dealt for stat, _, _ in stats)
+            total_vpip_hands = sum(stat.vpip_hands for stat, _, _ in stats)
+            total_pfr_hands = sum(stat.pfr_hands for stat, _, _ in stats)
+            total_postflop_aggressive = sum(stat.postflop_aggressive_actions for stat, _, _ in stats)
+            total_postflop_actions = sum(stat.postflop_total_actions for stat, _, _ in stats)
+
+            overall_vpip = (total_vpip_hands / total_hands * 100) if total_hands > 0 else 0
+            overall_pfr = (total_pfr_hands / total_hands * 100) if total_hands > 0 else 0
+            overall_af = (total_postflop_aggressive / total_postflop_actions * 100) if total_postflop_actions > 0 else 0
+
+            # Classify overall play style
+            processor = PokerStatisticsProcessor(db)
+            overall_style = processor._classify_play_style(overall_vpip, overall_pfr, overall_af)
+
+            # Build by-session data
+            by_session = []
+            for stat, game_number, session_name in stats:
+                by_session.append({
+                    "sessionId": str(stat.session_id),
+                    "gameNumber": game_number,
+                    "sessionName": session_name,
+                    "handsPlayed": stat.hands_dealt,
+                    "vpip": float(stat.vpip_percentage) if stat.vpip_percentage else 0,
+                    "pfr": float(stat.pfr_percentage) if stat.pfr_percentage else 0,
+                    "aggressionFrequency": float(stat.aggression_frequency) if stat.aggression_frequency else 0,
+                    "playStyle": stat.play_style or 'Unknown'
+                })
+
+            return jsonify({
+                "player": {
+                    "playerId": str(player.id),
+                    "playerName": player.display_name,
+                    "overall": {
+                        "totalHands": total_hands,
+                        "vpip": round(overall_vpip, 2),
+                        "pfr": round(overall_pfr, 2),
+                        "aggressionFrequency": round(overall_af, 2),
+                        "playStyle": overall_style or 'Unknown'
+                    },
+                    "bySession": by_session
+                }
+            }), 200
+
+    except Exception as e:
+        logging.error(f"Error fetching player statistics: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@game_bp.route('/<public_code>/statistics', methods=['GET'])
+def get_game_statistics(public_code: str):
+    """
+    Get aggregated poker statistics for all players across all sessions in a game.
+    """
+    db = SessionLocal()
+
+    try:
+        # Get game by public code
+        game = db.execute(
+            text("SELECT id FROM games WHERE public_code = :public_code"),
+            {"public_code": public_code}
+        ).fetchone()
+
+        if not game:
+            return jsonify({"error": "Game not found"}), 404
+
+        game_id = game[0]
+
+        # Get all sessions with poker statistics for this game
+        from db.models import PlayerStatisticsCache, Player, Session
+
+        # Query to get aggregated statistics across all sessions
+        stats_query = (
+            db.query(
+                PlayerStatisticsCache.player_id,
+                Player.display_name,
+                func.sum(PlayerStatisticsCache.hands_dealt).label('total_hands'),
+                func.sum(PlayerStatisticsCache.vpip_hands).label('total_vpip'),
+                func.sum(PlayerStatisticsCache.pfr_hands).label('total_pfr'),
+                func.sum(PlayerStatisticsCache.postflop_aggressive_actions).label('total_aggressive'),
+                func.sum(PlayerStatisticsCache.postflop_passive_actions).label('total_passive'),
+                # For street-specific AF, we'll calculate weighted averages from stored percentages
+                func.avg(PlayerStatisticsCache.flop_af).label('avg_flop_af'),
+                func.avg(PlayerStatisticsCache.turn_af).label('avg_turn_af'),
+                func.avg(PlayerStatisticsCache.river_af).label('avg_river_af'),
+            )
+            .join(Player, PlayerStatisticsCache.player_id == Player.id)
+            .join(Session, PlayerStatisticsCache.session_id == Session.id)
+            .filter(Session.game_id == game_id)
+            .group_by(PlayerStatisticsCache.player_id, Player.display_name)
+            .having(func.sum(PlayerStatisticsCache.hands_dealt) > 0)
+            .all()
+        )
+
+        if not stats_query:
+            return jsonify([]), 200
+
+        result = []
+        for stat in stats_query:
+            # Calculate percentages
+            vpip_pct = (stat.total_vpip / stat.total_hands * 100) if stat.total_hands > 0 else 0
+            pfr_pct = (stat.total_pfr / stat.total_hands * 100) if stat.total_hands > 0 else 0
+
+            total_postflop = stat.total_aggressive + stat.total_passive
+            af_pct = (stat.total_aggressive / total_postflop * 100) if total_postflop > 0 else 0
+
+            flop_af = float(stat.avg_flop_af) if stat.avg_flop_af else 0
+            turn_af = float(stat.avg_turn_af) if stat.avg_turn_af else 0
+            river_af = float(stat.avg_river_af) if stat.avg_river_af else 0
+
+            # Classify play style
+            is_tight = vpip_pct < 25
+            is_loose = vpip_pct > 35
+            is_aggressive = pfr_pct > 20 and af_pct > 60
+            is_passive = pfr_pct < 15 and af_pct < 40
+
+            if is_tight and is_aggressive:
+                play_style = 'TAG'
+            elif is_loose and is_aggressive:
+                play_style = 'LAG'
+            elif is_tight and is_passive:
+                play_style = 'TP'
+            elif is_loose and is_passive:
+                play_style = 'LP'
+            else:
+                play_style = 'Unknown'
+
+            result.append({
+                'playerId': str(stat.player_id),
+                'playerName': stat.display_name,
+                'handsPlayed': stat.total_hands,
+                'vpip': round(vpip_pct, 1),
+                'pfr': round(pfr_pct, 1),
+                'aggressionFrequency': round(af_pct, 1),
+                'playStyle': play_style,
+                'flopAF': round(flop_af, 1),
+                'turnAF': round(turn_af, 1),
+                'riverAF': round(river_af, 1),
+            })
+
+        # Sort by hands played (descending)
+        result.sort(key=lambda x: x['handsPlayed'], reverse=True)
+
+        return jsonify(result)
+
+    except Exception as e:
+        logging.error(f"Error fetching game statistics: {e}")
+        return jsonify({"error": str(e)}), 500
+    finally:
+        db.close()
+
+
+@game_bp.route('/<public_code>/statistics-config', methods=['GET'])
+def get_game_statistics_config(public_code: str):
+    """
+    Get current statistics configuration for a game.
+    """
+    db = SessionLocal()
+
+    try:
+        # Get game by public code
+        game = db.execute(
+            text("SELECT id FROM games WHERE public_code = :public_code"),
+            {"public_code": public_code}
+        ).fetchone()
+
+        if not game:
+            return jsonify({"error": "Game not found"}), 404
+
+        game_id = game[0]
+        config_service = GameStatisticsConfigService(db)
+
+        # Get or create configuration
+        game_config = config_service.get_or_create_game_config(game_id)
+        config_description = config_service.get_config_description(game_config)
+
+        return jsonify({
+            "gameId": str(game_id),
+            "publicCode": public_code,
+            "currentConfig": config_description,
+            "availableTypes": config_service.get_available_game_types()
+        })
+
+    except Exception as e:
+        logging.error(f"Error fetching game statistics config: {e}")
+        return jsonify({"error": str(e)}), 500
+    finally:
+        db.close()
+
+
+@game_bp.route('/<public_code>/statistics-config', methods=['PUT'])
+def update_game_statistics_config(public_code: str):
+    """
+    Update statistics configuration for a game (admin only).
+    """
+    db = SessionLocal()
+
+    try:
+        # Check admin authorization
+        admin_code = request.headers.get('X-Admin-Code')
+        if not admin_code:
+            return jsonify({"error": "Admin code required"}), 401
+
+        # Get game and verify admin code
+        game = db.execute(
+            text("SELECT id, admin_code FROM games WHERE public_code = :public_code"),
+            {"public_code": public_code}
+        ).fetchone()
+
+        if not game or game[1] != admin_code:
+            return jsonify({"error": "Invalid admin code or game not found"}), 403
+
+        game_id = game[0]
+        data = request.get_json()
+
+        if not data or 'configType' not in data:
+            return jsonify({"error": "configType is required"}), 400
+
+        config_type = data['configType']
+        custom_thresholds = data.get('customThresholds')
+
+        # Update configuration
+        config_service = GameStatisticsConfigService(db)
+        updated_config = config_service.update_game_config(game_id, config_type, custom_thresholds)
+        config_description = config_service.get_config_description(updated_config)
+
+        return jsonify({
+            "message": "Statistics configuration updated successfully",
+            "gameId": str(game_id),
+            "publicCode": public_code,
+            "newConfig": config_description
+        })
+
+    except ValueError as e:
+        return jsonify({"error": f"Invalid configuration: {str(e)}"}), 400
+    except Exception as e:
+        logging.error(f"Error updating game statistics config: {e}")
+        return jsonify({"error": str(e)}), 500
+    finally:
+        db.close()
+
+
+@game_bp.route('/<public_code>/statistics/adaptive', methods=['GET'])
+def get_adaptive_game_statistics(public_code: str):
+    """
+    Get aggregated poker statistics with adaptive classification based on game configuration.
+    """
+    db = SessionLocal()
+
+    try:
+        # Get game by public code
+        game = db.execute(
+            text("SELECT id FROM games WHERE public_code = :public_code"),
+            {"public_code": public_code}
+        ).fetchone()
+
+        if not game:
+            return jsonify({"error": "Game not found"}), 404
+
+        game_id = game[0]
+
+        # Get game configuration
+        config_service = GameStatisticsConfigService(db)
+        game_config = config_service.get_or_create_game_config(game_id)
+
+        # Get all sessions with poker statistics for this game
+        from db.models import PlayerStatisticsCache, Player, Session
+
+        # Query to get aggregated statistics across all sessions
+        stats_query = (
+            db.query(
+                PlayerStatisticsCache.player_id,
+                Player.display_name,
+                func.sum(PlayerStatisticsCache.hands_dealt).label('total_hands'),
+                func.sum(PlayerStatisticsCache.vpip_hands).label('total_vpip'),
+                func.sum(PlayerStatisticsCache.pfr_hands).label('total_pfr'),
+                func.sum(PlayerStatisticsCache.postflop_aggressive_actions).label('total_aggressive'),
+                func.sum(PlayerStatisticsCache.postflop_passive_actions).label('total_passive'),
+                # For street-specific AF, we'll calculate weighted averages from stored percentages
+                func.avg(PlayerStatisticsCache.flop_af).label('avg_flop_af'),
+                func.avg(PlayerStatisticsCache.turn_af).label('avg_turn_af'),
+                func.avg(PlayerStatisticsCache.river_af).label('avg_river_af'),
+            )
+            .join(Player, PlayerStatisticsCache.player_id == Player.id)
+            .join(Session, PlayerStatisticsCache.session_id == Session.id)
+            .filter(Session.game_id == game_id)
+            .group_by(PlayerStatisticsCache.player_id, Player.display_name)
+            .having(func.sum(PlayerStatisticsCache.hands_dealt) > 0)
+            .all()
+        )
+
+        if not stats_query:
+            return jsonify({
+                "config": config_service.get_config_description(game_config),
+                "players": []
+            }), 200
+
+        result = []
+        for stat in stats_query:
+            # Calculate percentages
+            vpip_pct = (stat.total_vpip / stat.total_hands * 100) if stat.total_hands > 0 else 0
+            pfr_pct = (stat.total_pfr / stat.total_hands * 100) if stat.total_hands > 0 else 0
+
+            total_postflop = stat.total_aggressive + stat.total_passive
+            af_pct = (stat.total_aggressive / total_postflop * 100) if total_postflop > 0 else 0
+
+            flop_af = float(stat.avg_flop_af) if stat.avg_flop_af else 0
+            turn_af = float(stat.avg_turn_af) if stat.avg_turn_af else 0
+            river_af = float(stat.avg_river_af) if stat.avg_river_af else 0
+
+            # Get adaptive classification
+            classification = config_service.classify_player(vpip_pct, pfr_pct, af_pct, game_config)
+
+            result.append({
+                'playerId': str(stat.player_id),
+                'playerName': stat.display_name,
+                'handsPlayed': stat.total_hands,
+                'vpip': round(vpip_pct, 1),
+                'pfr': round(pfr_pct, 1),
+                'aggressionFrequency': round(af_pct, 1),
+                'playStyle': classification.style,
+                'styleColor': classification.style_color,
+                'styleDescription': classification.description,
+                'vpipCategory': classification.vpip_category,
+                'pfrCategory': classification.pfr_category,
+                'afCategory': classification.af_category,
+                'flopAF': round(flop_af, 1),
+                'turnAF': round(turn_af, 1),
+                'riverAF': round(river_af, 1),
+            })
+
+        # Sort by hands played (descending)
+        result.sort(key=lambda x: x['handsPlayed'], reverse=True)
+
+        return jsonify({
+            "config": config_service.get_config_description(game_config),
+            "players": result
+        })
+
+    except Exception as e:
+        logging.error(f"Error fetching adaptive game statistics: {e}")
+        return jsonify({"error": str(e)}), 500
+    finally:
+        db.close()

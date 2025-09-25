@@ -10,6 +10,7 @@ import uuid
 import json
 from datetime import datetime
 from contextlib import contextmanager
+from decimal import Decimal
 
 logger = logging.getLogger(__name__)
 
@@ -90,6 +91,8 @@ def _serialize_model(instance) -> Dict[str, Any]:
                     data[column.name] = value.isoformat()
                 elif isinstance(value, uuid.UUID):
                     data[column.name] = str(value)
+                elif isinstance(value, Decimal):  # Decimal types
+                    data[column.name] = float(value)
                 elif isinstance(value, list):  # Arrays
                     data[column.name] = value
                 else:

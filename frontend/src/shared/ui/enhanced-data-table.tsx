@@ -14,7 +14,7 @@ import {
 // Types for the enhanced data table
 export interface Column<T> {
   id: string;
-  header: string;
+  header: string | React.ReactNode;
   accessor: keyof T | ((item: T) => React.ReactNode);
   sortable?: boolean;
   width?: string;
@@ -180,7 +180,7 @@ export function EnhancedDataTable<T>({
                       column.width && `w-[${column.width}]`,
                       column.align === 'center' && 'text-center',
                       column.align === 'right' && 'text-right',
-                      column.sortable && 'cursor-pointer select-none group hover:bg-muted/50'
+                      column.sortable && 'cursor-pointer select-none group'
                     )}
                     style={column.width ? { width: column.width } : undefined}
                     onClick={() => column.sortable && handleSort(column.id)}
@@ -198,7 +198,7 @@ export function EnhancedDataTable<T>({
                 <TableRow
                   key={index}
                   className={cn(
-                    "transition-colors hover:bg-muted/50",
+                    "transition-colors",
                     selectedRows.has(index) && "bg-accent/50",
                     onRowClick && "cursor-pointer",
                     striped && index % 2 === 1 && "bg-muted/25"
@@ -256,7 +256,7 @@ export function EnhancedDataTable<T>({
 // Utility function to create column definitions
 export function createColumn<T>(
   id: string,
-  header: string,
+  header: string | React.ReactNode,
   accessor: keyof T | ((item: T) => React.ReactNode),
   options?: Partial<Column<T>>
 ): Column<T> {
