@@ -41,7 +41,7 @@ export function HelpTooltip({ content, className = '', position = 'above' }: Hel
       };
     }
     return undefined;
-  }, [isVisible, position, updatePosition]);
+  }, [isVisible, updatePosition]);
 
   const tooltipElement = isVisible && (
     <div

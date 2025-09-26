@@ -2,11 +2,10 @@ import React, { useMemo } from "react";
 import { Badge } from "../../../shared/ui/badge";
 import { EnhancedDataTable, createColumn } from "../../../shared/ui/enhanced-data-table";
 import { HelpTooltip } from "../../../shared/ui/help-tooltip";
-import { PlayerStatistic, GameStatisticsConfig } from "../api/getPokerStatistics";
+import { PlayerStatistic } from "../api/getPokerStatistics";
 
 interface PokerStatisticsTableProps {
   players: PlayerStatistic[];
-  config?: GameStatisticsConfig;
   className?: string;
 }
 
@@ -124,12 +123,7 @@ const PokerStatisticsTable: React.FC<PokerStatisticsTableProps> = ({
       className: 'font-medium',
       width: '100px',
     }),
-    createColumn('vpip', (
-      <div className="flex items-center justify-center gap-1">
-        <span>VPIP</span>
-        <HelpTooltip content="Voluntarily Put money In Pot: Percentage of hands where player voluntarily committed chips pre-flop (excludes forced blinds)" />
-      </div>
-    ), (row: PlayerStatistic) => (
+    createColumn('vpip', 'VPIP', (row: PlayerStatistic) => (
       <div className="text-center">
         <span className="font-sans font-medium">
           {formatPercentage(row.vpip)}
@@ -141,12 +135,7 @@ const PokerStatisticsTable: React.FC<PokerStatisticsTableProps> = ({
       className: 'text-center',
       width: '120px',
     }),
-    createColumn('pfr', (
-      <div className="flex items-center justify-center gap-1">
-        <span>PFR</span>
-        <HelpTooltip content="Pre-Flop Raise: Percentage of hands where player raised or re-raised pre-flop" />
-      </div>
-    ), (row: PlayerStatistic) => (
+    createColumn('pfr', 'PFR', (row: PlayerStatistic) => (
       <div className="text-center">
         <span className="font-sans font-medium">
           {formatPercentage(row.pfr)}
@@ -158,12 +147,7 @@ const PokerStatisticsTable: React.FC<PokerStatisticsTableProps> = ({
       className: 'text-center',
       width: '120px',
     }),
-    createColumn('aggressionFrequency', (
-      <div className="flex items-center justify-center gap-1">
-        <span>AF</span>
-        <HelpTooltip content="Aggression Frequency: Post-flop aggression ratio. Formula: (Bets + Raises) / (Bets + Raises + Calls) × 100" />
-      </div>
-    ), (row: PlayerStatistic) => (
+    createColumn('aggressionFrequency', 'AF', (row: PlayerStatistic) => (
       <div className="text-center">
         <span className="font-sans font-medium">
           {formatPercentage(row.aggressionFrequency)}
@@ -175,12 +159,7 @@ const PokerStatisticsTable: React.FC<PokerStatisticsTableProps> = ({
       className: 'text-center',
       width: '120px',
     }),
-    createColumn('playStyle', (
-      <div className="flex items-center justify-center gap-1">
-        <span>Style</span>
-        <HelpTooltip content="Playing style classification based on VPIP/PFR statistics" />
-      </div>
-    ), (row: PlayerStatistic) => (
+    createColumn('playStyle', 'Style', (row: PlayerStatistic) => (
       <div className="flex items-center gap-2 justify-center">
         <Badge
           variant="secondary"
@@ -199,12 +178,7 @@ const PokerStatisticsTable: React.FC<PokerStatisticsTableProps> = ({
       className: 'text-center',
       width: '220px',
     }),
-    createColumn('streetBreakdown', (
-      <div className="flex items-center justify-center gap-1">
-        <span>Street AF</span>
-        <HelpTooltip content="Aggression Frequency broken down by street: Flop (F), Turn (T), River (R)" />
-      </div>
-    ), (row: PlayerStatistic) => (
+    createColumn('streetBreakdown', 'Street AF', (row: PlayerStatistic) => (
       <div className="flex justify-center">
         <div className="text-sm space-y-1 bg-muted/30 rounded px-3 py-2">
           <div className="flex justify-between items-center">

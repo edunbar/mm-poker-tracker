@@ -3,7 +3,6 @@ import { useState } from "react";
 import { Heading, Text } from "../../../shared/ui/typography";
 import { useHandAnalytics } from "../api/getHandAnalytics";
 import { useAdaptivePokerStatistics } from "../api/getPokerStatistics";
-import PlayingStylesReference from "../components/PlayingStylesReference";
 import PokerStatisticsTable from "../components/PokerStatisticsTable";
 
 interface HandAnalyticsPageProps {
@@ -37,10 +36,7 @@ export default function HandAnalyticsPage({ publicCode }: HandAnalyticsPageProps
               <Text variant="body" color="muted">Loading poker statistics...</Text>
             </div>
           ) : statsData && statsData.players.length > 0 ? (
-            <div className="space-y-6">
-              <PokerStatisticsTable players={statsData.players} />
-              <PlayingStylesReference />
-            </div>
+            <PokerStatisticsTable players={statsData.players} />
           ) : (
             <div className="bg-card text-card-foreground rounded-lg border border-border shadow-sm p-6">
               <Text variant="body" color="muted">

@@ -52,7 +52,10 @@ const groupedStyles = playingStyles.reduce((acc: Record<string, StyleInfo[]>, st
   if (!acc[style.category]) {
     acc[style.category] = [];
   }
-  acc[style.category]!.push(style);
+  const category = acc[style.category];
+  if (category) {
+    category.push(style);
+  }
   return acc;
 }, {} as Record<string, StyleInfo[]>);
 

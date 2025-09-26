@@ -307,13 +307,13 @@ export function useTableState<T>(
     if (!sortConfig) return data;
 
     return [...data].sort((a, b) => {
-      const aValue = (a as any)[sortConfig.key];
-      const bValue = (b as any)[sortConfig.key];
+      const aValue = (a as Record<string, unknown>)[sortConfig.key];
+      const bValue = (b as Record<string, unknown>)[sortConfig.key];
 
-      if (aValue < bValue) {
+      if ((aValue as string | number) < (bValue as string | number)) {
         return sortConfig.direction === 'asc' ? -1 : 1;
       }
-      if (aValue > bValue) {
+      if ((aValue as string | number) > (bValue as string | number)) {
         return sortConfig.direction === 'asc' ? 1 : -1;
       }
       return 0;

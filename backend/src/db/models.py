@@ -457,7 +457,7 @@ class PlayerHandParticipation(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
     session_id = Column(UUID(as_uuid=True), ForeignKey('sessions.id', ondelete='CASCADE'), nullable=False)
-    player_id = Column(UUID(as_uuid=True), ForeignKey('players.id', ondelete='CASCADE'), nullable=False)
+    player_id = Column(UUID(as_uuid=True), ForeignKey('players.id', ondelete='RESTRICT'), nullable=False)
     hand_number = Column(BigInteger, nullable=False)
 
     # Hand participation flags
@@ -519,7 +519,7 @@ class PlayerStatisticsCache(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
     session_id = Column(UUID(as_uuid=True), ForeignKey('sessions.id', ondelete='CASCADE'), nullable=False)
-    player_id = Column(UUID(as_uuid=True), ForeignKey('players.id', ondelete='CASCADE'), nullable=False)
+    player_id = Column(UUID(as_uuid=True), ForeignKey('players.id', ondelete='RESTRICT'), nullable=False)
 
     # Hand counts for percentage calculations
     hands_dealt = Column(BigInteger, nullable=False, server_default=text("0"))

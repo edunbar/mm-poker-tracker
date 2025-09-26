@@ -29,6 +29,10 @@ class PokerStatisticsProcessor:
 
     def process_session_statistics(self, session_id: str) -> Dict:
         """Process all hands in a session to calculate statistics."""
+        import logging
+        logger = logging.getLogger(__name__)
+
+        logger.info(f"STATS_PROCESSOR_DEBUG: Starting process_session_statistics for {session_id}")
 
         # Get all poker events for this session, ordered by hand and sequence
         events = (self.db.query(PokerEvent)
@@ -36,7 +40,10 @@ class PokerStatisticsProcessor:
                  .order_by(PokerEvent.hand_number, PokerEvent.order_number)
                  .all())
 
+        logger.info(f"STATS_PROCESSOR_DEBUG: Found {len(events)} poker events")
+
         if not events:
+            logger.warning(f"STATS_PROCESSOR_DEBUG: No poker events found for session {session_id}")
             return {"message": "No poker events found for session"}
 
         # Group events by hand number
@@ -47,6 +54,8 @@ class PokerStatisticsProcessor:
                 hands_data[hand_num] = []
             hands_data[hand_num].append(event)
 
+        logger.info(f"STATS_PROCESSOR_DEBUG: Grouped events into {len(hands_data)} hands")
+
         # Process each hand
         processed_hands = 0
         for hand_number, hand_events in hands_data.items():
@@ -54,8 +63,25 @@ class PokerStatisticsProcessor:
                 self._process_single_hand(session_id, hand_number, hand_events)
                 processed_hands += 1
 
+        logger.info(f"STATS_PROCESSOR_DEBUG: Processed {processed_hands} hands")
+
+        # CRITICAL: Commit the PlayerHandParticipation records so they're visible for statistics calculation
+        logger.info(f"STATS_PROCESSOR_DEBUG: Committing participation records")
+        self.db.commit()
+
+        # Check participation records after hand processing
+        participation_count = self.db.query(PlayerHandParticipation).filter_by(session_id=session_id).count()
+        logger.info(f"STATS_PROCESSOR_DEBUG: After hand processing and commit, participation count: {participation_count}")
+
         # Calculate aggregated statistics
+        logger.info(f"STATS_PROCESSOR_DEBUG: About to call _calculate_session_statistics")
         self._calculate_session_statistics(session_id)
+
+        # Check cache records after statistics calculation
+        cache_count = self.db.query(PlayerStatisticsCache).filter_by(session_id=session_id).count()
+        logger.info(f"STATS_PROCESSOR_DEBUG: After statistics calculation, cache count: {cache_count}")
+
+        logger.info(f"STATS_PROCESSOR_DEBUG: Completed process_session_statistics")
 
         return {
             "session_id": session_id,
@@ -83,6 +109,19 @@ class PokerStatisticsProcessor:
         player = self.db.query(Player).filter(Player.external_id == external_id).first()
         return str(player.id) if player else None
 
+    def _get_consistent_player_id(self, event: PokerEvent) -> Optional[str]:
+        """Get a consistent player UUID from event, trying player_id first, then external_id extraction."""
+        # First try the direct player_id field
+        if event.player_id:
+            return str(event.player_id)
+
+        # Then try extracting from raw_entry and mapping to UUID
+        external_id = self._extract_player_from_raw_entry(event.raw_entry)
+        if external_id:
+            return self._get_player_id_from_external_id(external_id)
+
+        return None
+
     def _process_single_hand(self, session_id: str, hand_number: int, events: List[PokerEvent]):
         """Process a single hand to determine player actions and participation."""
 
@@ -93,12 +132,15 @@ class PokerStatisticsProcessor:
 
         # Initialize tracking for all players who act in this hand
         for event in events:
-            # Try to get player ID from event, or extract from raw entry and map to UUID
-            player_key = event.player_id
-            if not player_key:
-                external_id = self._extract_player_from_raw_entry(event.raw_entry)
-                if external_id:
-                    player_key = self._get_player_id_from_external_id(external_id)
+            # Skip non-poker administrative events
+            if not event.raw_entry or any(phrase in event.raw_entry for phrase in [
+                'requested a seat', 'approved the player', 'passed the room ownership',
+                'was changed from', 'changed the ID from', '-- starting hand'
+            ]):
+                continue
+
+            # Get consistent player ID
+            player_key = self._get_consistent_player_id(event)
 
             if player_key and player_key not in player_actions:
                 player_actions[player_key] = {
@@ -128,6 +170,13 @@ class PokerStatisticsProcessor:
 
             raw = event.raw_entry.strip()
 
+            # Skip non-poker administrative events
+            if any(phrase in raw for phrase in [
+                'requested a seat', 'approved the player', 'passed the room ownership',
+                'was changed from', 'changed the ID from', '-- starting hand'
+            ]):
+                continue
+
             # Detect street changes
             if any(marker in raw for marker in self.street_markers):
                 if 'Flop:' in raw:
@@ -138,12 +187,8 @@ class PokerStatisticsProcessor:
                     current_street = 'river'
                 continue
 
-            # Parse player actions - get player key the same way as initialization
-            player_key = event.player_id
-            if not player_key:
-                external_id = self._extract_player_from_raw_entry(event.raw_entry)
-                if external_id:
-                    player_key = self._get_player_id_from_external_id(external_id)
+            # Parse player actions - get consistent player key
+            player_key = self._get_consistent_player_id(event)
 
             if player_key:
                 self._parse_player_action(event, current_street, player_actions, player_key)
@@ -151,8 +196,12 @@ class PokerStatisticsProcessor:
         # Determine which players were dealt cards (had opportunity to act)
         self._determine_dealt_players(player_actions)
 
-        # Save hand participation data
+        # Save hand participation data - only for players who actually participated
         for player_id, actions in player_actions.items():
+            # Only create participation records for players who were actually dealt cards
+            if not actions['was_dealt_cards']:
+                continue
+
             participation = PlayerHandParticipation(
                 session_id=session_id,
                 player_id=player_id,
@@ -260,15 +309,44 @@ class PokerStatisticsProcessor:
 
     def _calculate_session_statistics(self, session_id: str):
         """Calculate and cache aggregated statistics for the session."""
+        import logging
+        logger = logging.getLogger(__name__)
 
-        # Get all players who participated in this session
-        participants = (self.db.query(PlayerHandParticipation.player_id)
-                       .filter(PlayerHandParticipation.session_id == session_id)
-                       .distinct()
-                       .all())
+        logger.info(f"STATS_CALC_DEBUG: Starting _calculate_session_statistics for {session_id}")
 
-        for (player_id,) in participants:
+        # Get only players who are in the actual game ledger (SessionPlayerSummary)
+        # This filters out phantom players created from misidentified poker events
+        from db.models import SessionPlayerSummary
+
+        logger.info(f"STATS_CALC_DEBUG: About to query ledger participants")
+
+        ledger_participants = (self.db.query(PlayerHandParticipation.player_id)
+                              .filter(PlayerHandParticipation.session_id == session_id)
+                              .join(SessionPlayerSummary,
+                                   (SessionPlayerSummary.session_id == session_id) &
+                                   (SessionPlayerSummary.player_id == PlayerHandParticipation.player_id))
+                              .distinct()
+                              .all())
+
+        logger.info(f"STATS_CALC_DEBUG: Found {len(ledger_participants)} ledger participants")
+
+        if not ledger_participants:
+            logger.warning(f"STATS_CALC_DEBUG: No ledger participants found - checking data separately")
+
+            # Debug: check participation and ledger separately
+            participation_players = self.db.query(PlayerHandParticipation.player_id).filter_by(session_id=session_id).distinct().all()
+            ledger_players = self.db.query(SessionPlayerSummary.player_id).filter_by(session_id=session_id).all()
+
+            logger.info(f"STATS_CALC_DEBUG: Participation players: {len(participation_players)}")
+            logger.info(f"STATS_CALC_DEBUG: Ledger players: {len(ledger_players)}")
+
+            return
+
+        for (player_id,) in ledger_participants:
+            logger.info(f"STATS_CALC_DEBUG: Processing player {player_id}")
             self._calculate_player_session_stats(session_id, player_id)
+
+        logger.info(f"STATS_CALC_DEBUG: Completed _calculate_session_statistics")
 
     def _calculate_player_session_stats(self, session_id: str, player_id: str):
         """Calculate statistics for a specific player in a session."""

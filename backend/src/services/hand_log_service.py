@@ -141,9 +141,50 @@ class HandLogService:
 
         db.commit()
 
+        # Process poker statistics after successfully creating events
+        statistics_processed = False
+        logger.info(f"STATS_DEBUG: Starting statistics processing for session {session_id}")
+        logger.info(f"STATS_DEBUG: Events created in this import: {events_created}")
+
+        try:
+            from services.poker_statistics_service import PokerStatisticsProcessor
+            logger.info(f"STATS_DEBUG: Created PokerStatisticsProcessor")
+
+            processor = PokerStatisticsProcessor(db)
+            logger.info(f"STATS_DEBUG: About to call process_session_statistics")
+
+            stats_result = processor.process_session_statistics(session_id)
+            logger.info(f"STATS_DEBUG: Statistics processing returned: {stats_result}")
+
+            # Check if participation records were created
+            from db.models import PlayerHandParticipation, PlayerStatisticsCache
+            participation_count = db.query(PlayerHandParticipation).filter_by(session_id=session_id).count()
+            cache_count = db.query(PlayerStatisticsCache).filter_by(session_id=session_id).count()
+            logger.info(f"STATS_DEBUG: Before commit - Participation: {participation_count}, Cache: {cache_count}")
+
+            db.commit()  # Commit the statistics processing results
+            logger.info(f"STATS_DEBUG: Committed statistics processing results")
+
+            # Check again after commit
+            participation_count = db.query(PlayerHandParticipation).filter_by(session_id=session_id).count()
+            cache_count = db.query(PlayerStatisticsCache).filter_by(session_id=session_id).count()
+            logger.info(f"STATS_DEBUG: After commit - Participation: {participation_count}, Cache: {cache_count}")
+
+            statistics_processed = True
+            logger.info(f"Processed statistics for session {session_id}: {stats_result}")
+
+        except Exception as e:
+            # Don't fail the entire import if statistics processing fails
+            logger.error(f"STATS_DEBUG: Exception during statistics processing: {e}")
+            import traceback
+            logger.error(f"STATS_DEBUG: Traceback: {traceback.format_exc()}")
+            logger.warning(f"Failed to process statistics for session {session_id}: {e}")
+            db.rollback()  # Rollback any partial statistics processing
+
         return {
             'status': 'success',
             'events_created': events_created,
             'hands_created': hands_created,
-            'total_hands': metadata['total_hands']
+            'total_hands': metadata['total_hands'],
+            'statistics_processed': statistics_processed
         }
