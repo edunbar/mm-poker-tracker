@@ -223,15 +223,11 @@ def _upsert_db_for_session(
             # Multiple players with same display name - pick the one with external_id if available
             player = next((p for p in players if p.external_id), players[0])
         
-        # SECOND: Only if no display_name match found, try external_id
+        # SECOND: Only if no display_name match found, try external_id globally
         if not player and ext_pid:
             player = db.execute(
                 select(Player)
-                .join(GamePlayer, Player.id == GamePlayer.player_id)
-                .where(
-                    GamePlayer.game_id == game.id,
-                    Player.external_id == ext_pid
-                )
+                .where(Player.external_id == ext_pid)
             ).scalar_one_or_none()
         if not player:
             player = Player(display_name=display_name, external_id=ext_pid)
@@ -323,14 +319,14 @@ def ingest_session(
       4) Compute next game number from database
       5) Commit DB; write audit; return result
     """
-    # ----- Step 0: normalize inputs -----
-    players = _players_dict_to_list(game_data.get("playersInfos", {}))
-    if not players:
-        raise ValueError("No players found in payload")
-
-    # ----- Step 1: DB transaction (pending) -----
+    # ----- Step 0: validate game first (404 takes precedence over 400) -----
     with SessionLocal() as db:
         game = _require_admin_for_game(db, public_code, admin_code)
+
+        # ----- Step 1: normalize inputs -----
+        players = _players_dict_to_list(game_data.get("playersInfos", {}))
+        if not players:
+            raise ValueError("No players found in payload")
 
         # Get validated name mappings but don't require them
         id_to_name = _fetch_name_map(db)
@@ -437,11 +433,11 @@ def ingest_session(
 
         # ----- Step 6: return -----
         return {
-            "ok": True,
-            "session_id": sess_id,
+            "success": True,
+            "session_id": session_id,  # Return the external session_id passed in, not the internal DB UUID
             "ledger": {
                 "game_number": game_number,
             },
-            "affected_player_summaries": affected_rows,
+            "players_processed": affected_rows,
             "statistics_processed": statistics_processed,
         }

@@ -244,14 +244,12 @@ export default function LedgerAnalysisPage() {
   };
 
   const fetchPlayerDebugData = async () => {
-    if (!hasAdminSession || !publicCode) return;
-    
-    try {
-      const response = await axios.get(`${API_BASE_URL}/api/games/${publicCode}/players/verification-debug`);
-      setPlayerDebugData(response.data);
-    } catch (error) {
-      setPlayerDebugData({ error: 'Failed to load debug data' });
-    }
+    // Player verification debug endpoint removed - use player merge instead
+    setPlayerDebugData({
+      duplicate_display_names: [],
+      external_id_conflicts: [],
+      message: 'Player verification removed - use Merge Players feature instead'
+    });
   };
 
   // Check if there are any player debug issues to display

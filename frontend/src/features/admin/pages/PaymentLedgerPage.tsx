@@ -162,7 +162,7 @@ export default function PaymentLedgerPage() {
         reference_id: recordForm.reference_id || null
       };
 
-      await axios.post(`${API_BASE_URL}/api/games/${publicCode}/payments/record`, paymentData, {
+      await axios.post(`${API_BASE_URL}/api/games/${publicCode}/payments`, paymentData, {
         headers: {
           'X-Admin-Code': adminCode,
           'Content-Type': 'application/json'
@@ -331,7 +331,7 @@ export default function PaymentLedgerPage() {
         notes: `Optimal settlement: ${settlement.payer_name} → ${settlement.recipient_name}`
       };
 
-      await axios.post(`${API_BASE_URL}/api/games/${publicCode}/payments/record`, paymentData, {
+      await axios.post(`${API_BASE_URL}/api/games/${publicCode}/payments`, paymentData, {
         headers: {
           'X-Admin-Code': adminCode,
           'Content-Type': 'application/json'

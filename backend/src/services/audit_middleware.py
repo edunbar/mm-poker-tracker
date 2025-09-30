@@ -472,7 +472,7 @@ def audit_payment_after_insert(mapper, connection, target):
         if payer_result and recipient_result:
             after_data['payer_name'] = payer_result.display_name
             after_data['recipient_name'] = recipient_result.display_name
-            after_data['amount_dollars'] = target.amount_cents / 100
+            after_data['amount_dollars'] = float(target.amount_cents) / 100
             
     except Exception as e:
         logger.warning(f"Failed to add player names to payment audit: {e}")
@@ -505,7 +505,7 @@ def audit_payment_before_delete(mapper, connection, target):
         if payer_result and recipient_result:
             before_data['payer_name'] = payer_result.display_name
             before_data['recipient_name'] = recipient_result.display_name
-            before_data['amount_dollars'] = target.amount_cents / 100
+            before_data['amount_dollars'] = float(target.amount_cents) / 100
             
     except Exception as e:
         logger.warning(f"Failed to add player names to payment audit: {e}")
@@ -563,18 +563,18 @@ def audit_payment_balance_after_update(mapper, connection, target):
         if player_result:
             after_data['player_name'] = player_result.display_name
             # Convert cents to dollars for readability
-            after_data['total_paid_dollars'] = target.total_paid / 100
-            after_data['total_received_dollars'] = target.total_received / 100
-            after_data['poker_net_winnings_dollars'] = target.poker_net_winnings / 100
-            after_data['payment_balance_dollars'] = target.payment_balance / 100
+            after_data['total_paid_dollars'] = float(target.total_paid) / 100
+            after_data['total_received_dollars'] = float(target.total_received) / 100
+            after_data['poker_net_winnings_dollars'] = float(target.poker_net_winnings) / 100
+            after_data['payment_balance_dollars'] = float(target.payment_balance) / 100
             
             # Add the same info to before_data if it exists
             if before_data:
                 before_data['player_name'] = player_result.display_name
-                before_data['total_paid_dollars'] = before_data['total_paid'] / 100
-                before_data['total_received_dollars'] = before_data['total_received'] / 100
-                before_data['poker_net_winnings_dollars'] = before_data['poker_net_winnings'] / 100
-                before_data['payment_balance_dollars'] = before_data['payment_balance'] / 100
+                before_data['total_paid_dollars'] = float(before_data['total_paid']) / 100
+                before_data['total_received_dollars'] = float(before_data['total_received']) / 100
+                before_data['poker_net_winnings_dollars'] = float(before_data['poker_net_winnings']) / 100
+                before_data['payment_balance_dollars'] = float(before_data['payment_balance']) / 100
             
     except Exception as e:
         logger.warning(f"Failed to add player name to payment balance audit: {e}")
@@ -602,10 +602,10 @@ def audit_payment_balance_after_insert(mapper, connection, target):
         
         if player_result:
             after_data['player_name'] = player_result.display_name
-            after_data['total_paid_dollars'] = target.total_paid / 100
-            after_data['total_received_dollars'] = target.total_received / 100
-            after_data['poker_net_winnings_dollars'] = target.poker_net_winnings / 100
-            after_data['payment_balance_dollars'] = target.payment_balance / 100
+            after_data['total_paid_dollars'] = float(target.total_paid) / 100
+            after_data['total_received_dollars'] = float(target.total_received) / 100
+            after_data['poker_net_winnings_dollars'] = float(target.poker_net_winnings) / 100
+            after_data['payment_balance_dollars'] = float(target.payment_balance) / 100
             
     except Exception as e:
         logger.warning(f"Failed to add player name to payment balance audit: {e}")
@@ -633,10 +633,10 @@ def audit_payment_balance_before_delete(mapper, connection, target):
         
         if player_result:
             before_data['player_name'] = player_result.display_name
-            before_data['total_paid_dollars'] = target.total_paid / 100
-            before_data['total_received_dollars'] = target.total_received / 100
-            before_data['poker_net_winnings_dollars'] = target.poker_net_winnings / 100
-            before_data['payment_balance_dollars'] = target.payment_balance / 100
+            before_data['total_paid_dollars'] = float(target.total_paid) / 100
+            before_data['total_received_dollars'] = float(target.total_received) / 100
+            before_data['poker_net_winnings_dollars'] = float(target.poker_net_winnings) / 100
+            before_data['payment_balance_dollars'] = float(target.payment_balance) / 100
             
     except Exception as e:
         logger.warning(f"Failed to add player name to payment balance audit: {e}")

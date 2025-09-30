@@ -1,0 +1,413 @@
+name: Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        type: choice
+        options:
+          - staging
+          - production
+      skip_migration_check:
+        description: 'Skip migration safety check (dangerous!)'
+        required: false
+        type: boolean
+        default: false
+      skip_tests:
+        description: 'Skip test suite (dangerous!)'
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    if: inputs.skip_tests == false
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: poker_analytics_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+        cache: 'pip'
+
+    - name: Install dependencies
+      working-directory: backend
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Run database migrations
+      working-directory: backend
+      env:
+        DATABASE_URL: postgresql+psycopg2://postgres:postgres@localhost:5432/poker_analytics_test
+      run: |
+        python -m alembic upgrade head
+
+    - name: Run all tests
+      working-directory: backend
+      env:
+        DATABASE_URL: postgresql+psycopg2://postgres:postgres@localhost:5432/poker_analytics_test
+        PYTHONPATH: src
+      run: |
+        echo "🧪 Running full test suite before deployment..."
+        python -m pytest tests/ -v --tb=short --maxfail=10
+
+    - name: Upload test results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: pre-deploy-test-results
+        path: backend/test-results/
+        retention-days: 30
+
+    - name: Test summary
+      if: failure()
+      run: |
+        echo "❌ Tests failed! Deployment blocked."
+        echo "Review test results before deploying."
+        exit 1
+
+  pre-deploy-checks:
+    needs: test
+    if: always() && (needs.test.result == 'success' || inputs.skip_tests == true)
+    runs-on: ubuntu-latest
+    outputs:
+      has_migrations: ${{ steps.check_migrations.outputs.has_migrations }}
+      migration_safe: ${{ steps.migration_safety.outputs.safe }}
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Full history for migration comparison
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+        cache: 'pip'
+
+    - name: Install dependencies
+      working-directory: backend
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Check for new migrations
+      id: check_migrations
+      working-directory: backend
+      run: |
+        # Get the list of migration files in this branch
+        CURRENT_MIGRATIONS=$(find src/db/migrations/versions -name "*.py" 2>/dev/null | wc -l || echo "0")
+
+        # Check if there are any migration files
+        if [ "$CURRENT_MIGRATIONS" -gt 0 ]; then
+          echo "has_migrations=true" >> $GITHUB_OUTPUT
+          echo "✅ Found $CURRENT_MIGRATIONS migration file(s)"
+        else
+          echo "has_migrations=false" >> $GITHUB_OUTPUT
+          echo "ℹ️ No migration files found"
+        fi
+
+    - name: Run migration safety check
+      id: migration_safety
+      if: steps.check_migrations.outputs.has_migrations == 'true' && inputs.skip_migration_check == false
+      working-directory: backend
+      run: |
+        echo "🔍 Running migration safety checks..."
+
+        # Create a simple migration safety checker script
+        cat > check_migration_safety.py << 'EOF'
+        import sys
+        import os
+        import re
+        from pathlib import Path
+
+        def check_migration_safety(migration_dir):
+            """Check migrations for dangerous operations."""
+            dangerous_patterns = [
+                (r'\.drop_table\(', 'DROP TABLE'),
+                (r'\.drop_column\(', 'DROP COLUMN'),
+                (r'DROP TABLE', 'DROP TABLE (raw SQL)'),
+                (r'DROP COLUMN', 'DROP COLUMN (raw SQL)'),
+                (r'TRUNCATE', 'TRUNCATE'),
+                (r'DELETE FROM', 'DELETE without WHERE (check carefully)'),
+            ]
+
+            issues = []
+            warnings = []
+
+            migration_files = list(Path(migration_dir).glob('*.py'))
+            if not migration_files:
+                print("✅ No migration files found")
+                return True
+
+            for migration_file in migration_files:
+                content = migration_file.read_text()
+
+                for pattern, operation in dangerous_patterns:
+                    matches = re.findall(pattern, content, re.IGNORECASE)
+                    if matches:
+                        if operation.startswith('DELETE'):
+                            warnings.append(f"⚠️  {migration_file.name}: Contains {operation}")
+                        else:
+                            issues.append(f"❌ {migration_file.name}: Contains {operation}")
+
+            if issues:
+                print("\n🚨 DANGEROUS OPERATIONS DETECTED:")
+                for issue in issues:
+                    print(f"  {issue}")
+                print("\n⛔ Migration safety check FAILED")
+                print("These operations can cause data loss!")
+                print("To bypass (NOT RECOMMENDED): Set skip_migration_check=true")
+                return False
+
+            if warnings:
+                print("\n⚠️  WARNINGS:")
+                for warning in warnings:
+                    print(f"  {warning}")
+                print("\n✅ Migration safety check PASSED (with warnings)")
+                print("Review warnings carefully before deploying")
+                return True
+
+            print("✅ Migration safety check PASSED")
+            print("No dangerous operations detected")
+            return True
+
+        if __name__ == '__main__':
+            migration_dir = 'src/db/migrations/versions'
+            is_safe = check_migration_safety(migration_dir)
+            sys.exit(0 if is_safe else 1)
+        EOF
+
+        python check_migration_safety.py
+        SAFETY_CHECK=$?
+
+        if [ $SAFETY_CHECK -eq 0 ]; then
+          echo "safe=true" >> $GITHUB_OUTPUT
+        else
+          echo "safe=false" >> $GITHUB_OUTPUT
+          exit 1
+        fi
+
+    - name: Skip migration check (if requested)
+      if: inputs.skip_migration_check == true
+      run: |
+        echo "⚠️  WARNING: Migration safety check was skipped!"
+        echo "safe=true" >> $GITHUB_OUTPUT
+
+  deploy:
+    needs: pre-deploy-checks
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Authenticate to Google Cloud
+      uses: google-github-actions/auth@v2
+      with:
+        credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+    - name: Set up Cloud SDK
+      uses: google-github-actions/setup-gcloud@v2
+
+    - name: Configure deployment environment
+      id: config
+      run: |
+        if [ "${{ inputs.environment }}" == "production" ]; then
+          echo "service_name=poker-backend" >> $GITHUB_OUTPUT
+          echo "env_file=backend/cloud-run-env.yaml" >> $GITHUB_OUTPUT
+          echo "min_instances=1" >> $GITHUB_OUTPUT
+          echo "max_instances=10" >> $GITHUB_OUTPUT
+        else
+          echo "service_name=poker-backend-staging" >> $GITHUB_OUTPUT
+          echo "env_file=backend/cloud-run-env-staging.yaml" >> $GITHUB_OUTPUT
+          echo "min_instances=0" >> $GITHUB_OUTPUT
+          echo "max_instances=2" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Deploy to Cloud Run
+      run: |
+        echo "🚀 Deploying to ${{ steps.config.outputs.service_name }}..."
+        echo ""
+        echo "📋 Pre-deploy check results:"
+        echo "  Has migrations: ${{ needs.pre-deploy-checks.outputs.has_migrations }}"
+        echo "  Migration safe: ${{ needs.pre-deploy-checks.outputs.migration_safe }}"
+        echo ""
+
+        gcloud run deploy ${{ steps.config.outputs.service_name }} \
+          --source ./backend \
+          --region us-central1 \
+          --platform managed \
+          --allow-unauthenticated \
+          --env-vars-file ${{ steps.config.outputs.env_file }} \
+          --add-cloudsql-instances home-game-472415:us-central1:home-game-db \
+          --memory 1Gi \
+          --cpu 1 \
+          --min-instances ${{ steps.config.outputs.min_instances }} \
+          --max-instances ${{ steps.config.outputs.max_instances }} \
+          --timeout 300
+
+        echo "✅ Cloud Run deployment complete!"
+
+    - name: Run database migrations
+      if: needs.pre-deploy-checks.outputs.has_migrations == 'true'
+      run: |
+        echo "📊 Running database migrations on ${{ inputs.environment }}..."
+
+        # Get the latest deployed image
+        IMAGE=$(gcloud run services describe ${{ steps.config.outputs.service_name }} \
+          --region=us-central1 \
+          --format='value(spec.template.spec.containers[0].image)')
+
+        echo "Using image: $IMAGE"
+
+        # Create and execute migration job
+        JOB_NAME="migrate-${{ inputs.environment }}-${{ github.run_number }}"
+
+        gcloud run jobs create $JOB_NAME \
+          --image $IMAGE \
+          --region us-central1 \
+          --set-cloudsql-instances home-game-472415:us-central1:home-game-db \
+          --env-vars-file ${{ steps.config.outputs.env_file }} \
+          --execute-now \
+          --wait \
+          --command="python" \
+          --args="-m","alembic","upgrade","head"
+
+        # Clean up job
+        gcloud run jobs delete $JOB_NAME --region us-central1 --quiet || true
+
+        echo "✅ Migrations completed successfully!"
+
+    - name: Wait for application startup
+      run: |
+        echo "⏳ Waiting for application to start..."
+        sleep 10
+
+  health-check:
+    needs: deploy
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Run post-deploy health checks
+      run: |
+        echo "🏥 Running post-deployment health checks..."
+
+        # Set the health check URL based on environment
+        if [ "${{ inputs.environment }}" == "production" ]; then
+          HEALTH_URL="${{ secrets.PROD_HEALTH_CHECK_URL }}"
+          API_URL="${{ secrets.PROD_API_URL }}"
+        else
+          HEALTH_URL="${{ secrets.STAGING_HEALTH_CHECK_URL }}"
+          API_URL="${{ secrets.STAGING_API_URL }}"
+        fi
+
+        echo "📍 Health check URL: $HEALTH_URL"
+
+        # Basic health check
+        if [ ! -z "$HEALTH_URL" ]; then
+          echo "Checking application health..."
+
+          MAX_RETRIES=12
+          RETRY_DELAY=5
+
+          for i in $(seq 1 $MAX_RETRIES); do
+            echo "Attempt $i/$MAX_RETRIES..."
+
+            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "$HEALTH_URL" || echo "000")
+
+            if [ "$HTTP_CODE" == "200" ]; then
+              echo "✅ Health check passed! (HTTP $HTTP_CODE)"
+              break
+            else
+              echo "❌ Health check failed (HTTP $HTTP_CODE)"
+
+              if [ $i -eq $MAX_RETRIES ]; then
+                echo "🚨 Health check failed after $MAX_RETRIES attempts"
+                exit 1
+              fi
+
+              echo "Retrying in ${RETRY_DELAY}s..."
+              sleep $RETRY_DELAY
+            fi
+          done
+        else
+          echo "⚠️  No health check URL configured for ${{ inputs.environment }}"
+          echo "Set PROD_HEALTH_CHECK_URL or STAGING_HEALTH_CHECK_URL secret"
+        fi
+
+        # Additional API checks
+        if [ ! -z "$API_URL" ]; then
+          echo ""
+          echo "🔍 Running API endpoint checks..."
+
+          # Example: Check if API is responding
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "$API_URL" || echo "000")
+          if [ "$HTTP_CODE" == "200" ] || [ "$HTTP_CODE" == "404" ]; then
+            echo "✅ API is responding (HTTP $HTTP_CODE)"
+          else
+            echo "⚠️  API check warning (HTTP $HTTP_CODE)"
+          fi
+        fi
+
+        echo ""
+        echo "✅ All health checks completed successfully!"
+
+    - name: Notify deployment success
+      if: success()
+      run: |
+        echo "✅ Deployment to ${{ inputs.environment }} completed successfully!"
+        echo ""
+        echo "📊 Deployment summary:"
+        echo "  Environment: ${{ inputs.environment }}"
+        echo "  Branch: ${{ github.ref_name }}"
+        echo "  Commit: ${{ github.sha }}"
+        echo "  Actor: ${{ github.actor }}"
+        echo ""
+        echo "Next steps:"
+        echo "  1. Verify application functionality"
+        echo "  2. Check application logs"
+        echo "  3. Monitor error rates"
+
+    - name: Notify deployment failure
+      if: failure()
+      run: |
+        echo "❌ Deployment to ${{ inputs.environment }} FAILED!"
+        echo ""
+        echo "🚨 ROLLBACK REQUIRED"
+        echo ""
+        echo "See rollback documentation: ROLLBACK_PROCEDURE.md"
+        echo ""
+        echo "Quick rollback steps:"
+        echo "  1. Identify last known good deployment"
+        echo "  2. Revert database migrations (if any)"
+        echo "  3. Deploy previous version"
+        echo "  4. Verify health checks pass"
+        exit 1

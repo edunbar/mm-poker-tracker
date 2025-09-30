@@ -5,7 +5,6 @@ import GameLedgerPage from "../features/admin/pages/GameLedgerPage";
 import LedgerAnalysisPage from "../features/admin/pages/LedgerAnalysisPage";
 import LiveGameIngestPage from "../features/admin/pages/LiveGameIngestPage";
 import GameIngestPage from "../features/admin/pages/SessionIngestPage";
-import VerifiedUsersPage from "../features/admin/pages/VerifiedUsersPage";
 import AdvancedAnalyticsPage from "../features/game/pages/AdvancedAnalyticsPage";
 import GameSummaryPage from "../features/game/pages/GameSummaryPage";
 import HandAnalyticsPage from "../features/game/pages/HandAnalyticsPage";
@@ -29,11 +28,6 @@ export default function AppRoutes() {
         </ProtectedRoute>
       } />
       <Route path="/ledger/:publicCode" element={<GameLedgerPage />} />
-      <Route path="/players/:publicCode" element={
-        <ProtectedRoute requireAdmin={true}>
-          <VerifiedUsersPage />
-        </ProtectedRoute>
-      } />
       <Route path="/summary/:publicCode" element={<GameSummaryPageWrapper />} />
       <Route path="/rules/:publicCode" element={<RuleBookPageWrapper />} />
       <Route path="/analytics/:publicCode" element={<AdvancedAnalyticsPageWrapper />} />

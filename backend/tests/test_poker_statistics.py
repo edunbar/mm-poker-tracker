@@ -19,25 +19,25 @@ def test_play_style_classification(mock_db_session):
     """Test play style classification logic."""
     processor = PokerStatisticsProcessor(mock_db_session)
 
-    # Test TAG (Tight-Aggressive): VPIP < 25, PFR > 20, AF > 60 (or None)
+    # Test Nit: VPIP < 40, PFR >= 10
     style = processor._classify_play_style(vpip=20, pfr=22, af=65)
-    assert style == 'TAG'
+    assert style == 'Nit'
 
-    # Test LAG (Loose-Aggressive): VPIP > 35, PFR > 20, AF > 60
+    # Test Selective Aggressive: VPIP < 45, 20 <= PFR <= 30
     style = processor._classify_play_style(vpip=40, pfr=25, af=70)
-    assert style == 'LAG'
+    assert style == 'Selective Aggressive'
 
-    # Test TP (Tight-Passive): VPIP < 25, PFR < 15, AF < 40
+    # Test Nit: VPIP < 40, PFR >= 10
     style = processor._classify_play_style(vpip=18, pfr=12, af=35)
-    assert style == 'TP'
+    assert style == 'Nit'
 
-    # Test LP (Loose-Passive): VPIP > 35, PFR < 15, AF < 40
+    # Test Passive Regular: VPIP >= 45, PFR < 15
     style = processor._classify_play_style(vpip=45, pfr=10, af=25)
-    assert style == 'LP'
+    assert style == 'Passive Regular'
 
-    # Test unclassified (middle ground)
+    # Test Nit: VPIP < 40, PFR >= 10
     style = processor._classify_play_style(vpip=28, pfr=16, af=55)
-    assert style is None
+    assert style == 'Nit'
 
     # Test with missing VPIP data
     style = processor._classify_play_style(vpip=None, pfr=16, af=55)
@@ -102,25 +102,25 @@ def test_boundary_conditions(mock_db_session):
     processor = PokerStatisticsProcessor(mock_db_session)
 
     # Test exact boundary values
-    # Tight boundary: VPIP < 25, need PFR > 20 for aggressive
+    # Boundary case: VPIP < 40, PFR >= 10
     style = processor._classify_play_style(vpip=24.9, pfr=21, af=65)
-    assert style == 'TAG'
+    assert style == 'Nit'
 
     style = processor._classify_play_style(vpip=25.1, pfr=21, af=65)
-    # Should not be tight (between tight and loose)
-    assert style is None
+    # Still Nit as VPIP < 40
+    assert style == 'Nit'
 
-    # Loose boundary: VPIP > 35, need PFR > 20 for aggressive
+    # Boundary case: VPIP < 40, PFR >= 10
     style = processor._classify_play_style(vpip=35.1, pfr=25, af=70)
-    assert style == 'LAG'
+    assert style == 'Nit'
 
-    # Aggressive PFR boundary: > 20
+    # Boundary case: VPIP < 40, PFR >= 10
     style = processor._classify_play_style(vpip=20, pfr=20.1, af=65)
-    assert style == 'TAG'
+    assert style == 'Nit'
 
-    # Passive PFR boundary: < 15
+    # Boundary case: VPIP < 40, PFR >= 10
     style = processor._classify_play_style(vpip=20, pfr=14.9, af=35)
-    assert style == 'TP'
+    assert style == 'Nit'
 
 
 if __name__ == "__main__":

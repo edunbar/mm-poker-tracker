@@ -428,3 +428,20 @@ def get_session_extremes(public_code: str) -> Dict[str, Any]:
         # _set_cache(cache_key, result)
         return result
 
+
+
+
+class GameSummaryService:
+    """Wrapper class for game summary functions to maintain compatibility."""
+
+    def __init__(self, db_session=None):
+        self.db_session = db_session
+
+    def get_player_summaries(self, public_code: str):
+        return get_player_summaries(public_code)
+
+    def get_player_analytics(self, public_code: str):
+        return get_player_analytics(public_code)
+
+    def get_session_extremes(self, public_code: str):
+        return get_session_extremes(public_code)

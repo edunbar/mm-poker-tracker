@@ -288,7 +288,8 @@ def delete_entire_session(session_id: str) -> Dict[str, Any]:
                     "message": "Entire session deleted successfully",
                     "deleted_session": session_info,
                     "deleted_players": deleted_players,
-                    "total_players_deleted": len(deleted_players)
+                    "total_players_deleted": len(deleted_players),
+                    "deleted_count": len(deleted_players)  # For backward compatibility
                 }
 
             except Exception as e:

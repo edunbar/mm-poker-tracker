@@ -1,6 +1,5 @@
-import { AlertTriangle, CheckCircle2, Trash2 } from "lucide-react";
-import React, { useEffect, useMemo, useState } from "react";
-import { API_BASE_URL } from "../../../config/api";
+import { Trash2 } from "lucide-react";
+import React, { useMemo, useState } from "react";
 import { PlayerInfo } from "../../../entities/game/types";
 import { Button } from "../../../shared/ui/button";
 import { Input } from "../../../shared/ui/input";
@@ -31,47 +30,13 @@ interface GameDataTableProps {
 const GameDataTable: React.FC<GameDataTableProps> = ({
   playersInfos,
   setEditableData,
-  publicCode,
+  publicCode: _publicCode, // Kept for backwards compatibility
   mergeMode = false,
   selectedPlayers = new Set(),
   onPlayerSelect,
 }) => {
-  const [verificationStatus, setVerificationStatus] = useState<{[key: string]: {is_verified: boolean, display_name: string | null}}>({});
-  const [hoveredPlayer, setHoveredPlayer] = useState<string | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [playerToDelete, setPlayerToDelete] = useState<{ index: number; name: string } | null>(null);
-
-  // Fetch verification status when player data changes
-  useEffect(() => {
-    const fetchVerificationStatus = async () => {
-      const externalIds = playersInfos
-        .map(player => player.id)
-        .filter(id => id && id.trim() !== '');
-      
-      if (externalIds.length === 0) return;
-
-      try {
-        const response = await fetch(`${API_BASE_URL}/api/games/${publicCode}/players/check-verification-status`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            external_ids: externalIds
-          }),
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          setVerificationStatus(data);
-        }
-      } catch {
-        // Silently handle verification status fetch errors
-      }
-    };
-
-    fetchVerificationStatus();
-  }, [playersInfos, publicCode]);
 
   // keep a stable mapping back to original index so edits update correct item
   const sortedPlayers = playersInfos
@@ -218,40 +183,6 @@ const GameDataTable: React.FC<GameDataTableProps> = ({
                       }
                     />
                   )}
-                </TableCell>
-                <TableCell className="text-center relative" onClick={(e) => e.stopPropagation()}>
-                  <div 
-                    className="flex items-center justify-center cursor-help relative"
-                    onMouseEnter={() => setHoveredPlayer(player.id)}
-                    onMouseLeave={() => setHoveredPlayer(null)}
-                  >
-                    {(() => {
-                      const status = verificationStatus[player.id];
-                      if (status?.is_verified) {
-                        return <CheckCircle2 className="h-4 w-4 text-success" />;
-                      } else if (status && !status.is_verified) {
-                        return <AlertTriangle className="h-4 w-4 text-sophisticated-gold dark:text-sophisticated-gold" />;
-                      } else {
-                        return <div className="h-4 w-4 rounded-full bg-muted" />;
-                      }
-                    })()}
-                    
-                    {hoveredPlayer === player.id && (
-                      <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-popover text-popover-foreground text-xs rounded-lg shadow-lg whitespace-nowrap z-10 border border-border">
-                        {(() => {
-                          const status = verificationStatus[player.id];
-                          if (status?.is_verified) {
-                            return "Verified player - Admin confirmed identity";
-                          } else if (status && !status.is_verified) {
-                            return "Unverified player - Exists but not admin verified";
-                          } else {
-                            return "New player - Will be created on import";
-                          }
-                        })()}
-                        <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-popover" />
-                      </div>
-                    )}
-                  </div>
                 </TableCell>
                 <TableCell onClick={(e) => !mergeMode && e.stopPropagation()}>
                   {mergeMode ? (

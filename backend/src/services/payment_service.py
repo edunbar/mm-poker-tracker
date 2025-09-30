@@ -9,6 +9,7 @@ Handles all payment-related business logic including:
 """
 
 import logging
+import json
 from decimal import Decimal, ROUND_HALF_UP
 from datetime import datetime, timezone
 from typing import List, Dict, Tuple, Optional
@@ -19,11 +20,76 @@ from sqlalchemy import text, func
 
 from db.database import SessionLocal
 from db.models import (
-    Game, Player, PaymentTransaction, PaymentBalance, 
+    Game, Player, PaymentTransaction, PaymentBalance,
     SessionPlayerSummary, Session
 )
 
+# Configure structured logging for payment operations
 logger = logging.getLogger(__name__)
+
+
+class PaymentLogger:
+    """Structured logger for payment operations"""
+
+    @staticmethod
+    def log_payment_recorded(transaction: 'PaymentTransaction', duration_ms: float):
+        """Log when a payment is successfully recorded"""
+        logger.info(
+            "Payment recorded",
+            extra={
+                "event": "payment_recorded",
+                "transaction_id": str(transaction.id),
+                "game_id": str(transaction.game_id),
+                "payer_id": str(transaction.payer_id),
+                "recipient_id": str(transaction.recipient_id),
+                "amount_cents": transaction.amount_cents,
+                "payment_method": transaction.payment_method,
+                "status": transaction.status,
+                "duration_ms": duration_ms,
+            }
+        )
+
+    @staticmethod
+    def log_payment_error(error_type: str, game_id: str, details: dict):
+        """Log payment operation errors"""
+        logger.error(
+            f"Payment error: {error_type}",
+            extra={
+                "event": "payment_error",
+                "error_type": error_type,
+                "game_id": game_id,
+                **details
+            }
+        )
+
+    @staticmethod
+    def log_balance_updated(balance: 'PaymentBalance', old_balance: Decimal, new_balance: Decimal):
+        """Log when a payment balance is updated"""
+        logger.info(
+            "Payment balance updated",
+            extra={
+                "event": "balance_updated",
+                "balance_id": str(balance.id),
+                "player_id": str(balance.player_id),
+                "game_id": str(balance.game_id),
+                "old_balance": str(old_balance),
+                "new_balance": str(new_balance),
+                "delta": str(new_balance - old_balance),
+            }
+        )
+
+    @staticmethod
+    def log_settlement_calculated(game_id: str, num_suggestions: int, total_amount: Decimal):
+        """Log when settlement suggestions are calculated"""
+        logger.info(
+            "Settlement suggestions calculated",
+            extra={
+                "event": "settlement_calculated",
+                "game_id": game_id,
+                "num_suggestions": num_suggestions,
+                "total_amount": str(total_amount),
+            }
+        )
 
 
 @dataclass
@@ -84,55 +150,97 @@ class PaymentService:
         Raises:
             ValueError: If validation fails
         """
+        start_time = datetime.now()
+
         with SessionLocal() as db:
-            # Validate inputs
-            if payer_id == recipient_id:
-                raise ValueError("Payer and recipient cannot be the same")
-            
-            if amount <= 0:
-                raise ValueError("Payment amount must be positive")
-            
-            # Verify game exists
-            game = db.query(Game).filter(Game.id == game_id).first()
-            if not game:
-                raise ValueError(f"Game {game_id} not found")
-            
-            # Verify players exist
-            payer = db.query(Player).filter(Player.id == payer_id).first()
-            recipient = db.query(Player).filter(Player.id == recipient_id).first()
-            
-            if not payer:
-                raise ValueError(f"Payer {payer_id} not found")
-            if not recipient:
-                raise ValueError(f"Recipient {recipient_id} not found")
-            
-            # Convert to cents for storage
-            amount_cents = int(amount * 100)
-            
-            # Create payment transaction
-            payment = PaymentTransaction(
-                game_id=game_id,
-                payer_id=payer_id,
-                recipient_id=recipient_id,
-                amount_cents=amount_cents,
-                payment_method=payment_method,
-                payment_date=payment_date,
-                status='completed',
-                notes=notes,
-                reference_id=reference_id,
-                created_by=created_by
-            )
-            
-            db.add(payment)
-            db.flush()  # Get the ID
-            
-            # Update payment balances
-            self._update_payment_balances(db, game_id, [payer_id, recipient_id])
-            
-            db.commit()
-            logger.info(f"Recorded payment: {payer.display_name} -> {recipient.display_name}: ${amount}")
-            
-            return payment
+            try:
+                # Validate inputs
+                if payer_id == recipient_id:
+                    PaymentLogger.log_payment_error(
+                        "validation_error",
+                        game_id,
+                        {"error": "payer_equals_recipient", "player_id": payer_id}
+                    )
+                    raise ValueError("Payer and recipient cannot be the same")
+
+                if amount <= 0:
+                    PaymentLogger.log_payment_error(
+                        "validation_error",
+                        game_id,
+                        {"error": "invalid_amount", "amount": str(amount)}
+                    )
+                    raise ValueError("Payment amount must be positive")
+
+                # Verify game exists
+                game = db.query(Game).filter(Game.id == game_id).first()
+                if not game:
+                    PaymentLogger.log_payment_error(
+                        "not_found",
+                        game_id,
+                        {"error": "game_not_found"}
+                    )
+                    raise ValueError(f"Game {game_id} not found")
+
+                # Verify players exist
+                payer = db.query(Player).filter(Player.id == payer_id).first()
+                recipient = db.query(Player).filter(Player.id == recipient_id).first()
+
+                if not payer:
+                    PaymentLogger.log_payment_error(
+                        "not_found",
+                        game_id,
+                        {"error": "payer_not_found", "payer_id": payer_id}
+                    )
+                    raise ValueError(f"Payer {payer_id} not found")
+                if not recipient:
+                    PaymentLogger.log_payment_error(
+                        "not_found",
+                        game_id,
+                        {"error": "recipient_not_found", "recipient_id": recipient_id}
+                    )
+                    raise ValueError(f"Recipient {recipient_id} not found")
+
+                # Convert to cents for storage
+                amount_cents = int(amount * 100)
+
+                # Create payment transaction
+                payment = PaymentTransaction(
+                    game_id=game_id,
+                    payer_id=payer_id,
+                    recipient_id=recipient_id,
+                    amount_cents=amount_cents,
+                    payment_method=payment_method,
+                    payment_date=payment_date,
+                    status='completed',
+                    notes=notes,
+                    reference_id=reference_id,
+                    created_by=created_by
+                )
+
+                db.add(payment)
+                db.flush()  # Get the ID
+
+                # Update payment balances
+                self._update_payment_balances(db, game_id, [payer_id, recipient_id])
+
+                db.commit()
+
+                # Log successful payment
+                duration_ms = (datetime.now() - start_time).total_seconds() * 1000
+                PaymentLogger.log_payment_recorded(payment, duration_ms)
+                logger.info(f"Recorded payment: {payer.display_name} -> {recipient.display_name}: ${amount}")
+
+                return payment
+
+            except Exception as e:
+                db.rollback()
+                if not isinstance(e, ValueError):
+                    PaymentLogger.log_payment_error(
+                        "unexpected_error",
+                        game_id,
+                        {"error": str(e), "error_type": type(e).__name__}
+                    )
+                raise
 
     def get_payment_summary(self, game_id: str) -> List[PlayerPaymentSummary]:
         """
@@ -170,8 +278,8 @@ class PaymentService:
                 total_paid = Decimal(balance.total_paid) / 100
                 total_received = Decimal(balance.total_received) / 100
 
-                # Balance = received - net winnings (can be negative)
-                player_balance = total_received - poker_net
+                # Balance = poker_net + paid - received (negative = owes, positive = owed, zero = settled)
+                player_balance = poker_net + total_paid - total_received
 
                 # Realized Earnings = actual cash flow (received - paid)
                 realized_earnings = total_received - total_paid
@@ -373,8 +481,8 @@ class PaymentService:
                 .scalar()
             ) or 0
             
-            # Calculate net balance: poker_winnings - total_paid + total_received
-            payment_balance = poker_winnings - total_paid + total_received
+            # Calculate net balance: poker_winnings + total_paid - total_received
+            payment_balance = poker_winnings + total_paid - total_received
             
             # Upsert payment balance record
             balance = (

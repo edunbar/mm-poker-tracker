@@ -162,7 +162,7 @@ export default function PaymentLedgerPage() {
         reference_id: recordForm.reference_id || null
       };
 
-      await axios.post(`${API_BASE_URL}/api/games/${publicCode}/payments/record`, paymentData, {
+      await axios.post(`${API_BASE_URL}/api/games/${publicCode}/payments`, paymentData, {
         headers: {
           'X-Admin-Code': adminCode,
           'Content-Type': 'application/json'
@@ -197,8 +197,8 @@ export default function PaymentLedgerPage() {
 
   const handleEditPayment = (payment: PaymentTransaction) => {
     // Find the payer and recipient from paymentSummary
-    const payer = paymentSummary.find(p => p.player_name === payment.payer_name);
-    const recipient = paymentSummary.find(p => p.player_name === payment.recipient_name);
+    const payer = (paymentSummary || []).find(p => p.player_name === payment.payer_name);
+    const recipient = (paymentSummary || []).find(p => p.player_name === payment.recipient_name);
 
     setEditingPayment(payment);
     setEditForm({
@@ -331,7 +331,7 @@ export default function PaymentLedgerPage() {
         notes: `Optimal settlement: ${settlement.payer_name} → ${settlement.recipient_name}`
       };
 
-      await axios.post(`${API_BASE_URL}/api/games/${publicCode}/payments/record`, paymentData, {
+      await axios.post(`${API_BASE_URL}/api/games/${publicCode}/payments`, paymentData, {
         headers: {
           'X-Admin-Code': adminCode,
           'Content-Type': 'application/json'
@@ -382,7 +382,7 @@ export default function PaymentLedgerPage() {
     }
   };
 
-  const sortedPaymentSummary = [...paymentSummary].sort((a, b) => {
+  const sortedPaymentSummary = [...(paymentSummary || [])].sort((a, b) => {
     if (!sortField) return 0;
 
     let aValue: any, bValue: any;
@@ -416,7 +416,7 @@ export default function PaymentLedgerPage() {
   };
 
   // Group settlements by payer
-  const groupedSettlements = settlements.reduce((acc, settlement) => {
+  const groupedSettlements = (settlements || []).reduce((acc, settlement) => {
     const payerId = settlement.payer_id;
     if (!acc[payerId]) {
       acc[payerId] = {
@@ -647,20 +647,20 @@ export default function PaymentLedgerPage() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-center">
                         {(() => {
-                          const netBalance = (player.poker_net_winnings + player.total_paid) - player.total_received;
+                          const amountOwed = player.total_received - (player.poker_net_winnings + player.total_paid);
                           return (
                             <Text
                               variant="bodySmall"
                               weight="medium"
                               color={
-                                netBalance > 0.005
-                                  ? 'success'
-                                  : netBalance < -0.005
+                                amountOwed > 0.005
                                   ? 'destructive'
+                                  : amountOwed < -0.005
+                                  ? 'success'
                                   : 'default'
                               }
                             >
-                              {formatCurrency(netBalance)}
+                              {formatCurrency(amountOwed)}
                             </Text>
                           );
                         })()}
@@ -690,7 +690,7 @@ export default function PaymentLedgerPage() {
                 Required payments to settle all debts with minimum transactions
               </Text>
             </div>
-            {settlements.length > 0 ? (
+            {(settlements || []).length > 0 ? (
               <div className="p-6">
                 <div className="space-y-6">
                   {Object.entries(groupedSettlements).map(([payerId, payerInfo]) => (
@@ -769,7 +769,7 @@ export default function PaymentLedgerPage() {
                 All payment transactions
               </Text>
             </div>
-            {paymentHistory.length > 0 ? (
+            {(paymentHistory || []).length > 0 ? (
               <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-card border-b border-border">
@@ -798,7 +798,7 @@ export default function PaymentLedgerPage() {
                     </tr>
                   </thead>
                   <tbody className="bg-card divide-y divide-border">
-                    {paymentHistory.map((payment) => (
+                    {(paymentHistory || []).map((payment) => (
                       <tr key={payment.id}>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <Text variant="bodySmall">{formatDate(payment.payment_date)}</Text>
@@ -877,7 +877,7 @@ export default function PaymentLedgerPage() {
                     required
                   >
                     <option value="">Select payer...</option>
-                    {paymentSummary.map((player) => (
+                    {(paymentSummary || []).map((player) => (
                       <option key={player.player_id} value={player.player_id}>
                         {player.player_name}
                       </option>
@@ -896,7 +896,7 @@ export default function PaymentLedgerPage() {
                     required
                   >
                     <option value="">Select recipient...</option>
-                    {paymentSummary
+                    {(paymentSummary || [])
                       .filter(player => player.player_id !== recordForm.payer_id)
                       .map((player) => (
                       <option key={player.player_id} value={player.player_id}>
@@ -1045,7 +1045,7 @@ export default function PaymentLedgerPage() {
                       required
                     >
                       <option value="">Select payer...</option>
-                      {paymentSummary.map((player) => (
+                      {(paymentSummary || []).map((player) => (
                         <option key={player.player_id} value={player.player_id}>
                           {player.player_name}
                         </option>

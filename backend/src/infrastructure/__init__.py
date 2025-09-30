@@ -1,0 +1,1 @@
+"""Infrastructure layer for external concerns like persistence and APIs."""

@@ -4,21 +4,15 @@ from flask import Blueprint, request, jsonify
 import logging
 from services.transaction_service import get_game_transactions
 from services.session_ingestion_service import ingest_session
-from services.game_summary_service import get_player_summaries, get_player_analytics, get_session_extremes
-from services.ledger_service import (
+from services.game_summary_service_v2 import get_player_summaries, get_player_analytics, get_session_extremes
+from services.ledger_service_v2 import (
     get_all_session_summaries,
     get_session_summary,
     update_session_summary,
     delete_session_summary,
     delete_entire_session
 )
-from services.player_verification_service import (
-    get_unverified_players,
-    verify_player,
-    update_verified_player,
-    get_player_details,
-    get_player_verification_debug
-)
+# player_verification_service imports removed - use player merge instead
 from services.player_merge_service import (
     find_potential_duplicates,
     merge_players
@@ -31,17 +25,16 @@ from services.audit_service import (
 )
 from services.ledger_analysis_service import get_ledger_analysis
 from services.audit_middleware import audit_context
-from services.live_game_service import (
+from services.live_game_service_v2 import (
     validate_live_game_data,
     create_live_game_session_data,
     validate_session_balance
 )
-from services.game_creation_service import (
+from services.game_creation_service_v2 import (
     create_game,
     validate_game_title
 )
-from services.payment_service import PaymentService
-from services.audit_middleware import audit_context
+from services.payment_service_v2 import PaymentService
 from services.hand_log_service import HandLogService
 from services.hand_analytics_service import get_hand_analytics
 from services.poker_statistics_service import PokerStatisticsProcessor
@@ -76,7 +69,12 @@ def create_new_game():
     }
     """
     try:
-        body = request.get_json() or {}
+        try:
+            body = request.get_json() or {}
+        except Exception:
+            # Handle invalid JSON gracefully
+            return jsonify({"error": "Invalid JSON in request body"}), 400
+
         title = body.get("title")
         
         # Validate title if provided
@@ -158,11 +156,16 @@ def upload_dual():
         return jsonify(result), 200
 
     except PermissionError as e:
-        logging.error(f"Unauthorized: {e}")
-        return jsonify({"error": str(e)}), 401
+        logging.error(f"Forbidden: {e}")
+        return jsonify({"error": str(e)}), 403
     except ValueError as e:
-        logging.error(f"Bad request: {e}")
-        return jsonify({"error": str(e)}), 400
+        error_msg = str(e)
+        if "Game not found" in error_msg:
+            logging.error(f"Not found: {e}")
+            return jsonify({"error": error_msg}), 404
+        else:
+            logging.error(f"Bad request: {e}")
+            return jsonify({"error": error_msg}), 400
     except Exception as e:
         logging.exception("Unexpected error in /upload")
         return jsonify({"error": "Internal server error"}), 500
@@ -248,8 +251,8 @@ def upload_live_game():
         return jsonify(result), 200
 
     except PermissionError as e:
-        logging.error(f"Unauthorized: {e}")
-        return jsonify({"error": str(e)}), 401
+        logging.error(f"Forbidden: {e}")
+        return jsonify({"error": str(e)}), 403
     except ValueError as e:
         logging.error(f"Bad request: {e}")
         return jsonify({"error": str(e)}), 400
@@ -262,7 +265,21 @@ def players_summary(public_code: str):
     result = get_player_summaries(public_code)
     title = result.get("title")
     rows = result.get("rows", [])
-    return jsonify({"game": public_code, "title": title, "rows": rows})
+
+    # Add service version info for debugging
+    from services import get_service_info
+    service_info = get_service_info()
+
+    return jsonify({
+        "game": public_code,
+        "title": title,
+        "rows": rows,
+        "_service_info": {
+            "game_summary_service_version": service_info.get("game_summary_service", "unknown"),
+            "use_domain_services": service_info.get("use_domain_services", False),
+            "direct_import": "game_summary_service_v2"
+        }
+    })
 
 @game_bp.get("/<public_code>/analytics")
 def players_analytics(public_code: str):
@@ -276,7 +293,8 @@ def players_analytics(public_code: str):
         logging.error(f"Error fetching player analytics: {e}")
         return jsonify({"error": "Failed to fetch analytics"}), 500
 
-@game_bp.get("/<public_code>/session-extremes")
+@game_bp.get("/<public_code>/extremes")
+@game_bp.get("/<public_code>/session-extremes")  # Alias for frontend compatibility
 def players_session_extremes(public_code: str):
     """
     Get the actual best and worst single session performances.
@@ -288,6 +306,7 @@ def players_session_extremes(public_code: str):
         logging.error(f"Error fetching session extremes: {e}")
         return jsonify({"error": "Failed to fetch session extremes"}), 500
 
+
 @game_bp.get("/<public_code>/ledger")
 def get_ledger(public_code: str):
     """
@@ -296,6 +315,15 @@ def get_ledger(public_code: str):
     """
     try:
         result = get_all_session_summaries(public_code)
+
+        # Add service version info for debugging
+        from services import get_service_info
+        service_info = get_service_info()
+        result["_service_info"] = {
+            "ledger_service_version": service_info.get("ledger_service", "unknown"),
+            "use_domain_services": service_info.get("use_domain_services", False)
+        }
+
         return jsonify(result), 200
     except Exception as e:
         logging.error(f"Error fetching ledger: {e}")
@@ -354,6 +382,9 @@ def update_ledger_entry(public_code: str, session_id: str, player_id: str):
             result = update_session_summary(session_id, player_id, body)
         return jsonify(result), 200
 
+    except PermissionError as e:
+        logging.error(f"Forbidden: {e}")
+        return jsonify({"error": str(e)}), 403
     except ValueError as e:
         return jsonify({"error": str(e)}), 400
     except Exception as e:
@@ -416,9 +447,9 @@ def update_session_date(public_code: str, session_id: str):
         with SessionLocal() as db:
             game = _require_admin_for_game(db, public_code, admin_code)
 
-            # Find the session
+            # Find the session (session_id is external_id from URL)
             session = db.query(SessionModel).filter(
-                SessionModel.id == session_id,
+                SessionModel.external_id == session_id,
                 SessionModel.game_id == game.id
             ).first()
 
@@ -490,106 +521,15 @@ def delete_entire_session_route(public_code: str, session_id: str):
             result = delete_entire_session(session_id)
         return jsonify(result), 200
 
+    except PermissionError as e:
+        return jsonify({"error": str(e)}), 403
     except ValueError as e:
         return jsonify({"error": str(e)}), 404
     except Exception as e:
         logging.error(f"Error deleting entire session: {e}")
         return jsonify({"error": str(e)}), 500
 
-@game_bp.get("/<public_code>/players/verification")
-def get_player_verification_data(public_code: str):
-    """
-    Get unverified and verified players for the verification page.
-    """
-    try:
-        result = get_unverified_players(public_code)
-        return jsonify(result), 200
-    except Exception as e:
-        logging.error(f"Error fetching player verification data: {e}")
-        return jsonify({"error": str(e)}), 500
-
-@game_bp.get("/<public_code>/players/verification-debug")
-def get_player_verification_debug_data(public_code: str):
-    """
-    Get comprehensive debugging information about player verification issues.
-    Identifies duplicate names, external ID conflicts, and other issues.
-    """
-    try:
-        result = get_player_verification_debug(public_code)
-        return jsonify(result), 200
-    except Exception as e:
-        logging.error(f"Error fetching player verification debug data: {e}")
-        return jsonify({"error": str(e)}), 500
-
-@game_bp.get("/<public_code>/players/<player_id>/details")
-def get_player_detail(public_code: str, player_id: str):
-    """
-    Get detailed information about a specific player.
-    """
-    try:
-        result = get_player_details(player_id)
-        return jsonify(result), 200
-    except ValueError as e:
-        return jsonify({"error": str(e)}), 404
-    except Exception as e:
-        logging.error(f"Error fetching player details: {e}")
-        return jsonify({"error": str(e)}), 500
-
-@game_bp.post("/<public_code>/players/<player_id>/verify")
-def verify_player_name(public_code: str, player_id: str):
-    """
-    Verify a player by setting their verified name.
-    Body expects:
-    {
-      "verified_name": "John Doe"
-    }
-    Header: X-Admin-Code: <admin_code>
-    """
-    try:
-        admin_code = request.headers.get("X-Admin-Code")
-        if not admin_code:
-            return jsonify({"error": "X-Admin-Code header required"}), 401
-
-        body = request.get_json(force=True)
-        if not body or not body.get("verified_name"):
-            return jsonify({"error": "verified_name is required"}), 400
-
-        result = verify_player(player_id, body["verified_name"], body.get("external_id"))
-        return jsonify(result), 200
-
-    except ValueError as e:
-        return jsonify({"error": str(e)}), 400
-    except Exception as e:
-        logging.error(f"Error verifying player: {e}")
-        return jsonify({"error": str(e)}), 500
-
-@game_bp.put("/<public_code>/players/<player_id>/verify")
-def update_verified_player_name(public_code: str, player_id: str):
-    """
-    Update an already verified player's name.
-    Body expects:
-    {
-      "verified_name": "John Doe"
-    }
-    Header: X-Admin-Code: <admin_code>
-    """
-    try:
-        admin_code = request.headers.get("X-Admin-Code")
-        if not admin_code:
-            return jsonify({"error": "X-Admin-Code header required"}), 401
-
-        body = request.get_json(force=True)
-        if not body or not body.get("verified_name"):
-            return jsonify({"error": "verified_name is required"}), 400
-
-        result = update_verified_player(player_id, body["verified_name"], body.get("external_id"))
-        return jsonify(result), 200
-
-    except ValueError as e:
-        return jsonify({"error": str(e)}), 400
-    except Exception as e:
-        logging.error(f"Error updating verified player: {e}")
-        return jsonify({"error": str(e)}), 500
+# Player verification endpoints removed - use player merge functionality instead
 
 @game_bp.post("/<public_code>/players/find-duplicates")
 def find_player_duplicates(public_code: str):
@@ -760,8 +700,34 @@ def get_game_ledger_analysis(public_code: str):
     """
     Get comprehensive ledger analysis for a specific game.
     Analyzes balance discrepancies and identifies potential problems.
+
+    Automatically refreshes payment balances to ensure accurate analysis.
     """
     try:
+        # Refresh payment balances before analysis to ensure accuracy
+        with SessionLocal() as db:
+            game = db.query(Game).filter(Game.public_code == public_code).first()
+            if game:
+                try:
+                    # Get all players who have played in this game
+                    player_ids = db.query(SessionPlayerSummary.player_id).distinct()\
+                        .join(SessionModel, SessionPlayerSummary.session_id == SessionModel.id)\
+                        .filter(SessionModel.game_id == game.id)\
+                        .all()
+
+                    player_id_list = [str(pid[0]) for pid in player_ids]
+
+                    # Recalculate payment balances using PaymentService
+                    payment_service = PaymentService(db)
+                    payment_service._update_payment_balances(db, str(game.id), player_id_list)
+
+                    db.commit()
+
+                    logging.info(f"Refreshed payment balances for {len(player_id_list)} players before analysis")
+                except Exception as e:
+                    logging.warning(f"Failed to refresh payment balances before analysis: {e}")
+                    # Continue with analysis even if refresh fails
+
         result = get_ledger_analysis(public_code)
         return jsonify(result), 200
 
@@ -825,9 +791,7 @@ def recalculate_session_balance(public_code: str, session_id: str):
 # Payment Ledger Endpoints
 # ==========================================================
 
-payment_service = PaymentService()
-
-@game_bp.get("/<public_code>/payments/summary")
+@game_bp.get("/<public_code>/payments")
 def get_payment_summary(public_code: str):
     """
     Get payment summary for all players in the game.
@@ -838,10 +802,12 @@ def get_payment_summary(public_code: str):
         with SessionLocal() as db:
             game = db.query(Game).filter(Game.public_code == public_code).first()
             if not game:
-                return jsonify({"error": "Game not found"}), 404
-            
+                # Return empty list for invalid games rather than error
+                return jsonify([]), 200
+
+            payment_service = PaymentService(db)
             summary = payment_service.get_payment_summary(str(game.id))
-            
+
             # Convert to JSON-serializable format
             result = []
             for player_summary in summary:
@@ -855,9 +821,46 @@ def get_payment_summary(public_code: str):
                     "realized_earnings": float(player_summary.realized_earnings),
                     "days_since_last_payment": player_summary.days_since_last_payment
                 })
+
+            return jsonify(result), 200
             
+    except Exception as e:
+        logging.error(f"Error getting payment summary: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@game_bp.get("/<public_code>/payments/summary")
+def get_payment_summary_wrapped(public_code: str):
+    """
+    Get payment summary for all players in the game with wrapped response.
+    Returns current balances and payment status in {players: [...]} format.
+    """
+    try:
+        # Get game by public code
+        with SessionLocal() as db:
+            game = db.query(Game).filter(Game.public_code == public_code).first()
+            if not game:
+                # Return empty list for invalid games rather than error
+                return jsonify({"players": []}), 200
+
+            payment_service = PaymentService(db)
+            summary = payment_service.get_payment_summary(str(game.id))
+
+            # Convert to JSON-serializable format
+            result = []
+            for player_summary in summary:
+                result.append({
+                    "player_id": player_summary.player_id,
+                    "player_name": player_summary.player_name,
+                    "poker_net_winnings": float(player_summary.poker_net_winnings),
+                    "total_paid": float(player_summary.total_paid),
+                    "total_received": float(player_summary.total_received),
+                    "balance": float(player_summary.balance),
+                    "realized_earnings": float(player_summary.realized_earnings),
+                    "days_since_last_payment": player_summary.days_since_last_payment
+                })
+
             return jsonify({"players": result}), 200
-            
+
     except Exception as e:
         logging.error(f"Error getting payment summary: {e}")
         return jsonify({"error": str(e)}), 500
@@ -873,9 +876,10 @@ def get_settlement_suggestions(public_code: str):
             game = db.query(Game).filter(Game.public_code == public_code).first()
             if not game:
                 return jsonify({"error": "Game not found"}), 404
-            
+
+            payment_service = PaymentService(db)
             suggestions = payment_service.get_settlement_suggestions(str(game.id))
-            
+
             # Convert to JSON-serializable format
             result = []
             for suggestion in suggestions:
@@ -886,7 +890,7 @@ def get_settlement_suggestions(public_code: str):
                     "recipient_name": suggestion.recipient_name,
                     "amount": float(suggestion.amount)
                 })
-            
+
             return jsonify({"settlements": result}), 200
             
     except Exception as e:
@@ -910,20 +914,21 @@ def get_payment_history(public_code: str):
             game = db.query(Game).filter(Game.public_code == public_code).first()
             if not game:
                 return jsonify({"error": "Game not found"}), 404
-            
+
+            payment_service = PaymentService(db)
             history = payment_service.get_payment_history(
-                str(game.id), 
-                limit=limit, 
+                str(game.id),
+                limit=limit,
                 offset=offset
             )
-            
+
             return jsonify({"transactions": history}), 200
             
     except Exception as e:
         logging.error(f"Error getting payment history: {e}")
         return jsonify({"error": str(e)}), 500
 
-@game_bp.post("/<public_code>/payments/record")
+@game_bp.post("/<public_code>/payments")
 def record_payment_transaction(public_code: str):
     """
     Record a payment between two players (admin only).
@@ -950,48 +955,50 @@ def record_payment_transaction(public_code: str):
         with SessionLocal() as db:
             game = _require_admin_for_game(db, public_code, admin_code)
 
-        body = request.get_json(force=True)
-        if not body:
-            return jsonify({"error": "Request body is required"}), 400
+            body = request.get_json(force=True)
+            if not body:
+                return jsonify({"error": "Request body is required"}), 400
 
-        # Validate required fields
-        required_fields = ["payer_id", "recipient_id", "amount"]
-        for field in required_fields:
-            if field not in body:
-                return jsonify({"error": f"{field} is required"}), 400
+            # Validate required fields
+            required_fields = ["payer_id", "recipient_id", "amount"]
+            for field in required_fields:
+                if field not in body:
+                    return jsonify({"error": f"{field} is required"}), 400
 
-        # Parse payment date
-        from datetime import datetime
-        payment_date = datetime.now(timezone.utc)
-        if "payment_date" in body and body["payment_date"]:
-            try:
-                payment_date = datetime.fromisoformat(body["payment_date"].replace('Z', '+00:00'))
-            except ValueError:
-                return jsonify({"error": "Invalid payment_date format"}), 400
+            # Parse payment date
+            from datetime import datetime
+            payment_date = datetime.now(timezone.utc)
+            if "payment_date" in body and body["payment_date"]:
+                try:
+                    payment_date = datetime.fromisoformat(body["payment_date"].replace('Z', '+00:00'))
+                except ValueError:
+                    return jsonify({"error": "Invalid payment_date format"}), 400
 
-        # Set audit context
-        with audit_context(
-            operation_type="PAYMENT_RECORD",
-            game_id=str(game.id),
-            actor_kind="admin_code",
-            actor_id=admin_code[:8] + "…"
-        ):
-            payment = payment_service.record_payment(
+            # Set audit context
+            payment_service = PaymentService(db)
+            with audit_context(
+                operation_type="PAYMENT_RECORD",
                 game_id=str(game.id),
-                payer_id=body["payer_id"],
-                recipient_id=body["recipient_id"],
-                amount=Decimal(str(body["amount"])),
-                payment_date=payment_date,
-                payment_method=body.get("payment_method"),
-                notes=body.get("notes"),
-                reference_id=body.get("reference_id"),
-                created_by=admin_code[:8] + "…"
-            )
+                actor_kind="admin_code",
+                actor_id=admin_code[:8] + "…"
+            ):
+                payment = payment_service.record_payment(
+                    game_id=str(game.id),
+                    payer_id=body["payer_id"],
+                    recipient_id=body["recipient_id"],
+                    amount=Decimal(str(body["amount"])),
+                    payment_date=payment_date,
+                    payment_method=body.get("payment_method"),
+                    notes=body.get("notes"),
+                    reference_id=body.get("reference_id"),
+                    created_by=admin_code[:8] + "…"
+                )
 
-        return jsonify({
-            "id": str(payment.id),
-            "message": "Payment recorded successfully"
-        }), 201
+            db.commit()
+            return jsonify({
+                "id": str(payment.id),
+                "message": "Payment recorded successfully"
+            }), 201
 
     except ValueError as e:
         return jsonify({"error": str(e)}), 400
@@ -1069,9 +1076,8 @@ def update_payment_transaction(public_code: str, payment_id: str):
                 actor_id=admin_code[:8] + "…"
             ):
                 db.commit()
-                
-                # Update payment balances
-                payment_service._update_payment_balances(db, str(game.id), [body["payer_id"], body["recipient_id"]])
+
+                # Note: v2 payment service handles balance updates automatically
 
         return jsonify({
             "id": str(payment.id),
@@ -1100,34 +1106,30 @@ def delete_payment_transaction(public_code: str, payment_id: str):
         from services.session_ingestion_service import _require_admin_for_game
         with SessionLocal() as db:
             game = _require_admin_for_game(db, public_code, admin_code)
-            
-            # Find the payment transaction
+
+            # Verify payment exists and belongs to this game
             payment = db.query(PaymentTransaction).filter(
                 PaymentTransaction.id == payment_id,
                 PaymentTransaction.game_id == str(game.id)
             ).first()
-            
+
             if not payment:
                 return jsonify({"error": "Payment transaction not found"}), 404
 
-            # Store player IDs for balance update
-            payer_id = str(payment.payer_id)
-            recipient_id = str(payment.recipient_id)
-            
-            # Set audit context
+            # Use v2 service to delete payment (handles balance updates automatically)
+            payment_service = PaymentService(db)
             with audit_context(
                 operation_type="PAYMENT_DELETE",
                 game_id=str(game.id),
                 actor_kind="admin_code",
                 actor_id=admin_code[:8] + "…"
             ):
-                db.delete(payment)
-                db.commit()
-                
-                # Update payment balances
-                payment_service._update_payment_balances(db, str(game.id), [payer_id, recipient_id])
+                deleted = payment_service.delete_payment(payment_id)
+                if not deleted:
+                    return jsonify({"error": "Payment not found"}), 404
 
-        return jsonify({"message": "Payment deleted successfully"}), 200
+            db.commit()
+            return jsonify({"message": "Payment deleted successfully"}), 200
 
     except Exception as e:
         logging.error(f"Error deleting payment: {e}")
@@ -1440,56 +1442,7 @@ def merge_players(public_code: str, source_player_id: str, target_player_id: str
             return jsonify({"error": str(e)}), 500
 
 
-@game_bp.post("/<public_code>/players/check-verification-status")
-def check_verification_status(public_code: str):
-    """
-    Check verification status for a list of external_ids.
-    Expects: {"external_ids": ["id1", "id2", "id3"]}
-    Returns: {"id1": {"is_verified": true, "display_name": "John"}, ...}
-    """
-    try:
-        data = request.get_json()
-        external_ids = data.get('external_ids', [])
-        
-        if not external_ids:
-            return jsonify({}), 200
-
-        with SessionLocal() as db:
-            # Get game to ensure it exists
-            game = db.query(Game).filter(Game.public_code == public_code).first()
-            if not game:
-                return jsonify({"error": "Game not found"}), 404
-
-            # Find players with these external_ids that are linked to this game
-            players = db.query(Player).join(
-                GamePlayer, Player.id == GamePlayer.player_id
-            ).filter(
-                GamePlayer.game_id == game.id,
-                Player.external_id.in_(external_ids)
-            ).all()
-
-            # Build response map
-            result = {}
-            for external_id in external_ids:
-                player = next((p for p in players if p.external_id == external_id), None)
-                if player:
-                    result[external_id] = {
-                        "is_verified": player.is_verified,
-                        "display_name": player.display_name,
-                        "player_id": str(player.id)
-                    }
-                else:
-                    result[external_id] = {
-                        "is_verified": False,
-                        "display_name": None,
-                        "player_id": None
-                    }
-
-            return jsonify(result), 200
-
-    except Exception as e:
-        logging.error(f"Error checking verification status: {e}")
-        return jsonify({"error": str(e)}), 500
+# check-verification-status endpoint removed - use player merge functionality instead
 
 
 @game_bp.post("/<public_code>/payments/cleanup-orphaned")
@@ -1548,6 +1501,49 @@ def cleanup_orphaned_payment_balances(public_code: str):
         except Exception as e:
             db.rollback()
             logging.error(f"Error cleaning up orphaned balances: {e}")
+            return jsonify({"error": str(e)}), 500
+
+
+@game_bp.post("/<public_code>/payments/recalculate-balances")
+def recalculate_payment_balances(public_code: str):
+    """
+    Recalculate all payment balances for a game.
+    Useful after data corrections or migrations.
+    Admin only endpoint.
+    Header: X-Admin-Code: <admin_code>
+    """
+    admin_code = request.headers.get('X-Admin-Code')
+    if not admin_code:
+        return jsonify({"error": "Admin code required"}), 401
+
+    with SessionLocal() as db:
+        try:
+            game = db.query(Game).filter(Game.public_code == public_code).first()
+            if not game or game.admin_code != admin_code:
+                return jsonify({"error": "Game not found or invalid admin code"}), 404
+
+            # Get all players who have played in this game
+            player_ids = db.query(SessionPlayerSummary.player_id).distinct()\
+                .join(SessionModel, SessionPlayerSummary.session_id == SessionModel.id)\
+                .filter(SessionModel.game_id == game.id)\
+                .all()
+
+            player_id_list = [str(pid[0]) for pid in player_ids]
+
+            # Recalculate balances for all players using PaymentService
+            payment_service = PaymentService(db)
+            payment_service._update_payment_balances(db, str(game.id), player_id_list)
+
+            db.commit()
+
+            return jsonify({
+                "message": f"Successfully recalculated payment balances for {len(player_id_list)} player(s)",
+                "players_updated": len(player_id_list)
+            }), 200
+
+        except Exception as e:
+            db.rollback()
+            logging.error(f"Error recalculating payment balances: {e}")
             return jsonify({"error": str(e)}), 500
 
 
@@ -1673,8 +1669,9 @@ def upload_hand_log(public_code: str, session_id: str):
             if not game or game.admin_code != admin_code:
                 return jsonify({"error": "Game not found or invalid admin code"}), 404
 
+            # session_id in URL is actually the external_id (PokerNow session ID)
             session = db.query(SessionModel).filter(
-                SessionModel.id == session_id,
+                SessionModel.external_id == session_id,
                 SessionModel.game_id == game.id
             ).first()
 
@@ -1697,7 +1694,7 @@ def upload_hand_log(public_code: str, session_id: str):
             ):
                 result = HandLogService.import_hand_log(
                     db=db,
-                    session_id=session_id,
+                    session_id=str(session.id),  # Pass the database UUID, not external_id
                     csv_content=csv_content,
                     player_mappings=player_mappings
                 )
@@ -2374,3 +2371,18 @@ def get_adaptive_game_statistics(public_code: str):
         return jsonify({"error": str(e)}), 500
     finally:
         db.close()
+
+
+@game_bp.route('/service-info', methods=['GET'])
+def get_service_info_endpoint():
+    """
+    Get information about which services are currently loaded.
+    Useful for debugging service migration status.
+    """
+    try:
+        from services import get_service_info
+        info = get_service_info()
+        return jsonify(info), 200
+    except Exception as e:
+        logging.error(f"Error getting service info: {e}")
+        return jsonify({"error": str(e)}), 500

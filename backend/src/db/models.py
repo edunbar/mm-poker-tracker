@@ -1,3 +1,4 @@
+from decimal import Decimal
 from sqlalchemy import (
     Column, String, Text, ForeignKey, UniqueConstraint,
     BigInteger, TIMESTAMP, func, Table, ARRAY, Index, text, Boolean, Numeric
@@ -289,6 +290,12 @@ class PaymentTransaction(Base):
     created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
     created_by = Column(Text, nullable=False)  # admin_code hash for audit
     
+    # Properties for API compatibility
+    @property
+    def amount(self) -> Decimal:
+        """Get amount as Decimal (converted from cents)."""
+        return Decimal(self.amount_cents) / 100
+
     # Relationships
     game = relationship('Game', back_populates='payment_transactions')
     payer = relationship('Player', back_populates='payments_sent', foreign_keys=[payer_id])
@@ -298,6 +305,9 @@ class PaymentTransaction(Base):
         Index('ix_payment_transactions_game_date', 'game_id', 'payment_date'),
         Index('ix_payment_transactions_payer', 'payer_id'),
         Index('ix_payment_transactions_recipient', 'recipient_id'),
+        # Unique constraint on (game_id, reference_id) to prevent duplicate payments
+        # Note: This constraint allows multiple NULL reference_ids (PostgreSQL behavior)
+        UniqueConstraint('game_id', 'reference_id', name='uq_payment_transactions_game_reference'),
     )
 
 

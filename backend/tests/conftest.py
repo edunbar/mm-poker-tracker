@@ -1,3 +1,12 @@
+import sys
+import os
+from pathlib import Path
+
+# Add src directory to Python path for imports
+backend_dir = Path(__file__).parent.parent
+src_dir = backend_dir / "src"
+sys.path.insert(0, str(src_dir))
+
 import pytest
 from decimal import Decimal
 from datetime import datetime, timezone
