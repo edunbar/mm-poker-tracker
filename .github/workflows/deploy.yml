@@ -309,8 +309,50 @@ jobs:
         echo "⏳ Waiting for application to start..."
         sleep 10
 
-  health-check:
+  deploy-frontend:
     needs: deploy
+    if: inputs.environment == 'production'
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install Vercel CLI
+      run: npm install --global vercel@latest
+
+    - name: Pull Vercel Environment Information
+      run: |
+        if [ "${{ inputs.environment }}" == "production" ]; then
+          vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+        else
+          vercel pull --yes --environment=preview --token=${{ secrets.VERCEL_TOKEN }}
+        fi
+
+    - name: Build Project Artifacts
+      run: vercel build ${{ inputs.environment == 'production' && '--prod' || '' }} --token=${{ secrets.VERCEL_TOKEN }}
+
+    - name: Deploy to Vercel
+      id: deploy_vercel
+      run: |
+        if [ "${{ inputs.environment }}" == "production" ]; then
+          echo "🚀 Deploying frontend to production..."
+          URL=$(vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }})
+        else
+          echo "🚀 Deploying frontend to staging..."
+          URL=$(vercel deploy --prebuilt --token=${{ secrets.VERCEL_TOKEN }})
+        fi
+        echo "url=$URL" >> $GITHUB_OUTPUT
+        echo "✅ Frontend deployed to: $URL"
+
+    - name: Frontend deployment summary
+      run: |
+        echo "✅ Frontend deployment complete!"
+        echo "🔗 URL: ${{ steps.deploy_vercel.outputs.url }}"
+
+  health-check:
+    needs: [deploy, deploy-frontend]
+    if: always() && needs.deploy.result == 'success' && (needs.deploy-frontend.result == 'success' || needs.deploy-frontend.result == 'skipped')
     runs-on: ubuntu-latest
 
     steps:

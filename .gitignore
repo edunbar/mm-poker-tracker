@@ -26,15 +26,22 @@ migrations/*.pyc
 !migrations/versions/*.py
 
 # Local config / secrets
-.env
-.env.*
-!.env.example
-!.env.*.example
-*.json
-!package.json
-!package-lock.json
-!tsconfig.json
-!tailwind.config.js
+# Block all environment files by default (contain secrets)
+**/.env
+**/.env.local
+**/.env.*.local
+**/.env.production
+**/.env.staging
+**/.env.development
+**/.env.test
+!**/.env.example
+!**/.env.*.example
+
+# Allow frontend environment configs (not secrets - just backend URLs)
+!frontend/.env.production
+!frontend/.env.staging
+
+# Certificates and keys
 *.key
 *.pem
 *.crt
@@ -49,10 +56,25 @@ id_rsa*
 id_dsa*
 known_hosts
 
-# Google Service Account files
+# JSON files - block secrets, allow configs
+# Block service account and credential files
 *service-account*.json
 *-credentials.json
+*-key.json
+*_key.json
 backend/mm-poker-tracker-*.json
+secrets.json
+credentials.json
+gcp-*.json
+firebase-*.json
+
+# Allow build and deployment configs
+!vercel.json
+!tsconfig.json
+!package.json
+!package-lock.json
+!tailwind.config.js
+!.github/**/*.json
 
 # Production secrets
 secrets/
@@ -97,7 +119,8 @@ Thumbs.db
 # -------------------------
 *.pid
 
-# -------------------------  
+# -------------------------
 # Claude Code
 # -------------------------
 CLAUDE.md
+.claude/

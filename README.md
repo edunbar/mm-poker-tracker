@@ -178,7 +178,73 @@ curl -X POST http://localhost:8000/api/games/upload_live \
 
 ## 🔧 Configuration
 
-### Environment Variables (.env)
+### Environment Variables Reference
+
+#### Backend Environment Variables
+
+**Required for all environments:**
+
+| Variable | Description | Example | Default |
+|----------|-------------|---------|---------|
+| `FLASK_ENV` | Environment mode | `development`, `staging`, `production` | `development` |
+| `DATABASE_URL` | PostgreSQL connection string | `postgresql+psycopg2://user:pass@host/db` | - |
+| `USE_DOMAIN_SERVICES` | Enable V2 domain-driven services | `true`, `false` | `false` |
+
+**Production/Staging specific:**
+
+| Variable | Description | Example | Required |
+|----------|-------------|---------|----------|
+| `ALLOWED_ORIGINS` | CORS allowed origins (comma-separated) | `https://homegame.gg,https://www.homegame.gg` | Yes |
+| `DATABASE_URL` | Cloud SQL connection with socket path | `postgresql://user:pass@/db?host=/cloudsql/project:region:instance` | Yes |
+
+**Optional:**
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `PORT` | Server port | `8000` |
+| `PYTHONPATH` | Python module search path (must be `src` for imports) | `src` |
+
+#### Frontend Environment Variables
+
+**Development (`.env.local`):**
+
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `REACT_APP_API_URL` | Backend API URL | `http://localhost:8000` |
+
+**Staging (`frontend/.env.staging.local` - gitignored):**
+
+| Variable | Description | Value |
+|----------|-------------|-------|
+| `REACT_APP_API_URL` | Staging backend URL | `https://poker-backend-staging-6t2w34itkq-uc.a.run.app` |
+
+**Production (`frontend/.env.production` - tracked in git):**
+
+| Variable | Description | Value |
+|----------|-------------|-------|
+| `REACT_APP_API_URL` | Production backend URL | `https://poker-backend-6t2w34itkq-uc.a.run.app` |
+
+> ⚠️ **Important**: `frontend/.env.production` is tracked in git because it only contains the public backend URL (not secrets). Backend `.env` files are gitignored because they contain database credentials.
+
+#### GCP Cloud Run Configuration
+
+**Managed via:**
+- Production: `backend/cloud-run-env.yaml`
+- Staging: `backend/cloud-run-env-staging.yaml`
+
+These files are tracked in git and deployed via GitHub Actions.
+
+#### Vercel Configuration
+
+**Managed via Vercel Dashboard:**
+- Project: HomeGame
+- Production: `REACT_APP_API_URL` → `https://poker-backend-6t2w34itkq-uc.a.run.app`
+- Preview deployments: Use staging backend URL
+
+### Local Development (.env)
+
+For Docker-based development, copy `.env.example` to `.env`:
+
 ```bash
 # Database Configuration
 POSTGRES_USER=pokeruser
@@ -189,15 +255,29 @@ POSTGRES_PORT=5432
 # Backend Configuration
 PORT=8000
 DATABASE_URL=postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:${POSTGRES_PORT}/${POSTGRES_DB}
-
-# Game Configuration
-REACT_APP_PUBLIC_CODE=C4QROK                    # Shareable game code
-REACT_APP_ADMIN_CODE=your-secret-admin-code     # Admin access code
+USE_DOMAIN_SERVICES=true
 
 # pgAdmin Configuration
 PGADMIN_DEFAULT_EMAIL=admin@example.com
 PGADMIN_DEFAULT_PASSWORD=adminadmin
 ```
+
+### Common Configuration Issues
+
+**Frontend calling wrong backend:**
+- Check `REACT_APP_API_URL` in Vercel environment variables
+- For production, verify `frontend/.env.production` has correct URL
+- Clear Vercel build cache if changes don't take effect
+
+**Database connection errors:**
+- Development: Check `DATABASE_URL` in `.env` matches Docker service name (`db`)
+- Production/Staging: Verify Cloud SQL instance name and socket path
+- Ensure `PYTHONPATH=src` is set for backend imports
+
+**CORS errors:**
+- Add frontend URL to `ALLOWED_ORIGINS` in backend environment
+- Format: comma-separated, no trailing slashes
+- Example: `https://homegame.gg,https://www.homegame.gg`
 
 ### Google Sheets Integration (Optional)
 1. Create a Google Cloud project
@@ -308,26 +388,57 @@ docker-compose exec backend python -m alembic upgrade head
 
 ## 🚢 Deployment
 
-### Production Environment Variables
+**Production Infrastructure:**
+- **Frontend**: Vercel → https://homegame.gg
+- **Backend**: GCP Cloud Run → `poker-backend` service
+- **Database**: GCP Cloud SQL → PostgreSQL 16
+- **CI/CD**: GitHub Actions (automated testing + deployment)
+
+**Staging Infrastructure:**
+- **Frontend**: Vercel → https://home-game-staging.vercel.app
+- **Backend**: GCP Cloud Run → `poker-backend-staging` service
+- **Database**: GCP Cloud SQL → `home_game_staging` database
+
+### Deployment Process
+
+For detailed deployment procedures, pre-flight checklists, rollback procedures, and troubleshooting guides, see:
+
+**📋 [DEPLOYMENT.md](./DEPLOYMENT.md)** - Comprehensive deployment documentation including:
+- Pre-deployment checklist (tests, config verification, database migrations)
+- Step-by-step deployment process for staging and production
+- Post-deployment monitoring and verification
+- Rollback procedures
+- Common issues and solutions
+- Infrastructure change management
+
+### Quick Deploy
+
+**Staging:**
+1. Push changes to GitHub
+2. Go to [GitHub Actions](https://github.com/edunbar/mm-poker-tracker/actions)
+3. Run "Deploy" workflow → Select "staging" environment
+4. Monitor deployment and health checks
+
+**Production:**
+1. Verify staging deployment successful
+2. Run "Deploy" workflow → Select "production" environment
+3. ⚠️ **Do NOT skip migration check** unless intentional
+4. Monitor for 30 minutes after deployment
+
+### Emergency Rollback
+
 ```bash
-# Set production database URL
-DATABASE_URL=postgresql://user:password@production-db-host:5432/poker_analytics
+# Backend rollback
+gcloud run revisions list --service=poker-backend --region=us-central1
+gcloud run services update-traffic poker-backend \
+  --region=us-central1 \
+  --to-revisions=PREVIOUS_REVISION=100
 
-# Disable Flask debug mode
-FLASK_ENV=production
-
-# Set secure admin codes
-REACT_APP_ADMIN_CODE=secure-production-admin-code
+# Frontend rollback
+# Go to Vercel → Deployments → Select previous deployment → Redeploy
 ```
 
-### Docker Production Build
-```bash
-# Build production images
-docker-compose -f docker-compose.prod.yml build
-
-# Deploy with production config
-docker-compose -f docker-compose.prod.yml up -d
-```
+For complete rollback procedures including database migrations, see [DEPLOYMENT.md](./DEPLOYMENT.md).
 
 ## 🤝 Contributing
 
