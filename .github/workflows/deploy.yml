@@ -80,6 +80,7 @@ jobs:
         name: pre-deploy-test-results
         path: backend/test-results/
         retention-days: 30
+        if-no-files-found: ignore
 
     - name: Test summary
       if: failure()

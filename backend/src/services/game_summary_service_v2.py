@@ -117,6 +117,8 @@ def get_player_summaries(public_code: str) -> Dict[str, Any]:
         game_id = GameId(str(game.id))  # Use the actual UUID
         game_summary = repository.build_game_summary(game_id)
 
+        logger.info(f"Built game summary for {public_code}, found {len(game_summary.player_summaries)} player summaries")
+
         # Convert domain objects to legacy format
         rows = []
         for summary in game_summary.player_summaries:

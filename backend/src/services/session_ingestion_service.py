@@ -414,8 +414,8 @@ def ingest_session(
         )
         db.commit()
 
-        # Invalidate cache for this game
-        from services.game_summary_service import invalidate_game_cache
+        # Invalidate cache for this game (use v2 service)
+        from services.game_summary_service_v2 import invalidate_game_cache
         invalidate_game_cache(public_code)
 
         # ----- Step 5: Process poker statistics if this is a PokerNow session -----
