@@ -47,7 +47,7 @@ interface AnalyticsPlayer {
 
 interface AnalyticsCategory {
   title: string;
-  icon: any;
+  icon: React.ComponentType<{ className?: string }>;
   iconColor: string;
   iconBg: string;
   description: string;

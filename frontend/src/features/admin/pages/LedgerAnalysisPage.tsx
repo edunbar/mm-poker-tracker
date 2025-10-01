@@ -63,24 +63,24 @@ interface SessionDetail {
     target_table: string;
     timestamp: string | null;
     description: string;
-    before: any;
-    after: any;
+    before: unknown;
+    after: unknown;
   }>;
   data_comparison?: {
     has_differences: boolean;
     missing_players: Array<{
       name: string;
-      original_data: any;
+      original_data: unknown;
     }>;
     added_players: Array<{
       name: string;
       player_id: string;
-      current_data: any;
+      current_data: unknown;
     }>;
     modified_players: Array<{
       name: string;
       player_id: string;
-      differences: any;
+      differences: unknown;
     }>;
     summary: {
       original_player_count: number;
@@ -93,6 +93,54 @@ interface SessionDetail {
   };
 }
 
+interface PaymentBalanceCheck {
+  is_balanced: boolean;
+  total_poker_profit: number;
+  total_payment_net: number;
+  total_effective_balance: number;
+  balance_in_dollars?: number;
+  summary?: string;
+  issues?: Array<{
+    type: string;
+    message: string;
+    severity: string;
+  }>;
+}
+
+interface PlayerDebugData {
+  duplicate_display_names?: Array<{
+    display_name: string;
+    players: Array<{
+      player_id: string;
+      display_name: string;
+      external_id?: string;
+      session_count: number;
+      created_at?: string;
+      all_names?: string[];
+    }>;
+  }>;
+  external_id_conflicts?: Array<{
+    external_id: string;
+    players: Array<{
+      player_id: string;
+      display_name: string;
+      session_count: number;
+    }>;
+  }>;
+  total_players?: number;
+  message?: string;
+  error?: string;
+}
+
+interface PlayerData {
+  player_id: string;
+  display_name: string;
+  buy_in_sum: number;
+  cash_out_sum: number;
+  in_game: number;
+  net: number;
+}
+
 export default function LedgerAnalysisPage() {
   const { publicCode } = useParams<{ publicCode: string }>();
   const { hasAdminSession, adminCode } = useAdminSession();
@@ -101,12 +149,12 @@ export default function LedgerAnalysisPage() {
   const [loading, setLoading] = useState(false);
   const [sessionAnalysis, setSessionAnalysis] = useState<SessionAnalysis[]>([]);
   const [mathErrors, setMathErrors] = useState<MathError[]>([]);
-  const [paymentBalanceCheck, setPaymentBalanceCheck] = useState<any>(null);
+  const [paymentBalanceCheck, setPaymentBalanceCheck] = useState<PaymentBalanceCheck | null>(null);
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
   const [sessionDetail, setSessionDetail] = useState<SessionDetail | null>(null);
   const [sessionLoading, setSessionLoading] = useState(false);
   const [expandedAuditId, setExpandedAuditId] = useState<string | null>(null);
-  const [playerDebugData, setPlayerDebugData] = useState<any>(null);
+  const [playerDebugData, setPlayerDebugData] = useState<PlayerDebugData | null>(null);
   const [editingPlayer, setEditingPlayer] = useState<string | null>(null);
   const [editValues, setEditValues] = useState<{[key: string]: {buy_in: string, cash_out: string, in_game: string}}>({});
   const [merging, setMerging] = useState<{source: string, target: string} | null>(null);
@@ -187,7 +235,7 @@ export default function LedgerAnalysisPage() {
     setEditValues({});
   };
 
-  const startEditingPlayer = (playerId: string, player: any) => {
+  const startEditingPlayer = (playerId: string, player: PlayerData) => {
     setEditingPlayer(playerId);
     setEditValues({
       ...editValues,
@@ -470,13 +518,13 @@ export default function LedgerAnalysisPage() {
                               <Text variant="bodySmall" color="warning" className="mb-3">
                                 Players with the same display name but different player IDs. This can cause confusion during imports.
                               </Text>
-                              {playerDebugData.duplicate_display_names.map((group: any, index: number) => (
+                              {playerDebugData.duplicate_display_names.map((group, index: number) => (
                                 <div key={index} className="mb-4 last:mb-0">
                                   <Text variant="bodySmall" weight="medium" color="warning" className="mb-2">
                                     Name: "{group.display_name}" ({group.players.length} players)
                                   </Text>
                                   <div className="space-y-2">
-                                    {group.players.map((player: any) => (
+                                    {group.players.map((player) => (
                                       <div key={player.player_id} className="bg-warning/20 rounded p-3 text-sm text-warning-foreground">
                                         <div className="flex items-center justify-between">
                                           <div>
@@ -493,9 +541,11 @@ export default function LedgerAnalysisPage() {
                                             <Text variant="caption" color="muted">
                                               {player.session_count} session{player.session_count !== 1 ? 's' : ''}
                                             </Text>
-                                            <Text variant="caption" color="muted">
-                                              Created: {new Date(player.created_at).toLocaleDateString()}
-                                            </Text>
+                                            {player.created_at && (
+                                              <Text variant="caption" color="muted">
+                                                Created: {new Date(player.created_at).toLocaleDateString()}
+                                              </Text>
+                                            )}
                                           </div>
                                         </div>
                                         {player.all_names && player.all_names.length > 0 && (
@@ -509,32 +559,36 @@ export default function LedgerAnalysisPage() {
                                   </div>
                                   
                                   {/* Merge Controls for Duplicates */}
-                                  {group.players.length === 2 && (
+                                  {group.players.length === 2 && group.players[0] && group.players[1] && (() => {
+                                    const player0 = group.players[0];
+                                    const player1 = group.players[1];
+                                    return (
                                     <div className="mt-3 p-3 bg-info/10 border border-info/20 rounded">
                                       <Text variant="bodySmall" weight="medium" color="primary" className="mb-2">Merge Players</Text>
                                       <div className="flex gap-2">
                                         <Button
-                                          onClick={() => mergePlayer(group.players[1].player_id, group.players[0].player_id)}
+                                          onClick={() => mergePlayer(player1.player_id, player0.player_id)}
                                           disabled={merging !== null}
                                           size="sm"
                                           className="bg-black text-white hover:opacity-90 text-xs px-3 py-1"
                                         >
-                                          {merging?.source === group.players[1].player_id ? 'Merging...' : `Merge "${group.players[1].display_name}" → "${group.players[0].display_name}"`}
+                                          {merging?.source === player1.player_id ? 'Merging...' : `Merge "${player1.display_name}" → "${player0.display_name}"`}
                                         </Button>
                                         <Button
-                                          onClick={() => mergePlayer(group.players[0].player_id, group.players[1].player_id)}
+                                          onClick={() => mergePlayer(player0.player_id, player1.player_id)}
                                           disabled={merging !== null}
                                           size="sm"
                                           className="bg-black text-white hover:opacity-90 text-xs px-3 py-1"
                                         >
-                                          {merging?.source === group.players[0].player_id ? 'Merging...' : `Merge "${group.players[0].display_name}" → "${group.players[1].display_name}"`}
+                                          {merging?.source === player0.player_id ? 'Merging...' : `Merge "${player0.display_name}" → "${player1.display_name}"`}
                                         </Button>
                                       </div>
                                       <Text variant="caption" color="primary" className="mt-1">
                                         Choose which player to keep. All sessions and payments from the source will be merged into the target.
                                       </Text>
                                     </div>
-                                  )}
+                                    );
+                                  })()}
                                   
                                   {group.players.length > 2 && (
                                     <div className="mt-3 p-3 bg-orange-50 border border-orange-200 rounded">
@@ -558,13 +612,13 @@ export default function LedgerAnalysisPage() {
                               <Text variant="bodySmall" color="destructive" className="mb-3">
                                 Multiple players sharing the same external ID. This should not happen.
                               </Text>
-                              {playerDebugData.external_id_conflicts.map((conflict: any, index: number) => (
+                              {playerDebugData.external_id_conflicts.map((conflict, index: number) => (
                                 <div key={index} className="mb-4 last:mb-0">
                                   <div className="font-medium text-destructive mb-2">
                                     External ID: "{conflict.external_id}" ({conflict.players.length} players)
                                   </div>
                                   <div className="space-y-2">
-                                    {conflict.players.map((player: any) => (
+                                    {conflict.players.map((player) => (
                                       <div key={player.player_id} className="bg-red-100 rounded p-3 text-sm">
                                         <div className="flex items-center justify-between">
                                           <div>
@@ -735,7 +789,7 @@ export default function LedgerAnalysisPage() {
                     </div>
                     <div className="text-right">
                       <Text variant="bodySmall" color="destructive" weight="bold">
-                        ${Math.abs(paymentBalanceCheck.balance_in_dollars).toFixed(2)} imbalance
+                        ${Math.abs(paymentBalanceCheck.balance_in_dollars || 0).toFixed(2)} imbalance
                       </Text>
                     </div>
                   </div>
@@ -744,7 +798,7 @@ export default function LedgerAnalysisPage() {
                 {paymentBalanceCheck.issues && paymentBalanceCheck.issues.length > 0 && (
                   <div className="p-4">
                     <div className="space-y-2">
-                      {paymentBalanceCheck.issues.map((issue: any, idx: number) => (
+                      {paymentBalanceCheck.issues.map((issue, idx: number) => (
                         <div
                           key={idx}
                           className={`p-3 rounded-md ${
@@ -979,7 +1033,7 @@ export default function LedgerAnalysisPage() {
                                         onChange={(e) => setEditValues({
                                           ...editValues,
                                           [player.player_id]: {
-                                            ...playerEditValues!,
+                                            ...(playerEditValues || { buy_in: '', cash_out: '', in_game: '' }),
                                             buy_in: e.target.value
                                           }
                                         })}
@@ -999,7 +1053,7 @@ export default function LedgerAnalysisPage() {
                                         onChange={(e) => setEditValues({
                                           ...editValues,
                                           [player.player_id]: {
-                                            ...playerEditValues!,
+                                            ...(playerEditValues || { buy_in: '', cash_out: '', in_game: '' }),
                                             cash_out: e.target.value
                                           }
                                         })}
@@ -1019,7 +1073,7 @@ export default function LedgerAnalysisPage() {
                                         onChange={(e) => setEditValues({
                                           ...editValues,
                                           [player.player_id]: {
-                                            ...playerEditValues!,
+                                            ...(playerEditValues || { buy_in: '', cash_out: '', in_game: '' }),
                                             in_game: e.target.value
                                           }
                                         })}
@@ -1074,12 +1128,14 @@ export default function LedgerAnalysisPage() {
                                         </Button>
                                         <Button
                                           onClick={() => {
-                                            setDeleteTarget({
-                                              sessionId: selectedSessionId!,
-                                              playerId: player.player_id,
-                                              playerName: player.display_name
-                                            });
-                                            setShowDeleteModal(true);
+                                            if (selectedSessionId) {
+                                              setDeleteTarget({
+                                                sessionId: selectedSessionId,
+                                                playerId: player.player_id,
+                                                playerName: player.display_name
+                                              });
+                                              setShowDeleteModal(true);
+                                            }
                                           }}
                                           variant="ghost"
                                           size="sm"

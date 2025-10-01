@@ -1,6 +1,6 @@
 import axios from 'axios';
 import { ChevronDown, ChevronUp, DollarSign, Edit, History, Plus, Target, Trash2, Users, X } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { API_BASE_URL } from '../../../config/api';
 import { useAdminSession } from '../../../contexts/AdminSessionContext';
@@ -50,6 +50,14 @@ interface RecordPaymentForm {
   reference_id: string;
 }
 
+interface ApiError {
+  response?: {
+    data?: {
+      error?: string;
+    };
+  };
+}
+
 export default function PaymentLedgerPage() {
   const { publicCode } = useParams<{ publicCode: string }>();
   const { title: _title } = useGameTitle(publicCode || '');
@@ -97,31 +105,32 @@ export default function PaymentLedgerPage() {
     return hasAdminSession ? sessionAdminCode : manualAdminCode;
   };
 
-  const fetchPaymentSummary = async () => {
+  const fetchPaymentSummary = useCallback(async () => {
     try {
       const response = await axios.get(`${API_BASE_URL}/api/games/${publicCode}/payments/summary`);
       setPaymentSummary(response.data.players);
     } catch (error) {
+      // Silently handle error
     }
-  };
+  }, [publicCode]);
 
-
-  const fetchSettlements = async () => {
+  const fetchSettlements = useCallback(async () => {
     try {
       const response = await axios.get(`${API_BASE_URL}/api/games/${publicCode}/payments/settlements`);
       setSettlements(response.data.settlements);
     } catch (error) {
+      // Silently handle error
     }
-  };
+  }, [publicCode]);
 
-  const fetchPaymentHistory = async () => {
+  const fetchPaymentHistory = useCallback(async () => {
     try {
       const response = await axios.get(`${API_BASE_URL}/api/games/${publicCode}/payments/history`);
       setPaymentHistory(response.data.transactions);
     } catch (error) {
+      // Silently handle error
     }
-  };
-
+  }, [publicCode]);
 
   useEffect(() => {
     if (publicCode) {
@@ -134,7 +143,7 @@ export default function PaymentLedgerPage() {
         setLoading(false);
       });
     }
-  }, [publicCode]);
+  }, [publicCode, fetchPaymentSummary, fetchSettlements, fetchPaymentHistory]);
 
   const handleRecordPayment = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -187,8 +196,8 @@ export default function PaymentLedgerPage() {
       ]);
 
       showSuccess('Payment Recorded', 'Payment recorded successfully!');
-    } catch (error: any) {
-      const errorMsg = error.response?.data?.error || 'Failed to record payment';
+    } catch (error) {
+      const errorMsg = (error as ApiError).response?.data?.error || 'Failed to record payment';
       showError('Payment Error', errorMsg);
     } finally {
       setSubmitLoading(false);
@@ -266,8 +275,8 @@ export default function PaymentLedgerPage() {
       ]);
 
       showSuccess('Payment Updated', 'Payment updated successfully!');
-    } catch (error: any) {
-      const errorMsg = error.response?.data?.error || 'Failed to update payment';
+    } catch (error) {
+      const errorMsg = (error as ApiError).response?.data?.error || 'Failed to update payment';
       showError('Update Error', errorMsg);
     } finally {
       setSubmitLoading(false);
@@ -305,8 +314,8 @@ export default function PaymentLedgerPage() {
       ]);
 
       showSuccess('Payment Deleted', 'Payment deleted successfully!');
-    } catch (error: any) {
-      const errorMsg = error.response?.data?.error || 'Failed to delete payment';
+    } catch (error) {
+      const errorMsg = (error as ApiError).response?.data?.error || 'Failed to delete payment';
       showError('Delete Error', errorMsg);
     } finally {
       setSubmitLoading(false);
@@ -355,8 +364,8 @@ export default function PaymentLedgerPage() {
         'Settlement Recorded',
         `Payment recorded: ${settlement.payer_name} paid ${settlement.recipient_name} ${formatCurrency(settlement.amount)}`
       );
-    } catch (error: any) {
-      const errorMsg = error.response?.data?.error || 'Failed to record settlement payment';
+    } catch (error) {
+      const errorMsg = (error as ApiError).response?.data?.error || 'Failed to record settlement payment';
       showError('Settlement Error', errorMsg);
     } finally {
       setSubmitLoading(false);
@@ -385,7 +394,7 @@ export default function PaymentLedgerPage() {
   const sortedPaymentSummary = [...(paymentSummary || [])].sort((a, b) => {
     if (!sortField) return 0;
 
-    let aValue: any, bValue: any;
+    let aValue: string | number | null | undefined, bValue: string | number | null | undefined;
 
     // Handle calculated fields
     if (sortField === 'realized_cash_earnings') {
@@ -398,6 +407,11 @@ export default function PaymentLedgerPage() {
       aValue = a[sortField];
       bValue = b[sortField];
     }
+
+    // Handle null/undefined values
+    if ((aValue === null || aValue === undefined) && (bValue === null || bValue === undefined)) return 0;
+    if (aValue === null || aValue === undefined) return 1;
+    if (bValue === null || bValue === undefined) return -1;
 
     // Handle string vs number comparison
     if (typeof aValue === 'string' && typeof bValue === 'string') {

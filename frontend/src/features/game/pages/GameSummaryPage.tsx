@@ -39,7 +39,7 @@ export default function GameSummaryPage({ publicCode }: GameSummaryPageProps) {
 
         {!isLoading && !error && rows.length > 0 && (
           <GameDataTable
-            playersInfos={rows as any}
+            playersInfos={rows}
             setEditableData={() => {}}
           />
         )}

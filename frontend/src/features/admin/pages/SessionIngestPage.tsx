@@ -24,6 +24,15 @@ interface GameDataTableProps {
   setEditableData: React.Dispatch<React.SetStateAction<PlayerInfo[]>>;
 }
 
+interface ApiError {
+  message?: string;
+}
+
+interface UnmatchedPlayer {
+  display_name: string;
+  external_id: string | null;
+}
+
 export default function GameIngestPage() {
   const [gameUrl, setGameUrl] = useState("");
   const [submittedUrl, setSubmittedUrl] = useState("");
@@ -41,10 +50,10 @@ export default function GameIngestPage() {
   const [handLogFile, setHandLogFile] = useState<File | null>(null);
   const [uploadedSessionId, setUploadedSessionId] = useState<string | null>(null);
   const [handLogUploadStatus, setHandLogUploadStatus] = useState<'idle' | 'uploading' | 'success' | 'needs_mapping' | 'error'>('idle');
-  const [unmatchedPlayers, setUnmatchedPlayers] = useState<any[]>([]);
+  const [unmatchedPlayers, setUnmatchedPlayers] = useState<UnmatchedPlayer[]>([]);
   const [showPlayerMapping, setShowPlayerMapping] = useState(false);
   const [handLogError, setHandLogError] = useState<string>('');
-  const [handLogResult, setHandLogResult] = useState<any>(null);
+  const [handLogResult, setHandLogResult] = useState<{ events_created?: number; hands_created?: number; total_hands?: number }>({});
   const handLogUploadTriggered = useRef(false);
 
   // Get public code from URL params and admin session context
@@ -107,10 +116,10 @@ export default function GameIngestPage() {
               );
             }
           })
-          .catch((error: any) => {
+          .catch((error) => {
             setHandLogUploadStatus('error');
-            setHandLogError(error.message || 'Failed to upload hand log');
-            showError('Upload Failed', error.message || 'Failed to upload hand log');
+            setHandLogError((error as ApiError).message || 'Failed to upload hand log');
+            showError('Upload Failed', (error as ApiError).message || 'Failed to upload hand log');
           });
       }
     }
@@ -304,10 +313,10 @@ export default function GameIngestPage() {
           5000
         );
       }
-    } catch (error: any) {
+    } catch (error) {
       setHandLogUploadStatus('error');
-      setHandLogError(error.message || 'Failed to upload hand log');
-      showError('Upload Failed', error.message || 'Failed to upload hand log');
+      setHandLogError((error as ApiError).message || 'Failed to upload hand log');
+      showError('Upload Failed', (error as ApiError).message || 'Failed to upload hand log');
     }
   };
 
@@ -315,7 +324,7 @@ export default function GameIngestPage() {
     setHandLogFile(null);
     setHandLogUploadStatus('idle');
     setHandLogError('');
-    setHandLogResult(null);
+    setHandLogResult({});
   };
 
   return (

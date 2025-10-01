@@ -2,23 +2,33 @@ export function isNumeric(v: unknown) {
   return v !== null && v !== "" && !Number.isNaN(Number(v));
 }
 
+interface ErrorWithResponse {
+  response?: {
+    data?: {
+      error?: string;
+      message?: string;
+    };
+  };
+  message?: string;
+}
+
 export function formatErrorMessage(err: unknown): string {
   if (!err) return "An unknown error occurred.";
-  
+
   // Handle axios error response
   if (typeof err === 'object' && err !== null) {
-    const axiosError = err as any;
-    
+    const axiosError = err as ErrorWithResponse;
+
     // Try to get the error message from axios response data
     if (axiosError.response?.data?.error) {
       return axiosError.response.data.error;
     }
-    
+
     // Try to get message from response data
     if (axiosError.response?.data?.message) {
       return axiosError.response.data.message;
     }
-    
+
     // Try to get the message from the error object itself
     if (axiosError.message) {
       return axiosError.message;

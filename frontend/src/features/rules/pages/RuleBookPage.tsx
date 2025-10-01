@@ -1,5 +1,5 @@
 import { Plus, Edit, Trash2, Save, X } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAdminSession } from '../../../contexts/AdminSessionContext';
 import { useToast } from '../../../contexts/ToastContext';
 import { Button } from '../../../shared/ui/button';
@@ -29,12 +29,7 @@ export default function RuleBookPage({ publicCode }: RuleBookPageProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [ruleToDelete, setRuleToDelete] = useState<GameRule | null>(null);
 
-  // Load rules on component mount
-  useEffect(() => {
-    loadRules();
-  }, [publicCode]);
-
-  const loadRules = async () => {
+  const loadRules = useCallback(async () => {
     try {
       setLoading(true);
       const rulesData = await getRules(publicCode);
@@ -44,7 +39,12 @@ export default function RuleBookPage({ publicCode }: RuleBookPageProps) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [publicCode, showError]);
+
+  // Load rules on component mount
+  useEffect(() => {
+    loadRules();
+  }, [loadRules]);
 
   const handleCreateRule = () => {
     setEditingRule({

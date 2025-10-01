@@ -60,7 +60,7 @@ const GameDataTable: React.FC<GameDataTableProps> = ({
     if (field === "buyInSum" || field === "buyOutSum") {
       // coerce to number (empty -> NaN will be handled by validation)
       const num = value === "" ? NaN : Number(value);
-      target[field] = num as any;
+      target[field] = num;
 
       // recalc per-row net using same rule as UI (if buyOutSum === 0 use inGame)
       const buyOutEffective =
@@ -213,7 +213,7 @@ const GameDataTable: React.FC<GameDataTableProps> = ({
                   ) : (
                     <Input
                       type="number"
-                      value={player.buyInSum as any}
+                      value={player.buyInSum}
                       variant={!isNumeric(player.buyInSum) ? "error" : "ghost"}
                       size="sm"
                       className="w-full text-right bg-transparent"
@@ -270,7 +270,7 @@ const GameDataTable: React.FC<GameDataTableProps> = ({
                   ) : (
                     <Input
                       type="number"
-                      value={player.net as any}
+                      value={player.net}
                       variant="ghost"
                       size="sm"
                       className={`w-full text-right bg-transparent ${

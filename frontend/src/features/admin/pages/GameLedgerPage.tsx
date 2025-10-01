@@ -10,6 +10,16 @@ import { Button } from '../../../shared/ui/button';
 import { Pagination, usePagination } from '../../../shared/ui/pagination';
 import { Heading, Text } from '../../../shared/ui/typography';
 
+interface ApiError {
+  response?: {
+    status?: number;
+    data?: {
+      error?: string;
+    };
+  };
+  message?: string;
+}
+
 interface SessionPlayerSummary {
   session_id: string;
   player_id: string;
@@ -115,11 +125,11 @@ export default function GameLedgerPage() {
       setCsvData(response.data.csv_content);
       setCsvSessionInfo({ gameNumber, sessionId });
       setCsvViewerOpen(true);
-    } catch (error: any) {
-      if (error.response?.status === 404) {
+    } catch (error) {
+      if ((error as ApiError).response?.status === 404) {
         alert('No ledger CSV available for this session');
       } else {
-        alert('Error loading CSV: ' + (error.response?.data?.error || error.message));
+        alert('Error loading CSV: ' + ((error as ApiError).response?.data?.error || (error as ApiError).message));
       }
     } finally {
       setLoadingCsv(false);
@@ -152,8 +162,8 @@ export default function GameLedgerPage() {
             : summary
         )
       );
-    } catch (error: any) {
-      showError('Error Adding CSV', error.response?.data?.error || error.message);
+    } catch (error) {
+      showError('Error Adding CSV', (error as ApiError).response?.data?.error || (error as ApiError).message || 'Unknown error');
     } finally {
       setAddingCsvForSession(null);
     }
@@ -253,9 +263,9 @@ export default function GameLedgerPage() {
       
       // Refresh data
       fetchLedgerData();
-    } catch (error: any) {
+    } catch (error) {
       setErrorMessage(
-        error.response?.data?.error || 
+        (error as ApiError).response?.data?.error || 
         'Failed to add row. Please try again.'
       );
     }

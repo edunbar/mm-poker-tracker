@@ -14,7 +14,7 @@ export const uploadGameDualWrite = async ({
   public_code: string;
   admin_code: string;
   sessionId: string;
-  game_data: any;
+  game_data: unknown;
   date?: string;
   gameNumber?: number;
   ledger_csv_content?: string;

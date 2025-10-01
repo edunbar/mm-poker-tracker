@@ -1,5 +1,5 @@
 import { AlertCircle, CheckCircle2, Info, X } from 'lucide-react';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Text } from '../shared/ui/typography';
 
 export interface ToastProps {
@@ -22,10 +22,15 @@ export const Toast: React.FC<ToastProps> = ({
   const [isVisible, setIsVisible] = useState(false);
   const [isExiting, setIsExiting] = useState(false);
 
+  const handleExit = useCallback(() => {
+    setIsExiting(true);
+    setTimeout(() => onRemove(id), 300); // Match the transition duration
+  }, [id, onRemove]);
+
   useEffect(() => {
     // Trigger entrance animation
     const enterTimer = setTimeout(() => setIsVisible(true), 10);
-    
+
     // Auto-dismiss after duration
     const exitTimer = setTimeout(() => {
       handleExit();
@@ -35,12 +40,7 @@ export const Toast: React.FC<ToastProps> = ({
       clearTimeout(enterTimer);
       clearTimeout(exitTimer);
     };
-  }, [duration]);
-
-  const handleExit = () => {
-    setIsExiting(true);
-    setTimeout(() => onRemove(id), 300); // Match the transition duration
-  };
+  }, [duration, handleExit]);
 
   const getIcon = () => {
     switch (type) {

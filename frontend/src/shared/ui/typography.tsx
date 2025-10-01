@@ -126,13 +126,14 @@ Heading.displayName = "Heading";
 
 const Text = React.forwardRef<HTMLElement, TextProps>(
   ({ className, variant, color, colorStyle, weight, as = "p", htmlFor, ...props }, ref) => {
-    const Comp = as as any;
+    const Comp: React.ElementType = as;
     const actualColorStyle = color || colorStyle;
     const labelProps = as === "label" && htmlFor ? { htmlFor } : {};
     return (
       <Comp
         className={cn(textVariants({ variant, colorStyle: actualColorStyle, weight, className }))}
-        ref={ref}
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        ref={ref as any}
         {...labelProps}
         {...props}
       />
@@ -143,12 +144,13 @@ Text.displayName = "Text";
 
 const Code = React.forwardRef<HTMLElement, CodeProps>(
   ({ className, variant, color, colorStyle, as = "code", ...props }, ref) => {
-    const Comp = as as any;
+    const Comp: React.ElementType = as;
     const actualColorStyle = color || colorStyle;
     return (
       <Comp
         className={cn(codeVariants({ variant, colorStyle: actualColorStyle, className }))}
-        ref={ref}
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        ref={ref as any}
         {...props}
       />
     );

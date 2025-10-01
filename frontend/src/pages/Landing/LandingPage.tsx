@@ -14,7 +14,11 @@ export default function LandingPage() {
   const [gameTitle, setGameTitle] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [createdGame, setCreatedGame] = useState<any>(null);
+  const [createdGame, setCreatedGame] = useState<{
+    public_code: string;
+    admin_code: string;
+    title?: string;
+  } | null>(null);
   const navigate = useNavigate();
   const { setAdminSession } = useAdminSession();
 

@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { useEffect, useState, useMemo } from 'react';
+import { useCallback, useEffect, useState, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { API_BASE_URL } from '../../../config/api';
 import { useAdminSession } from '../../../contexts/AdminSessionContext';
@@ -20,8 +20,8 @@ interface AuditEntry {
   target_table: string;
   target_id: string;
   timestamp: string;
-  before: any;
-  after: any;
+  before: unknown;
+  after: unknown;
   can_undo: boolean;
   description: string;
 }
@@ -38,8 +38,8 @@ interface OperationDetails {
   action: string;
   timestamp: string;
   actor: string;
-  before_state: any;
-  after_state: any;
+  before_state: unknown;
+  after_state: unknown;
   can_undo: boolean;
 }
 
@@ -58,35 +58,36 @@ export default function AuditPage() {
   const [undoLoading, setUndoLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 25; // 25 items per page
-  
+
   // Use session admin code if available, otherwise manual input
   const effectiveAdminCode = sessionAdminCode || manualAdminCode;
 
-  useEffect(() => {
-    if (publicCode) {
-      fetchAuditData(1);
-      setCurrentPage(1);
-    }
-  }, [publicCode]);
-
-  const handlePageChange = async (page: number) => {
-    setCurrentPage(page);
-    await fetchAuditData(page);
-  };
-
-  const fetchAuditData = async (page: number = currentPage) => {
+  const fetchAuditData = useCallback(async (page: number) => {
     try {
       setLoading(true);
       const offset = (page - 1) * itemsPerPage;
       const response = await axios.get(`${API_BASE_URL}/api/games/${publicCode}/audit?limit=${itemsPerPage}&offset=${offset}`);
       setAuditData(response.data);
     } catch (error) {
+      // Silently handle error
     } finally {
       setLoading(false);
     }
+  }, [publicCode, itemsPerPage]);
+
+  useEffect(() => {
+    if (publicCode) {
+      fetchAuditData(1);
+      setCurrentPage(1);
+    }
+  }, [publicCode, fetchAuditData]);
+
+  const handlePageChange = async (page: number) => {
+    setCurrentPage(page);
+    await fetchAuditData(page);
   };
 
-  const handleViewDetails = async (operationId: string) => {
+  const handleViewDetails = useCallback(async (operationId: string) => {
     try {
       const response = await axios.get(`${API_BASE_URL}/api/games/${publicCode}/audit/operation/${operationId}`);
       setSelectedOperation(response.data);
@@ -94,7 +95,7 @@ export default function AuditPage() {
     } catch (error) {
       showError('Load Failed', 'Failed to load operation details');
     }
-  };
+  }, [publicCode, showError]);
 
   const handleUndoClick = (entry: AuditEntry) => {
     if (!entry.can_undo) return;
@@ -129,7 +130,7 @@ export default function AuditPage() {
       setShowAdminInput(false);
       setSelectedOperation(null);
       setManualAdminCode('');
-      fetchAuditData(); // Refresh the audit log
+      fetchAuditData(currentPage); // Refresh the audit log
     } catch (error) {
       showError('Undo Failed', 'Failed to undo operation. Please check your admin code.');
     } finally {
@@ -221,31 +222,41 @@ export default function AuditPage() {
     ), {
       className: 'w-48'
     }),
-  ], []);
+  ], [handleViewDetails]);
 
-  const renderPlayerInfo = (playerData: any, title: string) => {
-    if (!playerData) return null;
-    
+  const renderPlayerInfo = (playerData: unknown, title: string) => {
+    if (!playerData || typeof playerData !== 'object') return null;
+
+    const data = playerData as Record<string, unknown>;
+    const sessions = Array.isArray(data.sessions) ? data.sessions : [];
+
     return (
       <div className="mb-4">
         <Text variant="body" weight="medium" as="h4" className="mb-2">{title}</Text>
         <div className="bg-muted p-3 rounded">
-          <div><strong>Name:</strong> {playerData.display_name}</div>
-          <div><strong>External ID:</strong> {playerData.external_id || 'None'}</div>
-          <div><strong>Sessions:</strong> {playerData.sessions?.length || 0}</div>
-          {playerData.sessions && playerData.sessions.length > 0 && (
+          <div><strong>Name:</strong> {String(data.display_name || '')}</div>
+          <div><strong>External ID:</strong> {String(data.external_id || 'None')}</div>
+          <div><strong>Sessions:</strong> {sessions.length}</div>
+          {sessions.length > 0 && (
             <div className="mt-2">
               <strong>Session Details:</strong>
               <div className="max-h-32 overflow-y-auto mt-1">
-                {playerData.sessions.map((session: any, idx: number) => (
+                {sessions.map((session: unknown, idx: number) => {
+                  const sess = session as Record<string, unknown>;
+                  const buyIn = typeof sess.buy_in_sum === 'number' ? sess.buy_in_sum : 0;
+                  const cashOut = typeof sess.cash_out_sum === 'number' ? sess.cash_out_sum : 0;
+                  const net = typeof sess.net === 'number' ? sess.net : 0;
+                  const names = Array.isArray(sess.names) ? sess.names : [];
+                  return (
                   <div key={idx} className="text-sm text-muted-foreground border-b border-border pb-1 mb-1">
-                    Session {session.session_external_id || session.session_id}: 
-                    Buy-in: ${(session.buy_in_sum / 100).toFixed(2)}, 
-                    Cash-out: ${(session.cash_out_sum / 100).toFixed(2)}, 
-                    Net: ${(session.net / 100).toFixed(2)}
-                    {session.names && ` (${session.names.join(', ')})`}
+                    Session {String(sess.session_external_id || sess.session_id || '')}:
+                    Buy-in: ${(buyIn / 100).toFixed(2)},
+                    Cash-out: ${(cashOut / 100).toFixed(2)},
+                    Net: ${(net / 100).toFixed(2)}
+                    {names.length > 0 && ` (${names.join(', ')})`}
                   </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}
@@ -254,10 +265,10 @@ export default function AuditPage() {
     );
   };
 
-  const renderGenericData = (data: any, title: string) => {
-    if (!data) return null;
+  const renderGenericData = (data: unknown, title: string) => {
+    if (!data || typeof data !== 'object') return null;
 
-    const formatValue = (key: string, value: any) => {
+    const formatValue = (key: string, value: unknown): string => {
       if (key.includes('sum') && typeof value === 'number') {
         return `$${(value / 100).toFixed(2)}`;
       }
@@ -356,57 +367,52 @@ export default function AuditPage() {
       {showDetailsModal && selectedOperation && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-start justify-center z-50 p-4 overflow-y-auto">
           <div className="bg-card text-card-foreground rounded-lg shadow-xl border border-border p-6 w-full max-w-4xl my-8">
-            <Heading variant="h3" className="mb-6">
-              Operation Details
-            </Heading>
-            
-            <div className="space-y-6">
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div><strong>Operation ID:</strong> {selectedOperation.operation_id}</div>
-                <div><strong>Action:</strong> {selectedOperation.action}</div>
-                <div><strong>Timestamp:</strong> {formatTimestamp(selectedOperation.timestamp)}</div>
-                <div><strong>Actor:</strong> {selectedOperation.actor}</div>
-              </div>
-
-              {selectedOperation.before_state && (
-                <div>
-                  {selectedOperation.action === 'PLAYER_MERGE' ? (
-                    // Render player merge data structure
-                    <div>
-                      <Text variant="body" weight="medium" as="h4" className="mb-4">Before State</Text>
-                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                        {renderPlayerInfo(selectedOperation.before_state.target_player, "Target Player")}
-                        <div>
-                          <Text variant="body" weight="medium" as="h5" className="mb-2 text-gray-900">Source Players</Text>
-                          {selectedOperation.before_state.source_players?.map((player: any, idx: number) => (
-                            <div key={idx} className="mb-3">
-                              {renderPlayerInfo(player, `Source Player ${idx + 1}`)}
-                            </div>
-                          ))}
+            <div>
+              <h3 className="text-2xl font-semibold tracking-tight mb-6">Operation Details</h3>
+              <div key="operation-details" className="space-y-6">
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div><strong>Operation ID:</strong> {selectedOperation.operation_id}</div>
+                  <div><strong>Action:</strong> {selectedOperation.action}</div>
+                  <div><strong>Timestamp:</strong> {formatTimestamp(selectedOperation.timestamp)}</div>
+                  <div><strong>Actor:</strong> {selectedOperation.actor}</div>
+                </div>
+                {selectedOperation.before_state ? (
+                  <div>
+                    {selectedOperation.action === 'PLAYER_MERGE' ? (
+                      <div>
+                        <Text variant="body" weight="medium" as="h4" className="mb-4">Before State</Text>
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                          {renderPlayerInfo((selectedOperation.before_state as Record<string, unknown>).target_player, "Target Player")}
+                          <div>
+                            <Text variant="body" weight="medium" as="h5" className="mb-2 text-gray-900">Source Players</Text>
+                            {Array.isArray((selectedOperation.before_state as Record<string, unknown>).source_players) ? (
+                              ((selectedOperation.before_state as Record<string, unknown>).source_players as unknown[]).map((player: unknown, idx: number) => (
+                                <div key={idx} className="mb-3">
+                                  {renderPlayerInfo(player, `Source Player ${idx + 1}`)}
+                                </div>
+                              ))
+                            ) : null}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ) : (
-                    // Render generic data structure for other operations
-                    renderGenericData(selectedOperation.before_state, "Before State")
-                  )}
-                </div>
-              )}
-
-              {selectedOperation.after_state && (
-                <div>
-                  {selectedOperation.action === 'PLAYER_MERGE' ? (
-                    // Render player merge data structure
-                    <div>
-                      <Text variant="body" weight="medium" as="h4" className="mb-4">After State</Text>
-                      {renderPlayerInfo(selectedOperation.after_state.target_player, "Merged Player")}
-                    </div>
-                  ) : (
-                    // Render generic data structure for other operations
-                    renderGenericData(selectedOperation.after_state, "After State")
-                  )}
-                </div>
-              )}
+                    ) : (
+                      renderGenericData(selectedOperation.before_state, "Before State")
+                    )}
+                  </div>
+                ) : null}
+                {selectedOperation.after_state ? (
+                  <div>
+                    {selectedOperation.action === 'PLAYER_MERGE' ? (
+                      <div>
+                        <Text variant="body" weight="medium" as="h4" className="mb-4">After State</Text>
+                        {renderPlayerInfo((selectedOperation.after_state as Record<string, unknown>).target_player, "Merged Player")}
+                      </div>
+                    ) : (
+                      renderGenericData(selectedOperation.after_state, "After State")
+                    )}
+                  </div>
+                ) : null}
+              </div>
             </div>
 
             <div className="flex justify-end gap-3 mt-6">
@@ -438,7 +444,13 @@ export default function AuditPage() {
               <div className="text-sm text-sophisticated-gold-deep">
                 <strong>Operation:</strong> {selectedOperation.action}<br/>
                 <strong>Date:</strong> {formatTimestamp(selectedOperation.timestamp)}<br/>
-                <strong>Players affected:</strong> {selectedOperation.before_state?.source_players?.length + 1}
+                <strong>Players affected:</strong> {
+                  (() => {
+                    const beforeState = selectedOperation.before_state as Record<string, unknown> | undefined;
+                    const sourcePlayers = beforeState && Array.isArray(beforeState.source_players) ? beforeState.source_players : [];
+                    return sourcePlayers.length + 1;
+                  })()
+                }
               </div>
             </div>
 
