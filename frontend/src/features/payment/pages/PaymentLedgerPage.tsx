@@ -647,16 +647,16 @@ export default function PaymentLedgerPage() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-center">
                         {(() => {
-                          const amountOwed = player.total_received - (player.poker_net_winnings + player.total_paid);
+                          const amountOwed = (player.poker_net_winnings + player.total_paid) - player.total_received;
                           return (
                             <Text
                               variant="bodySmall"
                               weight="medium"
                               color={
                                 amountOwed > 0.005
-                                  ? 'destructive'
-                                  : amountOwed < -0.005
                                   ? 'success'
+                                  : amountOwed < -0.005
+                                  ? 'destructive'
                                   : 'default'
                               }
                             >
