@@ -539,7 +539,6 @@ class TestMergeCandidate:
         assert result['player_id'] == str(player.player_id)
         assert result['display_name'] == "John Smith"
         assert result['external_id'] == "john_venmo"
-        assert result['is_verified'] is True
         assert result['session_count'] == 1
         assert result['match_score'] == 95
         assert len(result['match_reasons']) == 2

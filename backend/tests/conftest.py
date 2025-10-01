@@ -49,21 +49,18 @@ def sample_players_data():
             'id': uuid4(),
             'display_name': 'Alice',
             'external_id': 'alice@pokernow',
-            'is_verified': True,
             'created_at': datetime.now(timezone.utc)
         },
         {
             'id': uuid4(),
             'display_name': 'Bob',
             'external_id': 'bob@pokernow',
-            'is_verified': True,
             'created_at': datetime.now(timezone.utc)
         },
         {
             'id': uuid4(),
             'display_name': 'Charlie',
             'external_id': 'charlie@pokernow',
-            'is_verified': False,
             'created_at': datetime.now(timezone.utc)
         }
     ]

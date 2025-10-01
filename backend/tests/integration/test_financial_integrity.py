@@ -80,8 +80,7 @@ class TestFinancialIntegrity:
             for i in range(num_players):
                 player = Player(
                     external_id=f"player_{i}@test",
-                    display_name=f"Player {i+1}",
-                    is_verified=True
+                    display_name=f"Player {i+1}"
                 )
                 db.add(player)
                 players.append(player)

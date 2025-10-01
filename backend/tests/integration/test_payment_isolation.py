@@ -74,8 +74,7 @@ class TestPaymentIsolation:
             for i in range(num_players):
                 player = Player(
                     external_id=f"player_{i}_{game_suffix}@test",
-                    display_name=f"Player {i+1} Game {game_suffix}",
-                    is_verified=True
+                    display_name=f"Player {i+1} Game {game_suffix}"
                 )
                 db.add(player)
                 players.append(player)
@@ -178,8 +177,7 @@ class TestPaymentIsolation:
             for i in range(3):
                 player = Player(
                     external_id=f"shared_player_{i}@test",
-                    display_name=f"Shared Player {i+1}",
-                    is_verified=True
+                    display_name=f"Shared Player {i+1}"
                 )
                 db.add(player)
                 shared_players.append(player)
