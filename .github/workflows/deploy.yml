@@ -119,7 +119,7 @@ jobs:
       working-directory: backend
       run: |
         # Get the list of migration files in this branch
-        CURRENT_MIGRATIONS=$(find src/db/migrations/versions -name "*.py" 2>/dev/null | wc -l || echo "0")
+        CURRENT_MIGRATIONS=$(find migrations/versions -name "*.py" 2>/dev/null | wc -l || echo "0")
 
         # Check if there are any migration files
         if [ "$CURRENT_MIGRATIONS" -gt 0 ]; then
