@@ -609,7 +609,7 @@ export default function GameIngestPage() {
                 </div>
                 <div className="p-3 bg-yellow-50 dark:bg-yellow-950 border border-yellow-200 dark:border-yellow-800 rounded-lg">
                   <p className="text-sm text-yellow-900 dark:text-yellow-100">
-                    <strong>Important:</strong> The selected target player's ID and verified name will be kept. All other players will be removed after merging.
+                    <strong>Important:</strong> The selected target player's ID and name will be kept. All other players will be removed after merging.
                   </p>
                 </div>
               </div>

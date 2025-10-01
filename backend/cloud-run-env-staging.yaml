@@ -1,6 +1,6 @@
 FLASK_ENV: staging
 USE_DOMAIN_SERVICES: "true"
-ALLOWED_ORIGINS: https://staging.homegame.gg,https://home-game-staging.vercel.app
+ALLOWED_ORIGINS: http://localhost:3001,http://localhost:3000,https://home-game-ntmeec97f-edunbars-projects.vercel.app,https://staging.homegame.gg,https://home-game-staging.vercel.app
 # Use same Cloud SQL instance but different database
 DATABASE_URL: postgresql+psycopg2://poker_user:O1XbT66.^#H!83[fds234@/home_game_staging?host=/cloudsql/home-game-472415:us-central1:home-game-db
 MAIL_SERVER: smtp.gmail.com

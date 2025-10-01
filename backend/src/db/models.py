@@ -28,7 +28,6 @@ class Player(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
     external_id = Column(Text, unique=True, nullable=True)  # PokerNow id if you have it
     display_name = Column(Text, nullable=False)
-    is_verified = Column(Boolean, nullable=False, server_default=text("FALSE"))  # Admin-confirmed player identity
     created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
 
     games = relationship('GamePlayer', back_populates='player', cascade="all, delete-orphan")

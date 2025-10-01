@@ -588,24 +588,12 @@ export default function LedgerAnalysisPage() {
                           {/* Summary Stats */}
                           <div className="bg-muted rounded-lg p-4">
                             <Text variant="bodyLarge" weight="medium" as="h4" className="mb-3">Summary</Text>
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            <div className="grid grid-cols-2 gap-4">
                               <div className="text-center">
                                 <div className="text-2xl font-bold text-primary">
                                   {playerDebugData.total_players || 0}
                                 </div>
                                 <div className="text-sm text-muted-foreground">Total Players</div>
-                              </div>
-                              <div className="text-center">
-                                <div className="text-2xl font-bold text-success">
-                                  {playerDebugData.verified_count || 0}
-                                </div>
-                                <div className="text-sm text-muted-foreground">Verified</div>
-                              </div>
-                              <div className="text-center">
-                                <div className="text-2xl font-bold text-primary">
-                                  {playerDebugData.unverified_count || 0}
-                                </div>
-                                <div className="text-sm text-muted-foreground">Unverified</div>
                               </div>
                               <div className="text-center">
                                 <div className="text-2xl font-bold text-warning">

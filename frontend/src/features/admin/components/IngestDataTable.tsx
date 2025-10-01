@@ -123,7 +123,6 @@ const GameDataTable: React.FC<GameDataTableProps> = ({
             <TableRow>
               <TableHead className="min-w-[120px]">ID</TableHead>
               <TableHead className="min-w-[170px]">Name</TableHead>
-              <TableHead className="w-[80px] text-center">Verified</TableHead>
               <TableHead className="min-w-[220px]">IGN</TableHead>
               <TableHead className="w-[140px] text-right">Buy In</TableHead>
               <TableHead className="w-[140px] text-right">Cash Out</TableHead>
@@ -303,7 +302,7 @@ const GameDataTable: React.FC<GameDataTableProps> = ({
             })}
             {/* Totals Row uses shared deriveTotals */}
             <TableRow className="bg-muted">
-              <TableCell colSpan={4} className="font-medium">
+              <TableCell colSpan={3} className="font-medium">
                 Totals
               </TableCell>
               <TableCell className="text-right font-semibold">
