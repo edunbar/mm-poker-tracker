@@ -467,7 +467,7 @@ export default function PaymentLedgerPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-7xl mx-auto px-4 md:px-6 lg:px-8 py-8">
         <div className="mb-6">
           <div>
             <Heading variant="h1">Payment Ledger</Heading>
@@ -484,41 +484,41 @@ export default function PaymentLedgerPage() {
 
         {/* Tab Navigation */}
         <div className="border-b border-border mb-6">
-          <nav className="-mb-px flex space-x-8">
+          <nav className="-mb-px flex flex-col sm:flex-row sm:space-x-8 space-y-2 sm:space-y-0">
             <Button
               onClick={() => setActiveTab('summary')}
               variant="ghost"
-              className={`py-2 px-1 border-b-2 font-medium text-sm rounded-none ${
+              className={`py-2 px-3 sm:px-1 border-b-2 sm:border-b-2 border-l-4 sm:border-l-0 font-medium text-sm rounded-none w-full sm:w-auto justify-start sm:justify-center ${
                 activeTab === 'summary'
                   ? 'border-primary text-primary'
                   : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
               }`}
             >
-              <Users className="w-4 h-4 inline mr-1" />
+              <Users className="w-4 h-4 inline mr-2" />
               Balance Summary
             </Button>
             <Button
               onClick={() => setActiveTab('settlements')}
               variant="ghost"
-              className={`py-2 px-1 border-b-2 font-medium text-sm rounded-none ${
+              className={`py-2 px-3 sm:px-1 border-b-2 sm:border-b-2 border-l-4 sm:border-l-0 font-medium text-sm rounded-none w-full sm:w-auto justify-start sm:justify-center ${
                 activeTab === 'settlements'
                   ? 'border-primary text-primary'
                   : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
               }`}
             >
-              <Target className="w-4 h-4 inline mr-1" />
+              <Target className="w-4 h-4 inline mr-2" />
               Optimal Settlement Structure
             </Button>
             <Button
               onClick={() => setActiveTab('history')}
               variant="ghost"
-              className={`py-2 px-1 border-b-2 font-medium text-sm rounded-none ${
+              className={`py-2 px-3 sm:px-1 border-b-2 sm:border-b-2 border-l-4 sm:border-l-0 font-medium text-sm rounded-none w-full sm:w-auto justify-start sm:justify-center ${
                 activeTab === 'history'
                   ? 'border-primary text-primary'
                   : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
               }`}
             >
-              <History className="w-4 h-4 inline mr-1" />
+              <History className="w-4 h-4 inline mr-2" />
               Payment History
             </Button>
             {/* Only show Record Payment tab for admin users */}
@@ -526,13 +526,13 @@ export default function PaymentLedgerPage() {
               <Button
                 onClick={() => setActiveTab('record')}
                 variant="ghost"
-                className={`py-2 px-1 border-b-2 font-medium text-sm rounded-none ${
+                className={`py-2 px-3 sm:px-1 border-b-2 sm:border-b-2 border-l-4 sm:border-l-0 font-medium text-sm rounded-none w-full sm:w-auto justify-start sm:justify-center ${
                   activeTab === 'record'
                     ? 'border-primary text-primary'
                     : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
                 }`}
               >
-                <Plus className="w-4 h-4 inline mr-1" />
+                <Plus className="w-4 h-4 inline mr-2" />
                 Record Payment
               </Button>
             )}
@@ -548,7 +548,9 @@ export default function PaymentLedgerPage() {
                 Payment data for all players
               </Text>
             </div>
-            <div className="overflow-x-auto overflow-y-visible">
+
+            {/* Desktop Table View */}
+            <div className="hidden md:block overflow-x-auto overflow-y-visible">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-card border-b border-border">
                   <tr>
@@ -692,6 +694,81 @@ export default function PaymentLedgerPage() {
                 </tbody>
               </table>
             </div>
+
+            {/* Mobile Card View */}
+            <div className="md:hidden divide-y divide-border">
+              {sortedPaymentSummary.map((player) => {
+                const realizedCashEarnings = player.total_received - player.total_paid;
+                const amountOwed = (player.poker_net_winnings + player.total_paid) - player.total_received;
+
+                return (
+                  <div key={player.player_id} className="p-4">
+                    <Text variant="bodyLarge" weight="semibold" className="mb-3">{player.player_name}</Text>
+
+                    <div className="space-y-2">
+                      <div className="flex justify-between">
+                        <Text variant="bodySmall" color="muted">Poker Winnings</Text>
+                        <Text variant="bodySmall" weight="medium">{formatCurrency(player.poker_net_winnings)}</Text>
+                      </div>
+
+                      <div className="flex justify-between">
+                        <Text variant="bodySmall" color="muted">Paid Out</Text>
+                        <Text variant="bodySmall" weight="medium">{formatCurrency(player.total_paid)}</Text>
+                      </div>
+
+                      <div className="flex justify-between">
+                        <Text variant="bodySmall" color="muted">Received</Text>
+                        <Text variant="bodySmall" weight="medium">{formatCurrency(player.total_received)}</Text>
+                      </div>
+
+                      <div className="flex justify-between pt-2 border-t border-border">
+                        <Text variant="bodySmall" color="muted" weight="medium">Realized Cash Earnings</Text>
+                        <Text
+                          variant="bodySmall"
+                          weight="bold"
+                          color={
+                            realizedCashEarnings > 0
+                              ? 'success'
+                              : realizedCashEarnings < 0
+                              ? 'destructive'
+                              : 'default'
+                          }
+                        >
+                          {formatCurrency(realizedCashEarnings)}
+                        </Text>
+                      </div>
+
+                      <div className="flex justify-between">
+                        <Text variant="bodySmall" color="muted" weight="medium">Amount Owed</Text>
+                        <Text
+                          variant="bodySmall"
+                          weight="bold"
+                          color={
+                            amountOwed > 0.005
+                              ? 'success'
+                              : amountOwed < -0.005
+                              ? 'destructive'
+                              : 'default'
+                          }
+                        >
+                          {formatCurrency(amountOwed)}
+                        </Text>
+                      </div>
+
+                      <div className="flex justify-between">
+                        <Text variant="bodySmall" color="muted">Days Since Last Payment</Text>
+                        <Text variant="bodySmall">
+                          {player.days_since_last_payment !== null && player.days_since_last_payment !== undefined
+                            ? `${player.days_since_last_payment} days`
+                            : 'Never'
+                          }
+                        </Text>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         )}
 
@@ -705,14 +782,14 @@ export default function PaymentLedgerPage() {
               </Text>
             </div>
             {(settlements || []).length > 0 ? (
-              <div className="p-6">
-                <div className="space-y-6">
+              <div className="p-4 md:p-6">
+                <div className="space-y-4 md:space-y-6">
                   {Object.entries(groupedSettlements).map(([payerId, payerInfo]) => (
-                    <div key={payerId} className="bg-muted/50 rounded-lg p-4 border border-border">
+                    <div key={payerId} className="bg-muted/50 rounded-lg p-3 md:p-4 border border-border">
                       {/* Payer Header */}
-                      <div className="flex items-center justify-between mb-4 pb-3 border-b border-border">
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 pb-3 border-b border-border gap-3">
                         <div className="flex items-center space-x-3">
-                          <div className="w-10 h-10 bg-destructive/10 rounded-full flex items-center justify-center">
+                          <div className="w-10 h-10 bg-destructive/10 rounded-full flex items-center justify-center shrink-0">
                             <DollarSign className="w-5 h-5 text-destructive" />
                           </div>
                           <div>
@@ -721,7 +798,7 @@ export default function PaymentLedgerPage() {
                             </Heading>
                           </div>
                         </div>
-                        <div className="text-right">
+                        <div className="text-left sm:text-right">
                           <div>
                             <Heading variant="h4" color="destructive">{formatCurrency(payerInfo.total_owed)}</Heading>
                           </div>
@@ -733,12 +810,15 @@ export default function PaymentLedgerPage() {
                         {payerInfo.payments.map((payment, paymentIndex) => (
                           <div key={paymentIndex}>
                             {paymentIndex > 0 && <hr className="border-border" />}
-                            <div className="flex items-center justify-between py-3">
-                              <div>
+                            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between py-3 gap-2">
+                              <div className="flex items-center justify-between sm:block">
                                 <Text variant="bodySmall" weight="bold">{payment.recipient_name}</Text>
+                                <div className="sm:hidden">
+                                  <Text variant="bodyLarge" weight="semibold" color="success">{formatCurrency(payment.amount)}</Text>
+                                </div>
                               </div>
-                              <div className="flex items-center space-x-4">
-                                <div className="text-right">
+                              <div className="flex items-center justify-between sm:justify-end sm:space-x-4">
+                                <div className="hidden sm:block text-right">
                                   <div>
                                     <Text variant="bodyLarge" weight="semibold" color="success">{formatCurrency(payment.amount)}</Text>
                                   </div>
@@ -749,7 +829,7 @@ export default function PaymentLedgerPage() {
                                     onClick={() => handleMarkSettlementPaid(payment)}
                                     disabled={submitLoading}
                                     size="sm"
-                                    className="bg-black text-white hover:opacity-90 flex items-center space-x-1 text-xs px-2 py-1"
+                                    className="bg-black text-white hover:opacity-90 flex items-center space-x-1 text-xs px-2 py-1 min-h-[44px] sm:min-h-0"
                                     title="Record this settlement as paid"
                                   >
                                     <DollarSign className="w-4 h-4" />
@@ -784,82 +864,147 @@ export default function PaymentLedgerPage() {
               </Text>
             </div>
             {(paymentHistory || []).length > 0 ? (
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-card border-b border-border">
-                    <tr>
-                      <th className="px-6 py-3 text-left uppercase tracking-wider">
-                        <Text variant="caption" weight="medium" color="muted">Date</Text>
-                      </th>
-                      <th className="px-6 py-3 text-left uppercase tracking-wider">
-                        <Text variant="caption" weight="medium" color="muted">Payer → Recipient</Text>
-                      </th>
-                      <th className="px-6 py-3 text-left uppercase tracking-wider">
-                        <Text variant="caption" weight="medium" color="muted">Amount</Text>
-                      </th>
-                      <th className="px-6 py-3 text-left uppercase tracking-wider">
-                        <Text variant="caption" weight="medium" color="muted">Method</Text>
-                      </th>
-                      <th className="px-6 py-3 text-left uppercase tracking-wider">
-                        <Text variant="caption" weight="medium" color="muted">Notes</Text>
-                      </th>
-                      {/* Only show Actions column for admin users */}
+              <>
+                {/* Mobile Card View */}
+                <div className="md:hidden divide-y divide-border">
+                  {(paymentHistory || []).map((payment) => (
+                    <div key={payment.id} className="p-4">
+                      <div className="flex items-start justify-between mb-3">
+                        <div>
+                          <Text variant="caption" color="muted">{formatDate(payment.payment_date)}</Text>
+                          <Text variant="bodyLarge" weight="bold" color="success" className="mt-1">
+                            {formatCurrency(payment.amount)}
+                          </Text>
+                        </div>
+                      </div>
+
+                      <div className="space-y-2 mb-3">
+                        <div className="flex items-center gap-2">
+                          <Text variant="body">{payment.payer_name}</Text>
+                          <Text variant="body" color="muted">→</Text>
+                          <Text variant="body">{payment.recipient_name}</Text>
+                        </div>
+
+                        {payment.payment_method && (
+                          <div className="flex items-center gap-2">
+                            <Text variant="bodySmall" color="muted">Method:</Text>
+                            <Text variant="bodySmall">{payment.payment_method}</Text>
+                          </div>
+                        )}
+
+                        {payment.notes && (
+                          <div>
+                            <Text variant="bodySmall" color="muted">Notes:</Text>
+                            <Text variant="bodySmall" className="mt-1">{payment.notes}</Text>
+                          </div>
+                        )}
+                      </div>
+
                       {canEdit && (
-                        <th className="px-6 py-3 text-left uppercase tracking-wider">
-                          <Text variant="caption" weight="medium" color="muted">Actions</Text>
-                        </th>
+                        <div className="flex gap-2 pt-3 border-t border-border">
+                          <Button
+                            onClick={() => handleEditPayment(payment)}
+                            variant="outline"
+                            className="flex-1 min-h-[44px]"
+                          >
+                            <Edit className="w-4 h-4 mr-2" />
+                            Edit
+                          </Button>
+                          <Button
+                            onClick={() => handleDeletePayment(payment)}
+                            variant="outline"
+                            className="flex-1 min-h-[44px] text-destructive hover:text-destructive border-destructive/50"
+                            disabled={submitLoading}
+                          >
+                            <Trash2 className="w-4 h-4 mr-2" />
+                            Delete
+                          </Button>
+                        </div>
                       )}
-                    </tr>
-                  </thead>
-                  <tbody className="bg-card divide-y divide-border">
-                    {(paymentHistory || []).map((payment) => (
-                      <tr key={payment.id}>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <Text variant="bodySmall">{formatDate(payment.payment_date)}</Text>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <Text variant="bodySmall">{payment.payer_name} → {payment.recipient_name}</Text>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <Text variant="bodySmall" weight="medium" color="success">{formatCurrency(payment.amount)}</Text>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <Text variant="bodySmall">{payment.payment_method || '-'}</Text>
-                        </td>
-                        <td className="px-6 py-4">
-                          <Text variant="bodySmall">{payment.notes || '-'}</Text>
-                        </td>
-                        {/* Only show Actions for admin users */}
+                    </div>
+                  ))}
+                </div>
+
+                {/* Desktop Table View */}
+                <div className="hidden md:block overflow-x-auto -mx-4 sm:mx-0">
+                  <div className="inline-block min-w-full align-middle px-4 sm:px-0">
+                    <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-card border-b border-border">
+                      <tr>
+                        <th className="px-6 py-3 text-left uppercase tracking-wider">
+                          <Text variant="caption" weight="medium" color="muted">Date</Text>
+                        </th>
+                        <th className="px-6 py-3 text-left uppercase tracking-wider">
+                          <Text variant="caption" weight="medium" color="muted">Payer → Recipient</Text>
+                        </th>
+                        <th className="px-6 py-3 text-left uppercase tracking-wider">
+                          <Text variant="caption" weight="medium" color="muted">Amount</Text>
+                        </th>
+                        <th className="px-6 py-3 text-left uppercase tracking-wider">
+                          <Text variant="caption" weight="medium" color="muted">Method</Text>
+                        </th>
+                        <th className="px-6 py-3 text-left uppercase tracking-wider">
+                          <Text variant="caption" weight="medium" color="muted">Notes</Text>
+                        </th>
+                        {/* Only show Actions column for admin users */}
                         {canEdit && (
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="flex space-x-2">
-                              <Button
-                                onClick={() => handleEditPayment(payment)}
-                                variant="ghost"
-                                size="icon-sm"
-                                className="text-primary hover:text-primary/80 p-1"
-                                title="Edit payment"
-                              >
-                                <Edit className="w-4 h-4" />
-                              </Button>
-                              <Button
-                                onClick={() => handleDeletePayment(payment)}
-                                variant="ghost"
-                                size="icon-sm"
-                                className="text-destructive hover:text-destructive/80 p-1"
-                                title="Delete payment"
-                                disabled={submitLoading}
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
-                            </div>
-                          </td>
+                          <th className="px-6 py-3 text-left uppercase tracking-wider">
+                            <Text variant="caption" weight="medium" color="muted">Actions</Text>
+                          </th>
                         )}
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                    </thead>
+                    <tbody className="bg-card divide-y divide-border">
+                      {(paymentHistory || []).map((payment) => (
+                        <tr key={payment.id}>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <Text variant="bodySmall">{formatDate(payment.payment_date)}</Text>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <Text variant="bodySmall">{payment.payer_name} → {payment.recipient_name}</Text>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <Text variant="bodySmall" weight="medium" color="success">{formatCurrency(payment.amount)}</Text>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <Text variant="bodySmall">{payment.payment_method || '-'}</Text>
+                          </td>
+                          <td className="px-6 py-4">
+                            <Text variant="bodySmall">{payment.notes || '-'}</Text>
+                          </td>
+                          {/* Only show Actions for admin users */}
+                          {canEdit && (
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="flex space-x-2">
+                                <Button
+                                  onClick={() => handleEditPayment(payment)}
+                                  variant="ghost"
+                                  size="icon-sm"
+                                  className="text-primary hover:text-primary/80 p-1"
+                                  title="Edit payment"
+                                >
+                                  <Edit className="w-4 h-4" />
+                                </Button>
+                                <Button
+                                  onClick={() => handleDeletePayment(payment)}
+                                  variant="ghost"
+                                  size="icon-sm"
+                                  className="text-destructive hover:text-destructive/80 p-1"
+                                  title="Delete payment"
+                                  disabled={submitLoading}
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </div>
+                            </td>
+                          )}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  </div>
+                </div>
+              </>
             ) : (
               <div className="p-8 text-center">
                 <History className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
@@ -878,8 +1023,8 @@ export default function PaymentLedgerPage() {
                 Record a payment between players
               </Text>
             </div>
-            <form onSubmit={handleRecordPayment} className="p-6 space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <form onSubmit={handleRecordPayment} className="p-4 md:p-6 space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <Text variant="bodySmall" weight="medium" as="label" className="block mb-1">
                     Payer *
@@ -1000,7 +1145,7 @@ export default function PaymentLedgerPage() {
                 </div>
               )}
 
-              <div className="flex justify-end space-x-3">
+              <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3">
                 <Button
                   type="button"
                   onClick={() => {
@@ -1015,13 +1160,14 @@ export default function PaymentLedgerPage() {
                     setShowAdminInput(false);
                   }}
                   variant="outline"
+                  className="w-full sm:w-auto min-h-[44px]"
                 >
                   Clear
                 </Button>
                 <Button
                   type="submit"
                   disabled={submitLoading}
-                  className="bg-black text-white hover:opacity-90"
+                  className="bg-black text-white hover:opacity-90 w-full sm:w-auto min-h-[44px]"
                 >
                   {submitLoading ? 'Recording...' : 'Record Payment'}
                 </Button>
@@ -1046,8 +1192,8 @@ export default function PaymentLedgerPage() {
                 </Button>
               </div>
 
-              <form onSubmit={handleUpdatePayment} className="p-6 space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <form onSubmit={handleUpdatePayment} className="p-4 md:p-6 space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <Text variant="bodySmall" weight="medium" as="label" className="block mb-1">
                       Payer *
@@ -1168,18 +1314,19 @@ export default function PaymentLedgerPage() {
                   </div>
                 )}
 
-                <div className="flex justify-end space-x-3 pt-4">
+                <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3 pt-4">
                   <Button
                     type="button"
                     onClick={() => setEditingPayment(null)}
                     variant="outline"
+                    className="w-full sm:w-auto min-h-[44px]"
                   >
                     Cancel
                   </Button>
                   <Button
                     type="submit"
                     disabled={submitLoading}
-                    className="bg-black text-white hover:opacity-90"
+                    className="bg-black text-white hover:opacity-90 w-full sm:w-auto min-h-[44px]"
                   >
                     {submitLoading ? 'Updating...' : 'Update Payment'}
                   </Button>

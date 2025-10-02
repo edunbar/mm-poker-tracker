@@ -16,7 +16,7 @@ export default function HandAnalyticsPage({ publicCode }: HandAnalyticsPageProps
 
   return (
     <div className="min-h-screen bg-background py-8">
-      <div className="max-w-6xl mx-auto px-4">
+      <div className="max-w-6xl mx-auto px-4 md:px-6 lg:px-8">
         <div className="mb-8">
           <Heading variant="h1">Hand Analytics</Heading>
           <Text variant="body" color="muted" className="mt-2">
@@ -96,7 +96,7 @@ export default function HandAnalyticsPage({ publicCode }: HandAnalyticsPageProps
                     </Heading>
                     <div className="space-y-2">
                       {session.top_winners.map((winner, index) => (
-                        <div key={winner.player_id} className="flex items-center justify-between p-3 bg-muted/50 rounded-md">
+                        <div key={winner.player_id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 bg-muted/50 rounded-md gap-2">
                           <div className="flex items-center gap-3">
                             <Text variant="body" weight="medium" className="text-muted-foreground min-w-[24px]">
                               {index + 1}.
@@ -105,14 +105,14 @@ export default function HandAnalyticsPage({ publicCode }: HandAnalyticsPageProps
                               {winner.player_name}
                             </Text>
                           </div>
-                          <div className="flex items-center gap-4">
+                          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 sm:gap-4">
                             <Text variant="body">
                               {winner.hands_won} hands
                             </Text>
                             <Text variant="body" weight="medium" className="min-w-[60px] text-right">
                               {winner.win_percentage}%
                             </Text>
-                            <Text variant="body" className="text-muted-foreground">
+                            <Text variant="bodySmall" className="text-muted-foreground">
                               (Biggest: ${(winner.biggest_pot / 100).toFixed(2)})
                             </Text>
                           </div>
@@ -131,18 +131,18 @@ export default function HandAnalyticsPage({ publicCode }: HandAnalyticsPageProps
 
                   return (
                     <div className="mt-6">
-                      <div className="flex items-center justify-between mb-3">
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-3 gap-3">
                         <Heading variant="h4">
                           Top 10 Largest Hands
                         </Heading>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 justify-center sm:justify-end">
                           <button
                             onClick={() => setCurrentHandIndex(prev => ({
                               ...prev,
                               [session.session_id]: Math.max(0, sessionHandIndex - 1)
                             }))}
                             disabled={sessionHandIndex === 0}
-                            className="p-2 rounded-md hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                            className="p-2 min-h-[44px] min-w-[44px] flex items-center justify-center rounded-md hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                           >
                             <ChevronLeft className="w-5 h-5" />
                           </button>
@@ -155,20 +155,20 @@ export default function HandAnalyticsPage({ publicCode }: HandAnalyticsPageProps
                               [session.session_id]: Math.min(totalHands - 1, sessionHandIndex + 1)
                             }))}
                             disabled={sessionHandIndex === totalHands - 1}
-                            className="p-2 rounded-md hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                            className="p-2 min-h-[44px] min-w-[44px] flex items-center justify-center rounded-md hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                           >
                             <ChevronRight className="w-5 h-5" />
                           </button>
                         </div>
                       </div>
                       <div className="border border-border rounded-md p-4 bg-card">
-                        <div className="flex items-center justify-between mb-3">
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-3 gap-2">
                           <div>
                             <Text variant="body" weight="semibold">
                               Hand #{currentHand.hand_number}
                             </Text>
                           </div>
-                          <div className="text-right">
+                          <div className="sm:text-right">
                             <Text variant="body" weight="semibold" className="text-primary">
                               ${(currentHand.pot_size / 100).toFixed(2)}
                             </Text>

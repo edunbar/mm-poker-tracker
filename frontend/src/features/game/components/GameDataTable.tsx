@@ -42,7 +42,8 @@ const GameDataTable: React.FC<GameDataTableProps> = ({ playersInfos = [] }) => {
     }),
     createColumn('rank', 'Rank', 'rank', {
       sortable: true,
-      align: 'right' as const
+      align: 'right' as const,
+      className: 'hidden md:table-cell'
     }),
     createColumn('buyIn', 'Buy In', (row: PlayerSummaryRow) => formatNumber(row.buyIn), {
       sortable: true,
@@ -68,7 +69,8 @@ const GameDataTable: React.FC<GameDataTableProps> = ({ playersInfos = [] }) => {
     }),
     createColumn('gamesPlayed', 'Games', 'gamesPlayed', {
       sortable: true,
-      align: 'right' as const
+      align: 'right' as const,
+      className: 'hidden md:table-cell'
     }),
   ], []);
 

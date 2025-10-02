@@ -569,7 +569,7 @@ export default function AdvancedAnalyticsPage({ publicCode }: AdvancedAnalyticsP
 
   return (
     <div className="min-h-screen bg-background py-8">
-      <div className="max-w-full mx-auto" style={{ paddingLeft: '200px', paddingRight: '200px' }}>
+      <div className="max-w-7xl mx-auto px-4 md:px-6 lg:px-8">
         <div className="mb-8">
           <Heading variant="h1">Advanced Analytics</Heading>
           <Text variant="body" color="muted" className="mt-2">
@@ -594,10 +594,10 @@ export default function AdvancedAnalyticsPage({ publicCode }: AdvancedAnalyticsP
           <div className="bg-card text-card-foreground rounded-lg border border-border shadow-sm w-full">
             {/* Tab Navigation */}
             <div className="border-b">
-              <nav className="flex space-x-8 p-4">
+              <nav className="flex flex-col sm:flex-row sm:space-x-8 space-y-2 sm:space-y-0 p-4">
                 <button
                   onClick={() => setActiveTab('fame')}
-                  className={`py-2 px-1 border-b-2 ${
+                  className={`py-2 px-3 sm:px-1 border-b-2 sm:border-b-2 border-l-4 sm:border-l-0 font-medium text-sm rounded-none w-full sm:w-auto justify-start sm:justify-center ${
                     activeTab === 'fame'
                       ? 'border-primary text-primary'
                       : 'border-transparent text-muted-foreground hover:text-foreground hover:border-gray-300'
@@ -610,7 +610,7 @@ export default function AdvancedAnalyticsPage({ publicCode }: AdvancedAnalyticsP
                 </button>
                 <button
                   onClick={() => setActiveTab('shame')}
-                  className={`py-2 px-1 border-b-2 ${
+                  className={`py-2 px-3 sm:px-1 border-b-2 sm:border-b-2 border-l-4 sm:border-l-0 font-medium text-sm rounded-none w-full sm:w-auto justify-start sm:justify-center ${
                     activeTab === 'shame'
                       ? 'border-primary text-primary'
                       : 'border-transparent text-muted-foreground hover:text-foreground hover:border-gray-300'
@@ -625,14 +625,14 @@ export default function AdvancedAnalyticsPage({ publicCode }: AdvancedAnalyticsP
             </div>
 
             {/* Tab Content */}
-            <div className="p-8">
+            <div className="p-4 md:p-8">
               {activeTab === 'fame' && (
-                <div className="grid grid-cols-2 gap-8">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-8">
                   {Object.entries(fameCategories).map(([key, category]) => {
                     const categoryData = category.getData();
 
                     return (
-                      <div key={key} className="p-6 rounded-lg border border-border">
+                      <div key={key} className="p-4 md:p-6 rounded-lg border border-border">
                         <div className="mb-4">
                           <div className="flex items-center justify-between">
                             <div className="flex items-center justify-center gap-2 flex-1">
@@ -709,12 +709,12 @@ export default function AdvancedAnalyticsPage({ publicCode }: AdvancedAnalyticsP
               )}
 
               {activeTab === 'shame' && (
-                <div className="grid grid-cols-2 gap-8">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-8">
                   {Object.entries(shameCategories).map(([key, category]) => {
                     const categoryData = category.getData();
 
                     return (
-                      <div key={key} className="p-6 rounded-lg border border-border">
+                      <div key={key} className="p-4 md:p-6 rounded-lg border border-border">
                         <div className="mb-4">
                           <div className="flex items-center justify-between">
                             <div className="flex items-center justify-center gap-2 flex-1">
