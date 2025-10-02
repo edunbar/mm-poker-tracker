@@ -454,7 +454,7 @@ export default function LedgerAnalysisPage() {
   if (!hasAdminSession) {
     return (
       <div className="min-h-screen bg-background py-8">
-        <div className="max-w-6xl mx-auto px-4">
+        <div className="max-w-6xl mx-auto px-4 md:px-6 lg:px-8">
                     <div className="bg-card text-card-foreground rounded-lg border border-border shadow-sm p-12 text-center">
             <Text variant="bodyLarge" color="muted">Please log in with admin credentials to view ledger analysis.</Text>
           </div>
@@ -465,8 +465,8 @@ export default function LedgerAnalysisPage() {
 
   return (
     <div className="min-h-screen bg-background py-8">
-      <div className="max-w-6xl mx-auto px-4">
-                
+      <div className="max-w-6xl mx-auto px-4 md:px-6 lg:px-8">
+
         <div className="mb-8">
           <div>
             <Heading variant="h1">Game Ledger Analysis</Heading>
@@ -692,8 +692,81 @@ export default function LedgerAnalysisPage() {
                     Sessions where total buy-ins don't equal total cash-outs plus in-game chips
                   </Text>
                 </div>
-                
-                <div className="overflow-x-auto">
+
+                {/* Mobile Card View */}
+                <div className="md:hidden divide-y divide-border">
+                  {sessionAnalysis.map((session) => (
+                    <div key={session.session_id} className="p-4">
+                      {/* Header: Game # and Date */}
+                      <div className="mb-3 pb-3 border-b border-border">
+                        <Text variant="bodyLarge" weight="bold">Game #{session.game_number}</Text>
+                        <Text variant="caption" color="muted" className="mt-1">
+                          {formatDate(session.started_at)}
+                        </Text>
+                      </div>
+
+                      {/* External ID */}
+                      <div className="mb-3">
+                        <Text variant="caption" color="muted" className="uppercase">External ID</Text>
+                        <Text variant="bodySmall" className="mt-1 font-mono break-all">
+                          {session.external_id}
+                        </Text>
+                      </div>
+
+                      {/* Stats Grid */}
+                      <div className="grid grid-cols-2 gap-x-4 gap-y-3 mb-3">
+                        <div>
+                          <Text variant="caption" color="muted" className="uppercase">Players</Text>
+                          <Text variant="bodySmall" weight="medium" className="mt-1">
+                            {session.player_count}
+                          </Text>
+                        </div>
+                        <div>
+                          <Text variant="caption" color="muted" className="uppercase">Buy-ins</Text>
+                          <Text variant="bodySmall" weight="medium" className="mt-1">
+                            ${formatCurrency(session.buy_ins)}
+                          </Text>
+                        </div>
+                        <div>
+                          <Text variant="caption" color="muted" className="uppercase">Cash-outs</Text>
+                          <Text variant="bodySmall" weight="medium" className="mt-1">
+                            ${formatCurrency(session.cash_outs)}
+                          </Text>
+                        </div>
+                        <div>
+                          <Text variant="caption" color="muted" className="uppercase">In Game</Text>
+                          <Text variant="bodySmall" weight="medium" className="mt-1">
+                            ${formatCurrency(session.in_game)}
+                          </Text>
+                        </div>
+                      </div>
+
+                      {/* Balance - Highlighted */}
+                      <div className="mb-4 p-3 rounded-md bg-muted/50">
+                        <Text variant="caption" color="muted" className="uppercase">Balance</Text>
+                        <Text
+                          variant="bodyLarge"
+                          weight="bold"
+                          color={session.balance > 0 ? 'destructive' : 'primary'}
+                          className="mt-1"
+                        >
+                          ${formatCurrency(Math.abs(session.balance))} {session.balance > 0 ? 'over' : 'under'}
+                        </Text>
+                      </div>
+
+                      {/* Actions */}
+                      <Button
+                        onClick={() => openSessionModal(session.session_id)}
+                        className="w-full min-h-[44px] bg-black text-white hover:opacity-90"
+                      >
+                        View Details
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Desktop Table View */}
+                <div className="hidden md:block overflow-x-auto">
                   <table className="min-w-full">
                     <thead className="bg-card border-b border-border rounded-t-lg">
                       <tr>
@@ -830,8 +903,88 @@ export default function LedgerAnalysisPage() {
                     Player entries where recorded net doesn't match calculated net (cash-out + in-game - buy-in)
                   </Text>
                 </div>
-                
-                <div className="overflow-x-auto">
+
+                {/* Mobile Card View */}
+                <div className="md:hidden divide-y divide-border">
+                  {mathErrors.map((error) => (
+                    <div key={`${error.session_id}-${error.player_id}`} className="p-4">
+                      {/* Header: Game # and Player */}
+                      <div className="mb-3 pb-3 border-b border-border">
+                        <Text variant="bodyLarge" weight="bold">Game #{error.game_number}</Text>
+                        <Text variant="body" weight="medium" className="mt-1">
+                          {error.player_name}
+                        </Text>
+                        {error.names.length > 1 && (
+                          <Text variant="caption" color="muted" className="mt-1">
+                            ({error.names.join(', ')})
+                          </Text>
+                        )}
+                      </div>
+
+                      {/* Financial Stats Grid */}
+                      <div className="grid grid-cols-2 gap-x-4 gap-y-3 mb-3">
+                        <div>
+                          <Text variant="caption" color="muted" className="uppercase">Buy-in</Text>
+                          <Text variant="bodySmall" weight="medium" className="mt-1">
+                            ${formatCurrency(error.buy_in)}
+                          </Text>
+                        </div>
+                        <div>
+                          <Text variant="caption" color="muted" className="uppercase">Cash-out</Text>
+                          <Text variant="bodySmall" weight="medium" className="mt-1">
+                            ${formatCurrency(error.cash_out)}
+                          </Text>
+                        </div>
+                        <div>
+                          <Text variant="caption" color="muted" className="uppercase">In Game</Text>
+                          <Text variant="bodySmall" weight="medium" className="mt-1">
+                            ${formatCurrency(error.in_game)}
+                          </Text>
+                        </div>
+                      </div>
+
+                      {/* Net Comparison */}
+                      <div className="space-y-2 mb-3 p-3 bg-muted/30 rounded-md">
+                        <div className="flex justify-between items-center">
+                          <Text variant="caption" color="muted" className="uppercase">Recorded Net</Text>
+                          <Text variant="bodySmall" weight="medium">
+                            ${formatCurrency(error.recorded_net)}
+                          </Text>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <Text variant="caption" color="muted" className="uppercase">Calculated Net</Text>
+                          <Text variant="bodySmall" weight="medium" color="success">
+                            ${formatCurrency(error.calculated_net)}
+                          </Text>
+                        </div>
+                      </div>
+
+                      {/* Difference - Highlighted */}
+                      <div className="mb-4 p-3 rounded-md bg-destructive/10">
+                        <Text variant="caption" color="muted" className="uppercase">Difference</Text>
+                        <Text
+                          variant="bodyLarge"
+                          weight="bold"
+                          color={error.difference > 0 ? 'destructive' : 'primary'}
+                          className="mt-1"
+                        >
+                          ${formatCurrency(Math.abs(error.difference))} {error.difference > 0 ? 'over' : 'under'}
+                        </Text>
+                      </div>
+
+                      {/* Actions */}
+                      <Button
+                        onClick={() => openSessionModal(error.session_id)}
+                        className="w-full min-h-[44px] bg-black text-white hover:opacity-90"
+                      >
+                        View Session
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Desktop Table View */}
+                <div className="hidden md:block overflow-x-auto">
                   <table className="min-w-full">
                     <thead className="bg-card border-b border-border rounded-t-lg">
                       <tr>
@@ -918,53 +1071,58 @@ export default function LedgerAnalysisPage() {
 
         {/* Session Detail Modal */}
         {selectedSessionId && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 overflow-y-auto h-full w-full z-40">
-            <div className="relative top-20 mx-auto p-5 border border-border w-11/12 max-w-6xl shadow-lg rounded-md bg-card text-card-foreground">
-              <div className="flex items-center justify-between border-b pb-3">
-                <Heading variant="h2">Session Details</Heading>
-                <div className="flex items-center space-x-3">
-                  <Button
-                    onClick={() => setShowHandUploadModal(true)}
-                    size="sm"
-                    variant="secondary"
-                  >
-                    Upload Hand Log
-                  </Button>
-                  <Button
-                    onClick={() => setShowAddPlayerModal(true)}
-                    size="sm"
-                    className="bg-black text-white hover:opacity-90"
-                  >
-                    Add Player
-                  </Button>
+          <div className="fixed inset-0 bg-black bg-opacity-50 overflow-y-auto h-full w-full z-40 p-4">
+            <div className="relative my-8 mx-auto border border-border w-full max-w-6xl shadow-lg rounded-md bg-card text-card-foreground">
+              <div className="border-b pb-3 p-4 md:p-5">
+                {/* Mobile: Close button top-right, heading below */}
+                <div className="flex items-start justify-between mb-3 md:mb-0">
+                  <Heading variant="h2" className="flex-1">Session Details</Heading>
                   <Button
                     onClick={closeSessionModal}
                     variant="ghost"
                     size="icon-sm"
-                    className="text-muted-foreground hover:text-foreground"
+                    className="text-muted-foreground hover:text-foreground min-h-[44px] min-w-[44px] -mt-1 -mr-1"
                   >
                     <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                     </svg>
                   </Button>
                 </div>
+                {/* Action buttons - stack on mobile */}
+                <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+                  <Button
+                    onClick={() => setShowHandUploadModal(true)}
+                    size="sm"
+                    variant="secondary"
+                    className="w-full sm:w-auto min-h-[44px] sm:min-h-0"
+                  >
+                    Upload Hand Log
+                  </Button>
+                  <Button
+                    onClick={() => setShowAddPlayerModal(true)}
+                    size="sm"
+                    className="bg-black text-white hover:opacity-90 w-full sm:w-auto min-h-[44px] sm:min-h-0"
+                  >
+                    Add Player
+                  </Button>
+                </div>
               </div>
 
-              <div className="mt-4">
+              <div className="p-4 md:p-5">
                 {sessionLoading ? (
                   <div className="flex items-center justify-center py-12">
                     <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary" />
                   </div>
                 ) : sessionDetail ? (
                   <div className="space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                       <div className="bg-card border-b border-border p-4 rounded-lg">
                         <div className="text-sm text-muted-foreground">Game Number</div>
                         <div className="text-lg font-semibold">#{sessionDetail.game_number}</div>
                       </div>
                       <div className="bg-card border-b border-border p-4 rounded-lg">
                         <div className="text-sm text-muted-foreground">External ID</div>
-                        <div className="text-lg font-mono">{sessionDetail.external_id}</div>
+                        <div className="text-lg font-mono break-all">{sessionDetail.external_id}</div>
                       </div>
                       <div className="bg-card border-b border-border p-4 rounded-lg">
                         <div className="text-sm text-muted-foreground">Started At</div>
@@ -976,7 +1134,7 @@ export default function LedgerAnalysisPage() {
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                       <div className="bg-accent p-4 rounded-lg border border-border">
                         <div className="text-sm text-primary">Total Buy-ins</div>
                         <div className="text-xl font-bold text-primary">${formatCurrency(sessionDetail.totals.buy_ins)}</div>
@@ -1001,9 +1159,160 @@ export default function LedgerAnalysisPage() {
                     <div className="bg-card text-card-foreground border border-border rounded-lg">
                       <div className="border-b border-border p-4">
                         <Text variant="bodyLarge" weight="semibold" as="h4">Player Details</Text>
-                        <Text variant="bodySmall" color="muted" className="mt-1">Click on a player's values to edit them</Text>
+                        <Text variant="bodySmall" color="muted" className="mt-1">
+                          <span className="md:hidden">Tap Edit to modify player values</span>
+                          <span className="hidden md:inline">Click on a player's values to edit them</span>
+                        </Text>
                       </div>
-                      <div className="overflow-x-auto">
+
+                      {/* Mobile Card View */}
+                      <div className="md:hidden divide-y divide-border">
+                        {sessionDetail.players.map((player) => {
+                          const isEditing = editingPlayer === player.player_id;
+                          const playerEditValues = editValues[player.player_id];
+
+                          return (
+                            <div key={player.player_id} className="p-4">
+                              <Text variant="bodyLarge" weight="bold" className="mb-3">{player.display_name}</Text>
+
+                              {isEditing ? (
+                                /* Editing Mode */
+                                <div className="space-y-3">
+                                  <div>
+                                    <Text variant="caption" color="muted" className="uppercase mb-1">Buy-in</Text>
+                                    <input
+                                      type="text"
+                                      value={playerEditValues?.buy_in || ''}
+                                      onChange={(e) => setEditValues({
+                                        ...editValues,
+                                        [player.player_id]: {
+                                          ...(playerEditValues || { buy_in: '', cash_out: '', in_game: '' }),
+                                          buy_in: e.target.value
+                                        }
+                                      })}
+                                      className="w-full px-3 py-2 border border-input rounded bg-background text-foreground min-h-[44px]"
+                                    />
+                                  </div>
+                                  <div>
+                                    <Text variant="caption" color="muted" className="uppercase mb-1">Cash-out</Text>
+                                    <input
+                                      type="text"
+                                      value={playerEditValues?.cash_out || ''}
+                                      onChange={(e) => setEditValues({
+                                        ...editValues,
+                                        [player.player_id]: {
+                                          ...(playerEditValues || { buy_in: '', cash_out: '', in_game: '' }),
+                                          cash_out: e.target.value
+                                        }
+                                      })}
+                                      className="w-full px-3 py-2 border border-input rounded bg-background text-foreground min-h-[44px]"
+                                    />
+                                  </div>
+                                  <div>
+                                    <Text variant="caption" color="muted" className="uppercase mb-1">In Game</Text>
+                                    <input
+                                      type="text"
+                                      value={playerEditValues?.in_game || ''}
+                                      onChange={(e) => setEditValues({
+                                        ...editValues,
+                                        [player.player_id]: {
+                                          ...(playerEditValues || { buy_in: '', cash_out: '', in_game: '' }),
+                                          in_game: e.target.value
+                                        }
+                                      })}
+                                      className="w-full px-3 py-2 border border-input rounded bg-background text-foreground min-h-[44px]"
+                                    />
+                                  </div>
+                                  <div className="p-3 bg-muted/30 rounded-md">
+                                    <Text variant="caption" color="muted" className="uppercase">Calculated Net</Text>
+                                    <Text variant="bodyLarge" weight="medium" className="mt-1">
+                                      ${((parseFloat(playerEditValues?.cash_out || '0') + parseFloat(playerEditValues?.in_game || '0')) - parseFloat(playerEditValues?.buy_in || '0')).toFixed(2)}
+                                    </Text>
+                                  </div>
+                                  <div className="flex gap-2 pt-2">
+                                    <Button
+                                      onClick={() => savePlayerChanges(player.player_id)}
+                                      className="flex-1 min-h-[44px] bg-success text-white hover:opacity-90"
+                                    >
+                                      Save
+                                    </Button>
+                                    <Button
+                                      onClick={() => cancelEditing(player.player_id)}
+                                      variant="outline"
+                                      className="flex-1 min-h-[44px]"
+                                    >
+                                      Cancel
+                                    </Button>
+                                  </div>
+                                </div>
+                              ) : (
+                                /* View Mode */
+                                <div className="space-y-3">
+                                  <div className="grid grid-cols-2 gap-x-4 gap-y-3">
+                                    <div>
+                                      <Text variant="caption" color="muted" className="uppercase">Buy-in</Text>
+                                      <Text variant="bodySmall" weight="medium" className="mt-1">
+                                        ${formatCurrency(player.buy_in_sum)}
+                                      </Text>
+                                    </div>
+                                    <div>
+                                      <Text variant="caption" color="muted" className="uppercase">Cash-out</Text>
+                                      <Text variant="bodySmall" weight="medium" className="mt-1">
+                                        ${formatCurrency(player.cash_out_sum)}
+                                      </Text>
+                                    </div>
+                                    <div>
+                                      <Text variant="caption" color="muted" className="uppercase">In Game</Text>
+                                      <Text variant="bodySmall" weight="medium" className="mt-1">
+                                        ${formatCurrency(player.in_game)}
+                                      </Text>
+                                    </div>
+                                    <div>
+                                      <Text variant="caption" color="muted" className="uppercase">Net</Text>
+                                      <Text
+                                        variant="bodySmall"
+                                        weight="bold"
+                                        color={player.net > 0 ? 'success' : player.net < 0 ? 'destructive' : 'default'}
+                                        className="mt-1"
+                                      >
+                                        ${formatCurrency(player.net)}
+                                      </Text>
+                                    </div>
+                                  </div>
+                                  <div className="flex gap-2 pt-3 border-t border-border">
+                                    <Button
+                                      onClick={() => startEditingPlayer(player.player_id, player)}
+                                      variant="outline"
+                                      className="flex-1 min-h-[44px]"
+                                    >
+                                      Edit
+                                    </Button>
+                                    <Button
+                                      onClick={() => {
+                                        if (selectedSessionId) {
+                                          setDeleteTarget({
+                                            sessionId: selectedSessionId,
+                                            playerId: player.player_id,
+                                            playerName: player.display_name
+                                          });
+                                          setShowDeleteModal(true);
+                                        }
+                                      }}
+                                      variant="outline"
+                                      className="flex-1 min-h-[44px] text-destructive hover:text-destructive border-destructive/50"
+                                    >
+                                      Delete
+                                    </Button>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      {/* Desktop Table View */}
+                      <div className="hidden md:block overflow-x-auto">
                         <table className="min-w-full">
                           <thead className="bg-card border-b border-border rounded-t-lg">
                             <tr>

@@ -152,7 +152,8 @@ export function EnhancedDataTable<T>({
         bordered && "border border-border",
         className
       )}>
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto -mx-4 sm:mx-0">
+          <div className="inline-block min-w-full align-middle px-4 sm:px-0">
           <Table className="w-full">
             <TableHeader className={cn(stickyHeader && "sticky top-0 z-10")}>
               <TableRow className={cn(striped && "bg-muted/50")}>
@@ -236,6 +237,7 @@ export function EnhancedDataTable<T>({
               ))}
             </TableBody>
           </Table>
+          </div>
         </div>
       </div>
 

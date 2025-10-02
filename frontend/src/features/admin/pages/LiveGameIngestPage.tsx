@@ -79,7 +79,7 @@ export default function LiveGameIngestPage() {
 
   return (
     <div className="min-h-screen bg-background py-8">
-      <div className="max-w-6xl mx-auto px-4">
+      <div className="max-w-6xl mx-auto px-4 md:px-6 lg:px-8">
         <div className="mb-8">
           <Heading variant="h1">Submit Live Game Results</Heading>
           <Text variant="body" color="muted" className="mt-2">

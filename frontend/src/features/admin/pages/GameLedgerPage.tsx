@@ -498,8 +498,8 @@ export default function GameLedgerPage() {
 
   return (
     <div className="min-h-screen bg-background py-8">
-      <div className="max-w-6xl mx-auto px-4">
-        
+      <div className="max-w-6xl mx-auto px-4 md:px-6 lg:px-8">
+
         <div className="mb-8 flex justify-between items-center">
           <div>
             <Heading variant="h1">Game Ledger</Heading>
@@ -581,7 +581,329 @@ export default function GameLedgerPage() {
         </div>
       )}
 
-      <div className="overflow-auto rounded-xl border border-border bg-card">
+      {/* Mobile Card View */}
+      <div className="md:hidden space-y-4 mb-6">
+        {loading ? (
+          // Loading skeleton for mobile
+          Array.from({ length: 3 }).map((_, index) => (
+            <div key={`mobile-loading-${index}`} className="bg-card border rounded-lg shadow-sm p-4 animate-pulse">
+              <div className="h-6 bg-muted rounded w-32 mb-2" />
+              <div className="h-4 bg-muted rounded w-48" />
+            </div>
+          ))
+        ) : paginatedSessions.map((sessionGroup) => (
+          <div key={`mobile-session-${sessionGroup.session_id}`} className="bg-card border rounded-lg shadow-sm overflow-hidden">
+            {/* Session Header */}
+            <div className="p-4 border-l-4 border-primary bg-muted/50">
+              <div className="flex items-start justify-between mb-2">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Button
+                      onClick={() => toggleSession(sessionGroup.session_id)}
+                      size="icon-sm"
+                      className="w-8 h-8 min-h-[44px] min-w-[44px] flex items-center justify-center rounded-full"
+                    >
+                      {expandedSessions.has(sessionGroup.session_id) ? '−' : '+'}
+                    </Button>
+                    <Text variant="bodyLarge" weight="bold" className="text-white">
+                      Game #{sessionGroup.game_number}
+                    </Text>
+                  </div>
+                  {editingDate?.session_id === sessionGroup.session_id ? (
+                    <div className="flex items-center gap-2 mt-2">
+                      <input
+                        type="date"
+                        value={editingDate.date}
+                        onChange={(e) => setEditingDate({ ...editingDate, date: e.target.value })}
+                        className="px-2 py-1 border border-input rounded text-sm bg-background text-foreground"
+                      />
+                      <Button
+                        onClick={handleDateSave}
+                        variant="ghost"
+                        size="icon-sm"
+                        className="p-2 min-h-[44px] min-w-[44px] text-green-600 hover:text-green-900"
+                      >
+                        <Save className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        onClick={() => setEditingDate(null)}
+                        variant="ghost"
+                        size="icon-sm"
+                        className="p-2 min-h-[44px] min-w-[44px] text-gray-600 hover:text-gray-900"
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <Text variant="bodySmall" className="text-white opacity-80">
+                        {formatDate(sessionGroup.session_started_at)} • {sessionGroup.players.length} players
+                      </Text>
+                      {hasAdminSession && (
+                        <Button
+                          onClick={() => handleDateEdit(sessionGroup.session_id, sessionGroup.session_started_at)}
+                          variant="ghost"
+                          size="icon-sm"
+                          className="p-2 min-h-[44px] min-w-[44px]"
+                        >
+                          <Edit className="h-3 w-3" />
+                        </Button>
+                      )}
+                    </div>
+                  )}
+                </div>
+                {hasAdminSession && (
+                  <div className="relative" data-dropdown>
+                    <Button
+                      onClick={() => setActiveDropdown(activeDropdown === `mobile-session-${sessionGroup.session_id}` ? null : `mobile-session-${sessionGroup.session_id}`)}
+                      variant="ghost"
+                      size="icon-sm"
+                      className="p-2 min-h-[44px] min-w-[44px] text-white"
+                    >
+                      <MoreVertical className="h-5 w-5" />
+                    </Button>
+                    {activeDropdown === `mobile-session-${sessionGroup.session_id}` && (
+                      <div className="absolute right-0 top-12 bg-popover border border-border rounded-md shadow-lg z-10 min-w-[160px]">
+                        {sessionGroup.has_csv ? (
+                          <Button
+                            onClick={() => {
+                              fetchCsvData(sessionGroup.session_id, sessionGroup.game_number);
+                              setActiveDropdown(null);
+                            }}
+                            variant="ghost"
+                            className="flex items-center gap-2 w-full justify-start px-3 py-2 min-h-[44px] hover:bg-accent"
+                            disabled={loadingCsv}
+                          >
+                            <FileText className="h-4 w-4" />
+                            <Text variant="bodySmall">{loadingCsv ? 'Loading...' : 'View CSV'}</Text>
+                          </Button>
+                        ) : (
+                          <Button
+                            onClick={() => addCsvToSession(sessionGroup.session_id, sessionGroup.game_number)}
+                            variant="ghost"
+                            className="flex items-center gap-2 w-full justify-start px-3 py-2 min-h-[44px] hover:bg-accent"
+                            disabled={addingCsvForSession === sessionGroup.session_id}
+                          >
+                            {addingCsvForSession === sessionGroup.session_id ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <FileText className="h-4 w-4" />
+                            )}
+                            <Text variant="bodySmall">
+                              {addingCsvForSession === sessionGroup.session_id ? 'Adding...' : 'Add CSV'}
+                            </Text>
+                          </Button>
+                        )}
+                        <Button
+                          onClick={() => {
+                            setHandUploadSessionId(sessionGroup.session_id);
+                            setShowHandUploadModal(true);
+                            setActiveDropdown(null);
+                          }}
+                          variant="ghost"
+                          className="flex items-center gap-2 w-full justify-start px-3 py-2 min-h-[44px] hover:bg-accent"
+                        >
+                          <FileText className="h-4 w-4" />
+                          <Text variant="bodySmall">Upload Hand Log</Text>
+                        </Button>
+                        <Button
+                          onClick={() => {
+                            setNewRowData({ ...newRowData, sessionId: sessionGroup.session_external_id });
+                            setShowAddRowModal(true);
+                            setActiveDropdown(null);
+                          }}
+                          variant="ghost"
+                          className="flex items-center gap-2 w-full justify-start px-3 py-2 min-h-[44px] hover:bg-accent"
+                        >
+                          <Plus className="h-4 w-4" />
+                          <Text variant="bodySmall">Add Row</Text>
+                        </Button>
+                        <Button
+                          onClick={() => {
+                            handleSessionDelete(sessionGroup.session_id, sessionGroup.game_number, sessionGroup.players.length);
+                            setActiveDropdown(null);
+                          }}
+                          variant="ghost"
+                          className="flex items-center gap-2 w-full justify-start px-3 py-2 min-h-[44px] hover:bg-accent"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                          <Text variant="bodySmall" color="destructive">Delete Session</Text>
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Session Totals */}
+              <div className="grid grid-cols-3 gap-2 mt-3">
+                <div>
+                  <Text variant="caption" className="text-white opacity-60 uppercase">Buy In</Text>
+                  <Text variant="bodySmall" weight="medium" className="text-white">
+                    ${formatCurrency(sessionGroup.players.reduce((sum, p) => sum + p.buy_in_sum, 0))}
+                  </Text>
+                </div>
+                <div>
+                  <Text variant="caption" className="text-white opacity-60 uppercase">Cash Out</Text>
+                  <Text variant="bodySmall" weight="medium" className="text-white">
+                    ${formatCurrency(sessionGroup.players.reduce((sum, p) => sum + p.cash_out_sum + p.in_game, 0))}
+                  </Text>
+                </div>
+                <div>
+                  <Text variant="caption" className="text-white opacity-60 uppercase">Net</Text>
+                  <Text
+                    variant="bodySmall"
+                    weight="semibold"
+                    color={sessionGroup.players.reduce((sum, p) => sum + p.net, 0) >= 0 ? 'success' : 'destructive'}
+                  >
+                    ${formatCurrency(sessionGroup.players.reduce((sum, p) => sum + p.net, 0))}
+                  </Text>
+                </div>
+              </div>
+            </div>
+
+            {/* Player List */}
+            {expandedSessions.has(sessionGroup.session_id) && (
+              <div className="divide-y divide-border">
+                {sessionGroup.players.map((summary) => (
+                  <div key={`mobile-player-${summary.session_id}-${summary.player_id}`} className="p-4 bg-card">
+                    <div className="flex items-start justify-between mb-3">
+                      <Text variant="body" weight="semibold">{summary.player_name}</Text>
+                      {hasAdminSession && (
+                        <div className="relative" data-dropdown>
+                          <Button
+                            onClick={() => setActiveDropdown(activeDropdown === `mobile-player-${summary.session_id}-${summary.player_id}` ? null : `mobile-player-${summary.session_id}-${summary.player_id}`)}
+                            variant="ghost"
+                            size="icon-sm"
+                            className="p-2 min-h-[44px] min-w-[44px]"
+                          >
+                            <MoreVertical className="h-4 w-4" />
+                          </Button>
+                          {activeDropdown === `mobile-player-${summary.session_id}-${summary.player_id}` && (
+                            <div className="absolute right-0 top-12 bg-popover border border-border rounded-md shadow-lg z-10 min-w-[120px]">
+                              <Button
+                                onClick={() => {
+                                  handleEdit(summary);
+                                  setActiveDropdown(null);
+                                }}
+                                variant="ghost"
+                                className="flex items-center gap-2 w-full justify-start px-3 py-2 min-h-[44px] hover:bg-accent"
+                              >
+                                <Edit className="h-4 w-4" />
+                                <Text variant="bodySmall">Edit</Text>
+                              </Button>
+                              <Button
+                                onClick={() => {
+                                  handleDelete(summary.session_id, summary.player_id, summary.player_name);
+                                  setActiveDropdown(null);
+                                }}
+                                variant="ghost"
+                                className="flex items-center gap-2 w-full justify-start px-3 py-2 min-h-[44px] hover:bg-accent"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                                <Text variant="bodySmall" color="destructive">Delete</Text>
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    {editingRow?.session_id === summary.session_id && editingRow?.player_id === summary.player_id ? (
+                      <div className="space-y-3">
+                        <div>
+                          <Text variant="caption" color="muted" className="uppercase mb-1">Buy In</Text>
+                          <input
+                            type="number"
+                            value={editingRow.buy_in_sum}
+                            onChange={(e) => setEditingRow({ ...editingRow, buy_in_sum: parseInt(e.target.value) || 0 })}
+                            className="w-full px-3 py-2 border border-input rounded bg-background text-foreground min-h-[44px]"
+                          />
+                        </div>
+                        <div>
+                          <Text variant="caption" color="muted" className="uppercase mb-1">Cash Out</Text>
+                          <input
+                            type="number"
+                            value={editingRow.cash_out_sum + editingRow.in_game}
+                            onChange={(e) => {
+                              const totalValue = parseInt(e.target.value) || 0;
+                              setEditingRow({ ...editingRow, cash_out_sum: totalValue, in_game: 0 });
+                            }}
+                            className="w-full px-3 py-2 border border-input rounded bg-background text-foreground min-h-[44px]"
+                          />
+                        </div>
+                        <div>
+                          <Text variant="caption" color="muted" className="uppercase mb-1">Net</Text>
+                          <input
+                            type="number"
+                            value={editingRow.net}
+                            onChange={(e) => setEditingRow({ ...editingRow, net: parseInt(e.target.value) || 0 })}
+                            className="w-full px-3 py-2 border border-input rounded bg-background text-foreground min-h-[44px]"
+                          />
+                        </div>
+                        <div>
+                          <Text variant="caption" color="muted" className="uppercase mb-1">Names</Text>
+                          <input
+                            type="text"
+                            value={editingRow.names.join(', ')}
+                            onChange={(e) => setEditingRow({ ...editingRow, names: e.target.value.split(', ') })}
+                            className="w-full px-3 py-2 border border-input rounded bg-background text-foreground min-h-[44px]"
+                          />
+                        </div>
+                        <div className="flex gap-2 pt-2">
+                          <Button
+                            onClick={handleSave}
+                            className="flex-1 bg-black text-white hover:opacity-90 min-h-[44px]"
+                          >
+                            <Save className="h-4 w-4 mr-2" />
+                            Save
+                          </Button>
+                          <Button
+                            onClick={handleCancel}
+                            variant="outline"
+                            className="flex-1 min-h-[44px]"
+                          >
+                            <X className="h-4 w-4 mr-2" />
+                            Cancel
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+                        <div>
+                          <Text variant="caption" color="muted" className="uppercase">Buy In</Text>
+                          <Text variant="bodySmall" weight="medium">${formatCurrency(summary.buy_in_sum)}</Text>
+                        </div>
+                        <div>
+                          <Text variant="caption" color="muted" className="uppercase">Cash Out</Text>
+                          <Text variant="bodySmall" weight="medium">${formatCurrency(summary.cash_out_sum + summary.in_game)}</Text>
+                        </div>
+                        <div>
+                          <Text variant="caption" color="muted" className="uppercase">Net</Text>
+                          <Text
+                            variant="bodySmall"
+                            weight="semibold"
+                            color={summary.net >= 0 ? 'success' : 'destructive'}
+                          >
+                            ${formatCurrency(summary.net)}
+                          </Text>
+                        </div>
+                        <div>
+                          <Text variant="caption" color="muted" className="uppercase">Names</Text>
+                          <Text variant="bodySmall" className="truncate">{summary.names.join(', ')}</Text>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* Desktop Table View */}
+      <div className="hidden md:block overflow-auto rounded-xl border border-border bg-card">
           <table className="min-w-full">
           <thead className="bg-card border-b border-border">
             <tr>

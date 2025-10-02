@@ -14,7 +14,7 @@ export default function GameSummaryPage({ publicCode }: GameSummaryPageProps) {
 
   return (
     <div className="min-h-screen bg-background py-8">
-      <div className="max-w-6xl mx-auto px-4">
+      <div className="max-w-6xl mx-auto px-4 md:px-6 lg:px-8">
         <div className="mb-8">
           <Heading variant="h1">Game Summary</Heading>
           <Text variant="body" color="muted" className="mt-2">

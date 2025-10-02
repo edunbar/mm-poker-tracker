@@ -1,13 +1,68 @@
-import { Bug, Shield, X } from 'lucide-react';
-import { useState } from 'react';
-import { useLocation } from 'react-router-dom';
+import {
+  BarChart3,
+  BookOpen,
+  Bug,
+  CreditCard,
+  Download,
+  FileText,
+  Home,
+  LogOut,
+  Menu,
+  Receipt,
+  Shield,
+  Spade,
+  Users,
+  X,
+  Zap
+} from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { NavLink, useLocation } from 'react-router-dom';
 import { submitBugReport, type BugReportData } from '../../api/bugReport';
 import BugReportModal from '../../components/BugReportModal';
 import { useAdminSession } from '../../contexts/AdminSessionContext';
 import { useToast } from '../../contexts/ToastContext';
+import { adminNav, publicNav } from '../../features/admin/nav';
+import { useGameTitle } from '../../shared/hooks/useGameTitle';
 import { Button } from '../../shared/ui/button';
 import { Input } from '../../shared/ui/input';
 import { Text } from '../../shared/ui/typography';
+
+// Icon mapping for navigation items
+const getNavIcon = (label: string) => {
+  switch (label) {
+    case "Game Summary":
+      return <BarChart3 className="w-4 h-4" />;
+    case "Rule Book":
+      return <BookOpen className="w-4 h-4" />;
+    case "Game Ledger":
+      return <Receipt className="w-4 h-4" />;
+    case "PokerNow Import":
+      return <Download className="w-4 h-4" />;
+    case "Live Game Entry":
+      return <Zap className="w-4 h-4" />;
+    case "Player Verification":
+      return <Users className="w-4 h-4" />;
+    case "Payment Ledger":
+      return <CreditCard className="w-4 h-4" />;
+    case "Ledger Analysis":
+      return <BarChart3 className="w-4 h-4" />;
+    case "Audit Log":
+      return <FileText className="w-4 h-4" />;
+    case "Hand Analytics":
+      return <Spade className="w-4 h-4" />;
+    case "Advanced Analytics":
+      return <BarChart3 className="w-4 h-4" />;
+    default:
+      return <Home className="w-4 h-4" />;
+  }
+};
+
+function renderPath(path: string, currentPublicCode: string | null) {
+  if (!currentPublicCode) {
+    return path;
+  }
+  return path.replace(":publicCode", currentPublicCode);
+}
 
 // Helper function to extract public code from URL pathname
 function extractPublicCodeFromPath(pathname: string): string | null {
@@ -40,16 +95,23 @@ function extractPublicCodeFromPath(pathname: string): string | null {
 }
 
 export function Header() {
-  const { hasAdminSession, setAdminSession, publicCode: contextPublicCode } = useAdminSession();
+  const { hasAdminSession, setAdminSession, clearAdminSession, publicCode: contextPublicCode } = useAdminSession();
   const { showSuccess, showError } = useToast();
   const location = useLocation();
   const [isBugReportModalOpen, setIsBugReportModalOpen] = useState(false);
   const [showAdminLogin, setShowAdminLogin] = useState(false);
   const [adminCode, setAdminCode] = useState('');
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   // Get public code from URL first (prioritize current page), then fall back to admin session context
   const urlPublicCode = extractPublicCodeFromPath(location.pathname);
   const currentPublicCode = urlPublicCode || contextPublicCode;
+  const { title } = useGameTitle(currentPublicCode || '');
+
+  // Close mobile menu on route change
+  useEffect(() => {
+    setIsMobileMenuOpen(false);
+  }, [location.pathname]);
 
   const handleAdminLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -79,6 +141,14 @@ export function Header() {
           <Text variant="bodyLarge" weight="semibold">HomeGame</Text>
 
           <div className="flex items-center gap-2">
+            {/* Mobile Menu Button */}
+            <button
+              onClick={() => setIsMobileMenuOpen(true)}
+              className="lg:hidden flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-md transition-colors"
+              aria-label="Open menu"
+            >
+              <Menu className="h-5 w-5" />
+            </button>
             {/* Admin Login Button - Only show when not logged in as admin and in game context */}
             {!hasAdminSession && currentPublicCode && (
               <button
@@ -165,6 +235,139 @@ export function Header() {
             </form>
           </div>
         </div>
+      )}
+
+      {/* Mobile Menu Drawer */}
+      {isMobileMenuOpen && (
+        <>
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+            onClick={() => setIsMobileMenuOpen(false)}
+            data-testid="mobile-menu-backdrop"
+          />
+
+          {/* Drawer */}
+          <div className="fixed right-0 top-0 h-full w-[280px] bg-card border-l border-border z-50 lg:hidden overflow-y-auto">
+            {/* Header */}
+            <div className="px-6 py-5 border-b border-border">
+              <div className="flex items-center justify-between mb-4">
+                <Text variant="bodyLarge" weight="semibold">Menu</Text>
+                <button
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-md transition-colors"
+                  aria-label="Close menu"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              {currentPublicCode && (
+                <div>
+                  <Text variant="bodySmall" weight="medium" className="mb-1">{title}</Text>
+                  <div className="flex items-center">
+                    <Text variant="bodySmall" as="span" className="font-mono text-primary">{currentPublicCode}</Text>
+                    {hasAdminSession && (
+                      <>
+                        <span className="mx-2">•</span>
+                        <div className="relative group">
+                          <div className="flex items-center px-2 py-1 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors duration-150 cursor-pointer">
+                            <Shield className="w-3 h-3 mr-1" />
+                            <Text variant="caption" weight="medium">Admin</Text>
+                          </div>
+
+                          {/* Hover overlay with logout button */}
+                          <div className="absolute top-0 left-0 right-0 opacity-0 group-hover:opacity-100 transition-opacity duration-150 bg-destructive text-destructive-foreground rounded-md px-2 py-1 flex items-center cursor-pointer"
+                               onClick={clearAdminSession}>
+                            <LogOut className="w-3 h-3 mr-1" />
+                            <Text variant="caption" weight="medium">Leave</Text>
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Navigation Content */}
+            <div className="px-3 py-4">
+              {/* Public Navigation */}
+              <div className="space-y-1">
+                {publicNav.map((item) => {
+                  const path = renderPath(item.path, currentPublicCode);
+                  const isDisabled = !currentPublicCode && item.path.includes(':publicCode');
+                  const icon = getNavIcon(item.label);
+
+                  return (
+                    <div key={item.path}>
+                      {isDisabled ? (
+                        <div className="flex items-center px-3 py-2 cursor-not-allowed">
+                          <span className="mr-3 opacity-50">{icon}</span>
+                          <Text variant="bodySmall" weight="medium" color="muted">{item.label}</Text>
+                        </div>
+                      ) : (
+                        <NavLink
+                          to={path}
+                          className={({ isActive }) =>
+                            isActive
+                              ? "flex items-center px-3 py-2 text-accent-foreground bg-accent rounded-md"
+                              : "flex items-center px-3 py-2 text-foreground rounded-md hover:text-accent-foreground hover:bg-muted transition-colors duration-150"
+                          }
+                        >
+                          <span className="mr-3">{icon}</span>
+                          <Text variant="bodySmall" weight="medium">{item.label}</Text>
+                        </NavLink>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Admin Navigation */}
+              {hasAdminSession && (
+                <>
+                  <div className="mt-10 mb-4">
+                    <Text variant="caption" weight="semibold" color="muted" className="px-3 uppercase tracking-wider">
+                      Admin Tools
+                    </Text>
+                  </div>
+
+                  <div className="space-y-1">
+                    {adminNav.map((item) => {
+                      const path = renderPath(item.path, currentPublicCode);
+                      const isDisabled = !currentPublicCode && item.path.includes(':publicCode');
+                      const icon = getNavIcon(item.label);
+
+                      return (
+                        <div key={item.path}>
+                          {isDisabled ? (
+                            <div className="flex items-center px-3 py-2 cursor-not-allowed">
+                              <span className="mr-3 opacity-50">{icon}</span>
+                              <Text variant="bodySmall" weight="medium" color="muted">{item.label}</Text>
+                            </div>
+                          ) : (
+                            <NavLink
+                              to={path}
+                              className={({ isActive }) =>
+                                isActive
+                                  ? "flex items-center px-3 py-2 text-accent-foreground bg-accent rounded-md"
+                                  : "flex items-center px-3 py-2 text-foreground rounded-md hover:text-accent-foreground hover:bg-muted transition-colors duration-150"
+                              }
+                            >
+                              <span className="mr-3">{icon}</span>
+                              <Text variant="bodySmall" weight="medium">{item.label}</Text>
+                            </NavLink>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </>
       )}
     </>
   );

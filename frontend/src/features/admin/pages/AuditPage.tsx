@@ -298,7 +298,7 @@ export default function AuditPage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-background py-8">
-        <div className="max-w-6xl mx-auto px-4">
+        <div className="max-w-6xl mx-auto px-4 md:px-6 lg:px-8">
           <div className="mb-8">
             <Heading variant="h1">Audit Log</Heading>
             <Text variant="body" color="muted" className="mt-2">
@@ -315,8 +315,8 @@ export default function AuditPage() {
 
   return (
     <div className="min-h-screen bg-background py-8">
-      <div className="max-w-6xl mx-auto px-4">
-        
+      <div className="max-w-6xl mx-auto px-4 md:px-6 lg:px-8">
+
         <div className="mb-8 flex justify-between items-center">
           <div>
             <Heading variant="h1">Audit Log</Heading>
@@ -340,17 +340,95 @@ export default function AuditPage() {
           </Text>
         </div>
 
-        <EnhancedDataTable
-          data={auditData?.audit_logs || []}
-          columns={auditColumns}
-          emptyState={
-            <div className="text-center text-muted-foreground">
-              No audit entries found
+        {/* Mobile Card View */}
+        <div className="md:hidden space-y-3">
+          {(auditData?.audit_logs || []).length > 0 ? (
+            (auditData?.audit_logs || []).map((entry) => (
+              <div key={entry.id} className="bg-card border rounded-lg shadow-sm p-4">
+                {/* Header: Timestamp and Action Badge */}
+                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 mb-3 pb-3 border-b border-border">
+                  <div>
+                    <Text variant="caption" color="muted">{formatTimestamp(entry.timestamp)}</Text>
+                    <div className="mt-2">
+                      <span className={`px-2 py-1 text-xs font-medium rounded-full whitespace-nowrap ${
+                        entry.action === 'PLAYER_MERGE'
+                          ? 'bg-primary/10 text-primary'
+                          : entry.action === 'PLAYER_MERGE_UNDO'
+                          ? 'bg-success/10 text-success'
+                          : entry.action.includes('VERIFY')
+                          ? 'bg-info/10 text-info'
+                          : entry.action.includes('UPDATE')
+                          ? 'bg-warning/10 text-warning'
+                          : entry.action.includes('INSERT')
+                          ? 'bg-success/10 text-success'
+                          : entry.action.includes('DELETE')
+                          ? 'bg-destructive/10 text-destructive'
+                          : entry.action.includes('IMPORT')
+                          ? 'bg-primary/10 text-primary'
+                          : 'bg-muted text-muted-foreground'
+                      }`}>
+                        {entry.action.replace('_', ' ')}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Actor */}
+                <div className="mb-3">
+                  <Text variant="caption" color="muted" className="uppercase">Actor</Text>
+                  <Text variant="bodySmall" className="mt-1">{entry.actor_id}</Text>
+                </div>
+
+                {/* Details */}
+                <div className="mb-4">
+                  <Text variant="caption" color="muted" className="uppercase">Details</Text>
+                  <Text variant="bodySmall" className="mt-1">
+                    {entry.description || 'No description available'}
+                  </Text>
+                </div>
+
+                {/* Actions */}
+                <div className="flex gap-2 pt-3 border-t border-border">
+                  <Button
+                    onClick={() => handleViewDetails(entry.id)}
+                    variant="outline"
+                    className="flex-1 min-h-[44px]"
+                  >
+                    View Details
+                  </Button>
+                  {entry.can_undo && (
+                    <Button
+                      onClick={() => handleUndoClick(entry)}
+                      variant="outline"
+                      className="flex-1 min-h-[44px] text-destructive hover:text-destructive border-destructive/50"
+                    >
+                      Undo
+                    </Button>
+                  )}
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="bg-card text-card-foreground rounded-lg border border-border shadow-sm p-12 text-center">
+              <Text variant="body" color="muted">No audit entries found</Text>
             </div>
-          }
-          className="rounded-lg"
-          variant="default"
-        />
+          )}
+        </div>
+
+        {/* Desktop Table View */}
+        <div className="hidden md:block">
+          <EnhancedDataTable
+            data={auditData?.audit_logs || []}
+            columns={auditColumns}
+            emptyState={
+              <div className="text-center text-muted-foreground">
+                No audit entries found
+              </div>
+            }
+            className="rounded-lg"
+            variant="default"
+          />
+        </div>
 
         {auditData && auditData.total_count > itemsPerPage && (
           <Pagination

@@ -98,6 +98,47 @@ function getPlayStyleDescription(playStyle: string): string {
   return descriptionMap[playStyle] || 'Playing style could not be determined from available data';
 }
 
+function getPlayStyleAbbreviation(playStyle: string): string {
+  // Map of style names to mobile-friendly abbreviations
+  const abbreviationMap: { [key: string]: string } = {
+    // Special cases
+    'Calling Station': 'Call Stn',
+    'Maniac': 'Maniac',
+    'ATM': 'ATM',
+    'Super Nit': 'S. Nit',
+    'Nit': 'Nit',
+
+    // Very loose styles
+    'Splashy Aggressive': 'Splashy',
+    'Splashy Balanced': 'Splashy',
+
+    // Loose styles
+    'LAG Monster': 'LAG',
+    'Action Player': 'Action',
+    'Loose Cannon': 'Loose',
+    'Passive Fish': 'Pass Fish',
+
+    // Standard styles
+    'Aggressive Regular': 'Agg Reg',
+    'Active Player': 'Active',
+    'Passive Regular': 'Passive',
+
+    // Tight styles
+    'TAG Crusher': 'TAG',
+    'Selective Aggressive': 'Sel Agg',
+    'Cautious Player': 'Cautious',
+    'Rock': 'Rock',
+
+    // Legacy support
+    'TAG': 'TAG',
+    'LAG': 'LAG',
+    'TP': 'TP',
+    'LP': 'LP',
+  };
+
+  return abbreviationMap[playStyle] || playStyle;
+}
+
 
 const PokerStatisticsTable: React.FC<PokerStatisticsTableProps> = ({
   players = [],
@@ -107,7 +148,7 @@ const PokerStatisticsTable: React.FC<PokerStatisticsTableProps> = ({
     createColumn('playerName', 'Player', 'playerName', {
       sortable: true,
       className: 'font-semibold text-left',
-      width: '180px',
+      width: 'auto',
     }),
     createColumn('handsPlayed', (
       <div className="flex justify-end">
@@ -121,7 +162,7 @@ const PokerStatisticsTable: React.FC<PokerStatisticsTableProps> = ({
       sortable: true,
       align: 'right' as const,
       className: 'font-medium',
-      width: '100px',
+      width: 'auto',
     }),
     createColumn('vpip', 'VPIP', (row: PlayerStatistic) => (
       <div className="text-center">
@@ -133,7 +174,7 @@ const PokerStatisticsTable: React.FC<PokerStatisticsTableProps> = ({
       sortable: true,
       align: 'center' as const,
       className: 'text-center',
-      width: '120px',
+      width: 'auto',
     }),
     createColumn('pfr', 'PFR', (row: PlayerStatistic) => (
       <div className="text-center">
@@ -145,7 +186,7 @@ const PokerStatisticsTable: React.FC<PokerStatisticsTableProps> = ({
       sortable: true,
       align: 'center' as const,
       className: 'text-center',
-      width: '120px',
+      width: 'auto',
     }),
     createColumn('aggressionFrequency', 'AF', (row: PlayerStatistic) => (
       <div className="text-center">
@@ -156,27 +197,30 @@ const PokerStatisticsTable: React.FC<PokerStatisticsTableProps> = ({
     ), {
       sortable: true,
       align: 'center' as const,
-      className: 'text-center',
-      width: '120px',
+      className: 'text-center hidden md:table-cell',
+      width: 'auto',
     }),
     createColumn('playStyle', 'Style', (row: PlayerStatistic) => (
       <div className="flex items-center gap-2 justify-center">
         <Badge
           variant="secondary"
-          className={`${row.styleColor || getPlayStyleColor(row.playStyle)} font-medium`}
+          className={`${row.styleColor || getPlayStyleColor(row.playStyle)} font-medium whitespace-nowrap text-xs sm:text-sm px-2 py-0.5 sm:px-2.5 sm:py-1`}
         >
-          {row.playStyle}
+          <span className="md:hidden">{getPlayStyleAbbreviation(row.playStyle)}</span>
+          <span className="hidden md:inline">{row.playStyle}</span>
         </Badge>
-        <HelpTooltip
-          content={row.styleDescription || getPlayStyleDescription(row.playStyle)}
-          position="below"
-        />
+        <span className="hidden md:inline">
+          <HelpTooltip
+            content={row.styleDescription || getPlayStyleDescription(row.playStyle)}
+            position="below"
+          />
+        </span>
       </div>
     ), {
       sortable: true,
       align: 'center' as const,
       className: 'text-center',
-      width: '220px',
+      width: 'auto',
     }),
     createColumn('streetBreakdown', 'Street AF', (row: PlayerStatistic) => (
       <div className="flex justify-center">
@@ -198,8 +242,8 @@ const PokerStatisticsTable: React.FC<PokerStatisticsTableProps> = ({
     ), {
       sortable: false,
       align: 'center' as const,
-      className: 'text-center',
-      width: '140px',
+      className: 'text-center hidden lg:table-cell',
+      width: 'auto',
     }),
   ], []);
 

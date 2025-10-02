@@ -126,7 +126,7 @@ export default function RuleBookPage({ publicCode }: RuleBookPageProps) {
   if (loading) {
     return (
       <div className="min-h-screen bg-background">
-        <div className="max-w-4xl mx-auto px-4 py-8">
+        <div className="max-w-4xl mx-auto px-4 md:px-6 lg:px-8 py-8">
           <div className="text-center">
             <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
             <Text variant="body" color="muted" className="mt-2">Loading rules...</Text>
@@ -138,7 +138,7 @@ export default function RuleBookPage({ publicCode }: RuleBookPageProps) {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="max-w-4xl mx-auto px-4 py-8">
+      <div className="max-w-4xl mx-auto px-4 md:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div>
