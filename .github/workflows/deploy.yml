@@ -323,6 +323,9 @@ jobs:
 
     - name: Pull Vercel Environment Information
       working-directory: frontend
+      env:
+        VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+        VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
       run: |
         if [ "${{ inputs.environment }}" == "production" ]; then
           vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
@@ -332,11 +335,17 @@ jobs:
 
     - name: Build Project Artifacts
       working-directory: frontend
+      env:
+        VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+        VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
       run: vercel build ${{ inputs.environment == 'production' && '--prod' || '' }} --token=${{ secrets.VERCEL_TOKEN }}
 
     - name: Deploy to Vercel
       id: deploy_vercel
       working-directory: frontend
+      env:
+        VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+        VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
       run: |
         if [ "${{ inputs.environment }}" == "production" ]; then
           echo "🚀 Deploying frontend to production..."
