@@ -309,3 +309,112 @@ def settlement_suggestion_factory():
         )
 
     return _create_settlement_suggestion
+
+
+# ============================================================================
+# Authentication Testing Fixtures
+# ============================================================================
+
+@pytest.fixture(scope='session', autouse=True)
+def setup_test_environment():
+    """Set up test environment variables"""
+    os.environ['JWT_SECRET'] = 'test_secret_key_for_testing'
+    os.environ['FLASK_ENV'] = 'testing'
+    yield
+
+
+@pytest.fixture
+def test_client():
+    """Provide Flask test client for HTTP testing"""
+    from app import create_app
+    app = create_app()
+    app.config['TESTING'] = True
+    return app.test_client()
+
+
+@pytest.fixture
+def db_session():
+    """Provide a database session for tests"""
+    from db.database import SessionLocal
+    db = SessionLocal()
+    try:
+        yield db
+    except Exception:
+        db.rollback()
+        raise
+    finally:
+        db.close()
+
+
+@pytest.fixture
+def register_user(test_client):
+    """
+    Helper fixture to register a user and return (user_data, token).
+
+    Usage:
+        user, token = register_user('test@example.com', 'password123', 'Test User')
+    """
+    def _register(email, password, display_name='Test User'):
+        response = test_client.post('/api/auth/register', json={
+            'email': email,
+            'password': password,
+            'display_name': display_name
+        })
+        data = response.get_json()
+        if response.status_code != 201:
+            raise AssertionError(f"Registration failed: {data}")
+        return data['user'], data['access_token']
+    return _register
+
+
+@pytest.fixture
+def create_game(db_session):
+    """
+    Helper fixture to create a game.
+
+    Usage:
+        game = create_game(public_code='TEST123', owner_id=user_id)
+    """
+    def _create(public_code=None, admin_code=None, owner_id=None, title='Test Game'):
+        if not public_code:
+            public_code = f"TEST{uuid4().hex[:6].upper()}"
+        if not admin_code:
+            admin_code = f"admin-{uuid4()}"
+
+        game = Game(
+            public_code=public_code,
+            admin_code=admin_code,
+            title=title,
+            owner_user_id=owner_id
+        )
+        db_session.add(game)
+        db_session.commit()
+        db_session.refresh(game)
+        return game
+    return _create
+
+
+@pytest.fixture
+def auth_headers():
+    """
+    Helper fixture to create auth headers from token.
+
+    Usage:
+        headers = auth_headers(token)
+    """
+    def _headers(token):
+        return {'Authorization': f'Bearer {token}'}
+    return _headers
+
+
+@pytest.fixture
+def admin_code_headers():
+    """
+    Helper fixture to create admin code headers.
+
+    Usage:
+        headers = admin_code_headers(admin_code)
+    """
+    def _headers(admin_code):
+        return {'X-Admin-Code': admin_code}
+    return _headers

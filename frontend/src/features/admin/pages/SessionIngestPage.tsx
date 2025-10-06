@@ -2,6 +2,7 @@ import { ChevronDown, GitMerge, HelpCircle, X } from "lucide-react";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { useAdminSession } from "../../../contexts/AdminSessionContext";
+import { useAuth } from "../../../contexts/AuthContext";
 import { useToast } from "../../../contexts/ToastContext";
 import { PlayerInfo } from "../../../entities/game/types";
 import { useGameTitle } from "../../../shared/hooks/useGameTitle";
@@ -59,6 +60,7 @@ export default function GameIngestPage() {
   // Get public code from URL params and admin session context
   const { publicCode } = useParams<{ publicCode: string }>();
   const { adminCode } = useAdminSession();
+  const { isAuthenticated, user } = useAuth();
   const { showSuccess, showError, showInfo } = useToast();
   const { title: _title } = useGameTitle(publicCode || '');
 
@@ -128,6 +130,18 @@ export default function GameIngestPage() {
 
   useEffect(() => {
     if (upload.isError) {
+      const error = upload.error as any;
+
+      // Handle 403 specifically when authenticated
+      if (isAuthenticated && error?.response?.status === 403) {
+        showError(
+          "Access Denied",
+          "You don't own this game. Please claim it first or use the admin code.",
+          7000
+        );
+        return;
+      }
+
       const errorMessage = formatErrorMessage(upload.error);
       showError(
         "Upload Failed",
@@ -135,7 +149,7 @@ export default function GameIngestPage() {
         7000 // Show errors longer
       );
     }
-  }, [upload.isError, upload.error, showError]);
+  }, [upload.isError, upload.error, showError, isAuthenticated]);
 
   const totals = useMemo(() => deriveTotals(rows), [rows]);
 
@@ -158,18 +172,19 @@ export default function GameIngestPage() {
       </div>
     );
   }
-  
-  if (!adminCode) {
+
+  // If not authenticated, require admin code
+  if (!isAuthenticated && !adminCode) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
           <Heading variant="h2" className="mb-2">Admin Access Required</Heading>
-          <Text variant="body" color="muted">You need to be logged in as admin to access this page.</Text>
+          <Text variant="body" color="muted">You need to be logged in as admin or authenticated to access this page.</Text>
         </div>
       </div>
     );
   }
-  
+
   const PUBLIC_CODE = publicCode;
   const ADMIN_CODE = adminCode;
 
@@ -197,7 +212,8 @@ export default function GameIngestPage() {
 
     upload.mutate({
       public_code: PUBLIC_CODE,
-      admin_code: ADMIN_CODE,
+      // Only send admin_code when not authenticated
+      ...(!isAuthenticated && ADMIN_CODE && { admin_code: ADMIN_CODE }),
       sessionId,
       game_data,
       ...(date && { date: `${date}T00:00:00Z` }),
@@ -336,6 +352,13 @@ export default function GameIngestPage() {
           <Text variant="body" color="muted" className="mt-2">
             Import PokerNow session data
           </Text>
+          {isAuthenticated && user && (
+            <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-md">
+              <Text variant="bodySmall" className="text-blue-800 dark:text-blue-200">
+                Uploading as: <strong>{user.email}</strong>
+              </Text>
+            </div>
+          )}
         </div>
 
       <GameUrlForm

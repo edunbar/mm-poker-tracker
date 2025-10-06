@@ -6,6 +6,10 @@ import GameLedgerPage from "../features/admin/pages/GameLedgerPage";
 import LedgerAnalysisPage from "../features/admin/pages/LedgerAnalysisPage";
 import LiveGameIngestPage from "../features/admin/pages/LiveGameIngestPage";
 import GameIngestPage from "../features/admin/pages/SessionIngestPage";
+import ClaimGamePage from "../features/auth/pages/ClaimGamePage";
+import LoginPage from "../features/auth/pages/LoginPage";
+import MyGamesPage from "../features/auth/pages/MyGamesPage";
+import RegisterPage from "../features/auth/pages/RegisterPage";
 import AdvancedAnalyticsPage from "../features/game/pages/AdvancedAnalyticsPage";
 import GameSummaryPage from "../features/game/pages/GameSummaryPage";
 import PaymentLedgerPage from "../features/payment/pages/PaymentLedgerPage";
@@ -16,6 +20,18 @@ export default function AppRoutes() {
   return (
     <Routes>
       <Route path="/" element={<LandingPage />} />
+      <Route path="/login" element={<LoginPage />} />
+      <Route path="/register" element={<RegisterPage />} />
+      <Route path="/my-games" element={
+        <ProtectedRoute requireAuth={true}>
+          <MyGamesPage />
+        </ProtectedRoute>
+      } />
+      <Route path="/claim-game" element={
+        <ProtectedRoute requireAuth={true}>
+          <ClaimGamePage />
+        </ProtectedRoute>
+      } />
       <Route path="/:publicCode" element={<GameSummaryPageWrapper />} />
       <Route path="/ingest/:publicCode" element={<GameIngestPageWrapper />} />
       <Route path="/live/:publicCode" element={<LiveGameIngestPageWrapper />} />

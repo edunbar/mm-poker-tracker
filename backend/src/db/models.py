@@ -8,6 +8,46 @@ from sqlalchemy.orm import relationship
 from .database import Base
 
 # ==========================================================
+# Users Table
+# ----------------------------------------------------------
+# Represents authenticated users of the application.
+# Users can own games and claim poker player identities.
+#
+# Columns:
+# - id             : UUID primary key (server-generated with gen_random_uuid()).
+# - email          : Unique email address for authentication (indexed).
+# - password_hash  : Hashed password for authentication.
+# - display_name   : Human-readable name for the user.
+# - email_verified : Whether the user's email has been verified.
+# - created_at     : Timestamp when the user account was created.
+# - last_login_at  : Timestamp of the user's last login (optional).
+#
+# Relationships:
+# - owned_games       : Games owned by this user.
+# - poker_identities  : Poker player identities claimed by this user.
+# - audit_logs        : Audit log entries created by this user.
+# ==========================================================
+class User(Base):
+    __tablename__ = 'users'
+
+    id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
+    email = Column(String(255), unique=True, nullable=False)
+    password_hash = Column(String(255), nullable=False)
+    display_name = Column(String(100), nullable=False)
+    email_verified = Column(Boolean, nullable=False, server_default=text("false"))
+    created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
+    last_login_at = Column(TIMESTAMP(timezone=True), nullable=True)
+
+    owned_games = relationship('Game', back_populates='owner')
+    poker_identities = relationship('PokerIdentityClaim', back_populates='user', cascade="all, delete-orphan")
+    audit_logs = relationship('AuditLog', back_populates='user')
+
+    __table_args__ = (
+        Index('ix_users_email', 'email', unique=True),
+    )
+
+
+# ==========================================================
 # Players Table
 # ----------------------------------------------------------
 # Represents a single player across all games/sessions.
@@ -19,8 +59,9 @@ from .database import Base
 # - created_at  : Timestamp when the player record was created.
 #
 # Relationships:
-# - games     : many-to-many association with Game via GamePlayer.
-# - summaries : all SessionPlayerSummary rows for this player.
+# - games          : many-to-many association with Game via GamePlayer.
+# - summaries      : all SessionPlayerSummary rows for this player.
+# - identity_claim : optional link to a User account that claimed this player identity.
 # ==========================================================
 class Player(Base):
     __tablename__ = 'players'
@@ -38,6 +79,48 @@ class Player(Base):
     payment_methods = relationship('PlayerPaymentMethod', back_populates='player', cascade="all, delete-orphan")
     poker_events = relationship('PokerEvent', back_populates='player', cascade="all, delete-orphan")
     hands_won = relationship('HandSummary', back_populates='winner', cascade="all, delete-orphan")
+    identity_claim = relationship('PokerIdentityClaim', back_populates='player', uselist=False)
+
+
+# ==========================================================
+# PokerIdentityClaims Table
+# ----------------------------------------------------------
+# Links authenticated users to poker player identities.
+# Ensures one player can only be claimed by one user.
+#
+# Columns:
+# - id                  : UUID primary key (server-generated with gen_random_uuid()).
+# - user_id             : FK to users.id (CASCADE on delete).
+# - player_id           : FK to players.id (CASCADE on delete).
+# - claimed_at          : Timestamp when the identity was claimed.
+# - verification_method : How the identity was verified (e.g., 'email', 'admin', 'token').
+#
+# Constraints:
+# - (user_id, player_id) unique: A user cannot claim the same player twice.
+# - (player_id) unique: A player can only be claimed by one user.
+#
+# Relationships:
+# - user   : The User who claimed this player identity.
+# - player : The Player identity that was claimed.
+# ==========================================================
+class PokerIdentityClaim(Base):
+    __tablename__ = 'poker_identity_claims'
+
+    id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
+    user_id = Column(UUID(as_uuid=True), ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    player_id = Column(UUID(as_uuid=True), ForeignKey('players.id', ondelete='CASCADE'), nullable=False)
+    claimed_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
+    verification_method = Column(String(50), nullable=False)
+
+    user = relationship('User', back_populates='poker_identities')
+    player = relationship('Player', back_populates='identity_claim', uselist=False)
+
+    __table_args__ = (
+        UniqueConstraint('user_id', 'player_id', name='uq_identity_user_player'),
+        UniqueConstraint('player_id', name='uq_identity_player'),
+        Index('ix_identity_user_player', 'user_id', 'player_id', unique=True),
+        Index('ix_identity_player', 'player_id', unique=True),
+    )
 
 
 # ==========================================================
@@ -47,17 +130,21 @@ class Player(Base):
 # A game is what players will share via a short public code.
 #
 # Columns:
-# - id          : UUID primary key.
-# - public_code : Short shareable identifier (case-insensitive, CITEXT).
-# - admin_code  : Secret long token; required for admin actions like importing sessions.
-# - title       : Optional name/label for the game (e.g. "Thursday Night Home Game").
-# - created_at  : Timestamp when the game record was created.
-# - meta        : JSONB field for extra metadata or config (defaults to {}).
+# - id                    : UUID primary key.
+# - public_code           : Short shareable identifier (case-insensitive, CITEXT).
+# - admin_code            : Secret long token; required for admin actions like importing sessions.
+# - title                 : Optional name/label for the game (e.g. "Thursday Night Home Game").
+# - created_at            : Timestamp when the game record was created.
+# - meta                  : JSONB field for extra metadata or config (defaults to {}).
+# - owner_user_id         : Optional FK to users.id; the authenticated user who owns this game.
+# - admin_code_expires_at : Optional expiration timestamp for the admin_code.
 #
 # Relationships:
-# - players    : association rows linking players ↔ this game.
-# - sessions   : all Session rows that belong to this game.
-# - audit_logs : audit entries related to this game.
+# - owner              : The User who owns this game (optional).
+# - players            : association rows linking players ↔ this game.
+# - sessions           : all Session rows that belong to this game.
+# - audit_logs         : audit entries related to this game.
+# - payment_transactions, payment_balances, rules, statistics_config : related records.
 # ==========================================================
 class Game(Base):
     __tablename__ = 'games'
@@ -70,7 +157,10 @@ class Game(Base):
     # renamed from `metadata` to avoid colliding with SQLAlchemy's declarative metadata
     meta = Column(JSONB, nullable=False, server_default=text("'{}'::jsonb"))
     alert_settings = Column(JSONB, nullable=False, server_default=text("'{}'::jsonb"))
+    owner_user_id = Column(UUID(as_uuid=True), ForeignKey('users.id', ondelete='SET NULL'), nullable=True)
+    admin_code_expires_at = Column(TIMESTAMP(timezone=True), nullable=True)
 
+    owner = relationship('User', back_populates='owned_games')
     players = relationship('GamePlayer', back_populates='game', cascade="all, delete-orphan")
     sessions = relationship('Session', back_populates='game', cascade="all, delete-orphan")
     audit_logs = relationship('AuditLog', back_populates='game')
@@ -81,6 +171,7 @@ class Game(Base):
 
     __table_args__ = (
         # public_code is already UNIQUE → PG will create an index
+        Index('ix_games_owner', 'owner_user_id'),
     )
 
 
@@ -209,8 +300,9 @@ class SessionPlayerSummary(Base):
 # - id          : UUID primary key.
 # - game_id     : FK to games.id (SET NULL on delete).
 # - session_id  : FK to sessions.id (SET NULL on delete).
-# - actor_kind  : Type of actor ('admin_code', 'system', later 'user').
-# - actor_id    : Identifier of actor (e.g. admin_code hash).
+# - user_id     : FK to users.id (SET NULL on delete); authenticated user who performed action.
+# - actor_kind  : Type of actor ('admin_code', 'system', 'user').
+# - actor_id    : Identifier of actor (e.g. admin_code hash, user email).
 # - action      : Action verb ('CREATE', 'UPDATE', 'DELETE', 'IMPORT').
 # - target_table: Which table was modified.
 # - target_id   : ID of target row.
@@ -221,6 +313,7 @@ class SessionPlayerSummary(Base):
 # Relationships:
 # - game    : related Game (optional).
 # - session : related Session (optional).
+# - user    : related User who performed the action (optional).
 # ==========================================================
 class AuditLog(Base):
     __tablename__ = 'audit_log'
@@ -228,8 +321,9 @@ class AuditLog(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
     game_id = Column(UUID(as_uuid=True), ForeignKey('games.id', ondelete='SET NULL'), nullable=True)
     session_id = Column(UUID(as_uuid=True), ForeignKey('sessions.id', ondelete='SET NULL'), nullable=True)
+    user_id = Column(UUID(as_uuid=True), ForeignKey('users.id', ondelete='SET NULL'), nullable=True)
 
-    actor_kind = Column(Text, nullable=False)  # 'admin_code' | 'system'
+    actor_kind = Column(Text, nullable=False)  # 'admin_code' | 'system' | 'user'
     actor_id   = Column(Text, nullable=True)
     action     = Column(Text, nullable=False)  # 'CREATE'|'UPDATE'|'DELETE'|'IMPORT'
     target_table = Column(Text, nullable=False)
@@ -240,6 +334,11 @@ class AuditLog(Base):
 
     game = relationship('Game', back_populates='audit_logs')
     session = relationship('Session', back_populates='audit_logs')
+    user = relationship('User', back_populates='audit_logs')
+
+    __table_args__ = (
+        Index('ix_audit_log_user', 'user_id'),
+    )
 
 
 # ==========================================================

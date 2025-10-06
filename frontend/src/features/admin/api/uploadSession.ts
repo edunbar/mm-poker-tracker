@@ -1,6 +1,5 @@
-import axios from "axios";
 import { useMutation } from "react-query";
-import { API_BASE_URL } from "../../../config/api";
+import { apiClient } from "../../../api/client";
 
 export const uploadGameDualWrite = async ({
   public_code,
@@ -12,15 +11,22 @@ export const uploadGameDualWrite = async ({
   ledger_csv_content,
 }: {
   public_code: string;
-  admin_code: string;
+  admin_code?: string;
   sessionId: string;
   game_data: unknown;
   date?: string;
   gameNumber?: number;
   ledger_csv_content?: string;
 }) => {
-  const response = await axios.post(
-    `${API_BASE_URL}/api/games/upload`,
+  const headers: Record<string, string> = {};
+
+  // Only send X-Admin-Code if provided (for non-authenticated users)
+  if (admin_code) {
+    headers['X-Admin-Code'] = admin_code;
+  }
+
+  const response = await apiClient.post(
+    '/api/games/upload',
     {
       public_code,
       sessionId,
@@ -30,9 +36,7 @@ export const uploadGameDualWrite = async ({
       ledger_csv_content,
     },
     {
-      headers: {
-        "X-Admin-Code": admin_code,
-      },
+      headers,
     }
   );
   return response.data;

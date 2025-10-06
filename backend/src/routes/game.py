@@ -1,6 +1,6 @@
 from sqlalchemy import text
 from db.database import SessionLocal
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, g
 import logging
 from services.transaction_service import get_game_transactions
 from services.session_ingestion_service import ingest_session
@@ -25,6 +25,7 @@ from services.audit_service import (
 )
 from services.ledger_analysis_service import get_ledger_analysis
 from services.audit_middleware import audit_context
+from middleware.auth_middleware import require_auth, require_auth_or_admin_code, check_game_authorization
 from services.live_game_service_v2 import (
     validate_live_game_data,
     create_live_game_session_data,
@@ -41,7 +42,7 @@ from services.hand_analytics_service import get_hand_analytics
 from services.poker_statistics_service import PokerStatisticsProcessor
 from services.game_statistics_config_service import GameStatisticsConfigService
 from decimal import Decimal
-from datetime import timezone, datetime
+from datetime import timezone, datetime, timedelta
 from sqlalchemy import func
 from db.models import Game, Player, PaymentTransaction, PaymentBalance, Session as SessionModel, SessionPlayerSummary, GamePlayer, AuditLog
 from werkzeug.datastructures import FileStorage
@@ -97,6 +98,152 @@ def create_new_game():
         logging.exception("Unexpected error in /create")
         return jsonify({"error": "Internal server error"}), 500
 
+@game_bp.route('/claim', methods=['POST'])
+@require_auth  # JWT ONLY
+def claim_game():
+    """
+    Claim a game using admin code.
+
+    Auth: JWT only
+    Body: { "admin_code": "secret-code" }
+
+    Returns:
+        200: Game already claimed by you - expiration extended
+        201: Game successfully claimed
+        403: Invalid admin code
+        409: Game already claimed by another user
+    """
+    db = SessionLocal()
+    try:
+        body = request.get_json()
+        admin_code = body.get('admin_code')
+
+        if not admin_code:
+            return jsonify({'error': 'admin_code required'}), 400
+
+        # Find game by admin_code
+        game = db.query(Game).filter(Game.admin_code == admin_code).first()
+        if not game:
+            return jsonify({'error': 'Invalid admin code'}), 403
+
+        current_user_id = g.current_user_id
+
+        # Check current ownership status
+        if game.owner_user_id and str(game.owner_user_id) == str(current_user_id):
+            # Already claimed by this user - extend expiration
+            game.admin_code_expires_at = datetime.now(timezone.utc) + timedelta(days=90)
+
+            with audit_context(
+                operation_type='GAME_CLAIM_EXTEND',
+                game_id=str(game.id),
+                actor_kind='user',
+                actor_id=g.current_user_email,
+                user_id=current_user_id
+            ):
+                db.commit()
+
+            return jsonify({
+                'message': 'Admin code expiration extended',
+                'game': {
+                    'id': str(game.id),
+                    'public_code': game.public_code,
+                    'title': game.title,
+                    'admin_code_expires_at': game.admin_code_expires_at.isoformat()
+                }
+            }), 200
+
+        elif game.owner_user_id is not None:
+            # Already claimed by someone else
+            return jsonify({'error': 'Game already claimed by another user'}), 409
+
+        else:
+            # Not claimed yet - claim it
+            game.owner_user_id = current_user_id
+            game.admin_code_expires_at = datetime.now(timezone.utc) + timedelta(days=90)
+
+            with audit_context(
+                operation_type='GAME_CLAIM',
+                game_id=str(game.id),
+                actor_kind='user',
+                actor_id=g.current_user_email,
+                user_id=current_user_id
+            ):
+                db.commit()
+
+            return jsonify({
+                'message': 'Game successfully claimed',
+                'game': {
+                    'id': str(game.id),
+                    'public_code': game.public_code,
+                    'title': game.title,
+                    'claimed_at': datetime.now(timezone.utc).isoformat(),
+                    'admin_code_expires_at': game.admin_code_expires_at.isoformat()
+                }
+            }), 201
+
+    except Exception as e:
+        db.rollback()
+        logging.exception("Error claiming game")
+        return jsonify({'error': f'Failed to claim game: {str(e)}'}), 500
+
+    finally:
+        db.close()
+
+@game_bp.route('/me', methods=['GET'])
+@require_auth  # JWT ONLY
+def get_my_games():
+    """
+    Get all games owned by the authenticated user.
+
+    Auth: JWT only
+
+    Returns:
+        200: List of games owned by user
+        {
+            "games": [
+                {
+                    "id": "uuid",
+                    "title": "Game Title",
+                    "public_code": "ABC123",
+                    "admin_code_expires_at": "2025-01-01T00:00:00",
+                    "created_at": "2024-10-01T00:00:00",
+                    "session_count": 5
+                }
+            ]
+        }
+    """
+    db = SessionLocal()
+    try:
+        current_user_id = g.current_user_id
+
+        # Query all games owned by this user
+        games = db.query(Game).filter(
+            Game.owner_user_id == current_user_id
+        ).order_by(Game.created_at.desc()).all()
+
+        # Build response with session counts
+        games_data = []
+        for game in games:
+            session_count = db.query(SessionModel).filter_by(game_id=game.id).count()
+
+            games_data.append({
+                'id': str(game.id),
+                'title': game.title,
+                'public_code': game.public_code,
+                'admin_code_expires_at': game.admin_code_expires_at.isoformat() if game.admin_code_expires_at else None,
+                'created_at': game.created_at.isoformat(),
+                'session_count': session_count
+            })
+
+        return jsonify({'games': games_data}), 200
+
+    except Exception as e:
+        logging.exception("Error fetching user games")
+        return jsonify({'error': f'Failed to fetch games: {str(e)}'}), 500
+
+    finally:
+        db.close()
+
 @game_bp.route('/get_transactions', methods=['GET'])
 def get_transactions():
     base_url = request.args.get('url')
@@ -114,6 +261,7 @@ def get_transactions():
         return jsonify({'error': str(e)}), 500
 
 @game_bp.route('/upload', methods=['POST'])
+@require_auth_or_admin_code
 def upload_dual():
     """
     Body expects:
@@ -124,8 +272,9 @@ def upload_dual():
       "date": "2025-08-11T00:00:00",               # optional; uses 'today' if omitted
       "gameNumber": 81                             # optional; manual override for game number
     }
-    Header: X-Admin-Code: <admin_code>
+    Auth: JWT (game owner) OR X-Admin-Code
     """
+    db = SessionLocal()
     try:
         body = request.get_json(force=True)
         public_code = body.get("public_code")
@@ -139,15 +288,24 @@ def upload_dual():
         if not session_id:
             return jsonify({"error": "sessionId is required"}), 400
 
-        admin_code = request.headers.get("X-Admin-Code")
-        if not admin_code:
-            return jsonify({"error": "X-Admin-Code header required"}), 401
+        # Fetch game and check authorization
+        game = db.query(Game).filter(Game.public_code == public_code).first()
+        if not game:
+            return jsonify({'error': 'Game not found'}), 404
+
+        authorized, error_msg = check_game_authorization(
+            game, g.auth_method,
+            getattr(g, 'current_user_id', None),
+            getattr(g, 'admin_code', None)
+        )
+        if not authorized:
+            return jsonify({'error': error_msg}), 403
 
         ledger_csv_content = body.get("ledger_csv_content")
 
         result = ingest_session(
             public_code=public_code,
-            admin_code=admin_code,
+            admin_code=game.admin_code,  # Use game's admin_code for both auth methods
             session_id=session_id,
             game_data=game_data,
             date_iso=date_iso,
@@ -157,9 +315,11 @@ def upload_dual():
         return jsonify(result), 200
 
     except PermissionError as e:
+        db.rollback()
         logging.error(f"Forbidden: {e}")
         return jsonify({"error": str(e)}), 403
     except ValueError as e:
+        db.rollback()
         error_msg = str(e)
         if "Game not found" in error_msg:
             logging.error(f"Not found: {e}")
@@ -168,8 +328,11 @@ def upload_dual():
             logging.error(f"Bad request: {e}")
             return jsonify({"error": error_msg}), 400
     except Exception as e:
+        db.rollback()
         logging.exception("Unexpected error in /upload")
         return jsonify({"error": "Internal server error"}), 500
+    finally:
+        db.close()
 
 @game_bp.route('/upload_live', methods=['POST'])
 def upload_live_game():
@@ -358,6 +521,7 @@ def get_ledger_entry(public_code: str, session_id: str, player_id: str):
         return jsonify({"error": str(e)}), 500
 
 @game_bp.put("/<public_code>/ledger/<session_id>/<player_id>")
+@require_auth_or_admin_code
 def update_ledger_entry(public_code: str, session_id: str, player_id: str):
     """
     Update a SessionPlayerSummary record.
@@ -370,28 +534,36 @@ def update_ledger_entry(public_code: str, session_id: str, player_id: str):
       "names": ["Player Name", "Alternative Name"]
     }
     Note: player_id is taken from URL path, not request body
-    Header: X-Admin-Code: <admin_code>
+    Auth: JWT (game owner) OR X-Admin-Code
     """
+    db = SessionLocal()
     try:
-        admin_code = request.headers.get("X-Admin-Code")
-        if not admin_code:
-            return jsonify({"error": "X-Admin-Code header required"}), 401
+        # Fetch game and check authorization
+        game = db.query(Game).filter(Game.public_code == public_code).first()
+        if not game:
+            return jsonify({'error': 'Game not found'}), 404
 
-        # Get game for audit context
-        from services.session_ingestion_service import _require_admin_for_game
-        with SessionLocal() as db:
-            game = _require_admin_for_game(db, public_code, admin_code)
-        
+        authorized, error_msg = check_game_authorization(
+            game, g.auth_method,
+            getattr(g, 'current_user_id', None),
+            getattr(g, 'admin_code', None)
+        )
+        if not authorized:
+            return jsonify({'error': error_msg}), 403
+
         body = request.get_json(force=True)
         if not body:
             return jsonify({"error": "Request body is required"}), 400
 
         # Set audit context for this operation
+        actor_id = g.current_user_email if g.auth_method == 'jwt' else getattr(g, 'admin_code', '')[:8] + "…"
+
         with audit_context(
             operation_type="LEDGER_UPDATE",
             game_id=str(game.id),
-            actor_kind="admin_code",
-            actor_id=admin_code[:8] + "…"
+            actor_kind=g.auth_method if g.auth_method == 'jwt' else "admin_code",
+            actor_id=actor_id,
+            user_id=getattr(g, 'current_user_id', None)
         ):
             result = update_session_summary(session_id, player_id, body)
         return jsonify(result), 200
@@ -404,30 +576,41 @@ def update_ledger_entry(public_code: str, session_id: str, player_id: str):
     except Exception as e:
         logging.error(f"Error updating ledger entry: {e}")
         return jsonify({"error": str(e)}), 500
+    finally:
+        db.close()
 
 @game_bp.delete("/<public_code>/ledger/<session_id>/<player_id>")
+@require_auth_or_admin_code
 def delete_ledger_entry(public_code: str, session_id: str, player_id: str):
     """
     Delete a SessionPlayerSummary record.
     Note: player_id is taken from URL path
-    Header: X-Admin-Code: <admin_code>
+    Auth: JWT (game owner) OR X-Admin-Code
     """
+    db = SessionLocal()
     try:
-        admin_code = request.headers.get("X-Admin-Code")
-        if not admin_code:
-            return jsonify({"error": "X-Admin-Code header required"}), 401
+        # Fetch game and check authorization
+        game = db.query(Game).filter(Game.public_code == public_code).first()
+        if not game:
+            return jsonify({'error': 'Game not found'}), 404
 
-        # Get game for audit context
-        from services.session_ingestion_service import _require_admin_for_game
-        with SessionLocal() as db:
-            game = _require_admin_for_game(db, public_code, admin_code)
+        authorized, error_msg = check_game_authorization(
+            game, g.auth_method,
+            getattr(g, 'current_user_id', None),
+            getattr(g, 'admin_code', None)
+        )
+        if not authorized:
+            return jsonify({'error': error_msg}), 403
 
         # Set audit context for this operation
+        actor_id = g.current_user_email if g.auth_method == 'jwt' else getattr(g, 'admin_code', '')[:8] + "…"
+
         with audit_context(
             operation_type="LEDGER_DELETE",
             game_id=str(game.id),
-            actor_kind="admin_code",
-            actor_id=admin_code[:8] + "…"
+            actor_kind=g.auth_method if g.auth_method == 'jwt' else "admin_code",
+            actor_id=actor_id,
+            user_id=getattr(g, 'current_user_id', None)
         ):
             result = delete_session_summary(session_id, player_id)
         return jsonify(result), 200
@@ -437,6 +620,8 @@ def delete_ledger_entry(public_code: str, session_id: str, player_id: str):
     except Exception as e:
         logging.error(f"Error deleting ledger entry: {e}")
         return jsonify({"error": str(e)}), 500
+    finally:
+        db.close()
 
 @game_bp.put("/<public_code>/sessions/<session_id>/date")
 def update_session_date(public_code: str, session_id: str):
@@ -943,82 +1128,95 @@ def get_payment_history(public_code: str):
         return jsonify({"error": str(e)}), 500
 
 @game_bp.post("/<public_code>/payments")
+@require_auth_or_admin_code
 def record_payment_transaction(public_code: str):
     """
-    Record a payment between two players (admin only).
-    
+    Record a payment between two players.
+
     Body expects:
     {
       "payer_id": "uuid",
-      "recipient_id": "uuid", 
+      "recipient_id": "uuid",
       "amount": 125.50,
       "payment_date": "2025-09-03T10:30:00Z",  // optional, defaults to now
       "payment_method": "Venmo",               // optional
       "notes": "Weekly settlement",            // optional
       "reference_id": "venmo_12345"            // optional
     }
-    Header: X-Admin-Code: <admin_code>
+    Auth: JWT (game owner) OR X-Admin-Code
     """
+    db = SessionLocal()
     try:
-        admin_code = request.headers.get("X-Admin-Code")
-        if not admin_code:
-            return jsonify({"error": "X-Admin-Code header required"}), 401
+        # Fetch game and check authorization
+        game = db.query(Game).filter(Game.public_code == public_code).first()
+        if not game:
+            return jsonify({'error': 'Game not found'}), 404
 
-        # Get game and validate admin access
-        from services.session_ingestion_service import _require_admin_for_game
-        with SessionLocal() as db:
-            game = _require_admin_for_game(db, public_code, admin_code)
+        authorized, error_msg = check_game_authorization(
+            game, g.auth_method,
+            getattr(g, 'current_user_id', None),
+            getattr(g, 'admin_code', None)
+        )
+        if not authorized:
+            return jsonify({'error': error_msg}), 403
 
-            body = request.get_json(force=True)
-            if not body:
-                return jsonify({"error": "Request body is required"}), 400
+        body = request.get_json(force=True)
+        if not body:
+            return jsonify({"error": "Request body is required"}), 400
 
-            # Validate required fields
-            required_fields = ["payer_id", "recipient_id", "amount"]
-            for field in required_fields:
-                if field not in body:
-                    return jsonify({"error": f"{field} is required"}), 400
+        # Validate required fields
+        required_fields = ["payer_id", "recipient_id", "amount"]
+        for field in required_fields:
+            if field not in body:
+                return jsonify({"error": f"{field} is required"}), 400
 
-            # Parse payment date
-            from datetime import datetime
-            payment_date = datetime.now(timezone.utc)
-            if "payment_date" in body and body["payment_date"]:
-                try:
-                    payment_date = datetime.fromisoformat(body["payment_date"].replace('Z', '+00:00'))
-                except ValueError:
-                    return jsonify({"error": "Invalid payment_date format"}), 400
+        # Parse payment date
+        from datetime import datetime
+        payment_date = datetime.now(timezone.utc)
+        if "payment_date" in body and body["payment_date"]:
+            try:
+                payment_date = datetime.fromisoformat(body["payment_date"].replace('Z', '+00:00'))
+            except ValueError:
+                return jsonify({"error": "Invalid payment_date format"}), 400
 
-            # Set audit context
-            payment_service = PaymentService(db)
-            with audit_context(
-                operation_type="PAYMENT_RECORD",
+        # Set audit context
+        payment_service = PaymentService(db)
+        actor_id = g.current_user_email if g.auth_method == 'jwt' else getattr(g, 'admin_code', '')[:8] + "…"
+
+        with audit_context(
+            operation_type="PAYMENT_RECORD",
+            game_id=str(game.id),
+            actor_kind=g.auth_method if g.auth_method == 'jwt' else "admin_code",
+            actor_id=actor_id,
+            user_id=getattr(g, 'current_user_id', None)
+        ):
+            payment = payment_service.record_payment(
                 game_id=str(game.id),
-                actor_kind="admin_code",
-                actor_id=admin_code[:8] + "…"
-            ):
-                payment = payment_service.record_payment(
-                    game_id=str(game.id),
-                    payer_id=body["payer_id"],
-                    recipient_id=body["recipient_id"],
-                    amount=Decimal(str(body["amount"])),
-                    payment_date=payment_date,
-                    payment_method=body.get("payment_method"),
-                    notes=body.get("notes"),
-                    reference_id=body.get("reference_id"),
-                    created_by=admin_code[:8] + "…"
-                )
+                payer_id=body["payer_id"],
+                recipient_id=body["recipient_id"],
+                amount=Decimal(str(body["amount"])),
+                payment_date=payment_date,
+                payment_method=body.get("payment_method"),
+                notes=body.get("notes"),
+                reference_id=body.get("reference_id"),
+                created_by=actor_id
+            )
 
-            db.commit()
-            return jsonify({
-                "id": str(payment.id),
-                "message": "Payment recorded successfully"
-            }), 201
+        db.commit()
+        return jsonify({
+            "id": str(payment.id),
+            "message": "Payment recorded successfully"
+        }), 201
 
     except ValueError as e:
+        db.rollback()
         return jsonify({"error": str(e)}), 400
     except Exception as e:
+        db.rollback()
         logging.error(f"Error recording payment: {e}")
         return jsonify({"error": str(e)}), 500
+    finally:
+        db.close()
 
 @game_bp.put("/<public_code>/payments/<payment_id>")
 def update_payment_transaction(public_code: str, payment_id: str):

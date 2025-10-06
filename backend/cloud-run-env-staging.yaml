@@ -6,6 +6,7 @@ DATABASE_URL: postgresql+psycopg2://poker_user:O1XbT66.^#H!83[fds234@/home_game_
 # SENDGRID_API_KEY is injected from GitHub Secrets during deployment
 FROM_EMAIL: noreply@homegame.gg
 BUG_REPORT_EMAIL: help@homegame.gg
+JWT_SECRET: REPLACE_WITH_GENERATED_SECRET
 MAIL_SERVER: smtp.gmail.com
 MAIL_PORT: "587"
 MAIL_USE_TLS: "true"

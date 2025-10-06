@@ -1,15 +1,43 @@
 import { type ReactNode } from 'react';
+import { Navigate, useLocation } from 'react-router-dom';
 import { useAdminSession } from '../contexts/AdminSessionContext';
+import { useAuth } from '../contexts/AuthContext';
 import { Heading, Text } from '../shared/ui/typography';
 
 interface ProtectedRouteProps {
   children: ReactNode;
   requireAdmin?: boolean;
+  requireAuth?: boolean;
 }
 
-export default function ProtectedRoute({ children, requireAdmin = false }: ProtectedRouteProps) {
+export default function ProtectedRoute({
+  children,
+  requireAdmin = false,
+  requireAuth = false,
+}: ProtectedRouteProps) {
+  const location = useLocation();
+  const { isAuthenticated, isLoading } = useAuth();
   const { hasAdminSession } = useAdminSession();
 
+  // Handle user authentication requirement
+  if (requireAuth) {
+    if (isLoading) {
+      return (
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto" />
+            <p className="mt-4 text-gray-600">Loading...</p>
+          </div>
+        </div>
+      );
+    }
+
+    if (!isAuthenticated) {
+      return <Navigate to="/login" state={{ from: location.pathname }} replace />;
+    }
+  }
+
+  // Handle admin authentication requirement
   if (requireAdmin && !hasAdminSession) {
     return (
       <div className="flex flex-col items-center justify-center min-h-64 text-center">

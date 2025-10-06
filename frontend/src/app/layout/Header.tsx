@@ -11,15 +11,17 @@ import {
   Receipt,
   Shield,
   Spade,
+  User,
   Users,
   X,
   Zap
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { NavLink, useLocation } from 'react-router-dom';
+import { Link, NavLink, useLocation } from 'react-router-dom';
 import { submitBugReport, type BugReportData } from '../../api/bugReport';
 import BugReportModal from '../../components/BugReportModal';
 import { useAdminSession } from '../../contexts/AdminSessionContext';
+import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
 import { adminNav, publicNav } from '../../features/admin/nav';
 import { useGameTitle } from '../../shared/hooks/useGameTitle';
@@ -96,12 +98,14 @@ function extractPublicCodeFromPath(pathname: string): string | null {
 
 export function Header() {
   const { hasAdminSession, setAdminSession, clearAdminSession, publicCode: contextPublicCode } = useAdminSession();
+  const { isAuthenticated, isLoading, user, logout } = useAuth();
   const { showSuccess, showError } = useToast();
   const location = useLocation();
   const [isBugReportModalOpen, setIsBugReportModalOpen] = useState(false);
   const [showAdminLogin, setShowAdminLogin] = useState(false);
   const [adminCode, setAdminCode] = useState('');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [showUserMenu, setShowUserMenu] = useState(false);
 
   // Get public code from URL first (prioritize current page), then fall back to admin session context
   const urlPublicCode = extractPublicCodeFromPath(location.pathname);
@@ -159,6 +163,85 @@ export function Header() {
                 <Shield className="h-4 w-4" />
                 <Text variant="bodySmall" as="span" className="hidden sm:inline">Admin Login</Text>
               </button>
+            )}
+
+            {/* User Authentication */}
+            {!isLoading && (
+              <>
+                {!isAuthenticated ? (
+                  <>
+                    <Link
+                      to="/login"
+                      className="flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-md transition-colors"
+                    >
+                      <Text variant="bodySmall" as="span" className="hidden sm:inline">Log in</Text>
+                    </Link>
+                    <Link
+                      to="/register"
+                      className="flex items-center gap-2 px-3 py-2 text-sm bg-primary text-primary-foreground hover:bg-primary/90 rounded-md transition-colors"
+                    >
+                      <Text variant="bodySmall" as="span">Sign up</Text>
+                    </Link>
+                  </>
+                ) : (
+                  <div className="relative">
+                    <button
+                      onClick={() => setShowUserMenu(!showUserMenu)}
+                      className="flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-md transition-colors"
+                      title={user?.email}
+                    >
+                      <User className="h-4 w-4" />
+                      <Text variant="bodySmall" as="span" className="hidden sm:inline max-w-[150px] truncate">
+                        {user?.email}
+                      </Text>
+                    </button>
+
+                    {showUserMenu && (
+                      <>
+                        <div
+                          className="fixed inset-0 z-10"
+                          onClick={() => setShowUserMenu(false)}
+                        />
+                        <div className="absolute right-0 mt-2 w-48 bg-card border border-border rounded-md shadow-lg z-20">
+                          <div className="py-1">
+                            <div className="px-4 py-2 border-b border-border">
+                              <Text variant="bodySmall" weight="medium">{user?.displayName}</Text>
+                              <Text variant="caption" color="muted">{user?.email}</Text>
+                            </div>
+                            <Link
+                              to="/my-games"
+                              onClick={() => setShowUserMenu(false)}
+                              className="w-full flex items-center gap-2 px-4 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                            >
+                              <Home className="h-4 w-4" />
+                              <Text variant="bodySmall">My Games</Text>
+                            </Link>
+                            <Link
+                              to="/claim-game"
+                              onClick={() => setShowUserMenu(false)}
+                              className="w-full flex items-center gap-2 px-4 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                            >
+                              <Shield className="h-4 w-4" />
+                              <Text variant="bodySmall">Claim Game</Text>
+                            </Link>
+                            <div className="border-t border-border my-1" />
+                            <button
+                              onClick={() => {
+                                logout();
+                                setShowUserMenu(false);
+                              }}
+                              className="w-full flex items-center gap-2 px-4 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                            >
+                              <LogOut className="h-4 w-4" />
+                              <Text variant="bodySmall">Log out</Text>
+                            </button>
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                )}
+              </>
             )}
 
             {/* Bug Report Button */}

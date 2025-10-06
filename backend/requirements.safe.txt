@@ -24,6 +24,11 @@ gunicorn>=21.0.0,<22.0.0
 
 # Rate limiting and security
 Flask-Limiter>=3.8.0,<4.0.0
+bcrypt>=4.0.0,<5.0.0
+PyJWT>=2.8.0,<3.0.0
 
 # Email functionality
 sendgrid>=6.11.0,<7.0.0
+
+# Testing utilities (for freezegun time mocking)
+freezegun>=1.5.0,<2.0.0
