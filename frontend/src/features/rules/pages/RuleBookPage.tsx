@@ -21,7 +21,9 @@ interface EditingRule {
 }
 
 export default function RuleBookPage({ publicCode }: RuleBookPageProps) {
-  const { hasAdminSession, adminCode } = useAdminSession();
+  const { hasAdminSession: hasAdminSessionForGame, getAdminCode } = useAdminSession();
+  const hasAdminSession = hasAdminSessionForGame(publicCode);
+  const adminCode = getAdminCode(publicCode);
   const { showSuccess, showError } = useToast();
   const [rules, setRules] = useState<GameRule[]>([]);
   const [loading, setLoading] = useState(true);

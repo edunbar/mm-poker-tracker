@@ -28,7 +28,7 @@ class AuthenticationService:
     """
 
     # Password constraints
-    MIN_PASSWORD_LENGTH = 12
+    MIN_PASSWORD_LENGTH = 8
     MAX_PASSWORD_LENGTH = 72  # Bcrypt limitation
 
     def __init__(self, password_hasher: PasswordHasher, user_repository):

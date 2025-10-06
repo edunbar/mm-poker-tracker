@@ -6,9 +6,10 @@ interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string, rememberMe?: boolean) => Promise<void>;
   register: (email: string, password: string, displayName: string) => Promise<void>;
   logout: () => void;
+  updateUser: (user: User) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -48,8 +49,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
     loadUser();
   }, []);
 
-  const login = async (email: string, password: string): Promise<void> => {
-    const response = await loginUser(email, password);
+  const login = async (email: string, password: string, rememberMe: boolean = false): Promise<void> => {
+    const response = await loginUser(email, password, rememberMe);
 
     localStorage.setItem(AUTH_TOKEN_KEY, response.access_token);
     setUser(response.user);
@@ -71,6 +72,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
     setUser(null);
   };
 
+  const updateUser = (updatedUser: User) => {
+    setUser(updatedUser);
+  };
+
   const isAuthenticated = Boolean(user);
 
   const value: AuthContextType = {
@@ -80,6 +85,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     login,
     register,
     logout,
+    updateUser,
   };
 
   return (

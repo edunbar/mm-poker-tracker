@@ -18,9 +18,11 @@ jest.mock('react-router-dom', () => ({
 // Mock contexts
 jest.mock('../../../contexts/AdminSessionContext', () => ({
   useAdminSession: () => ({
-    hasAdminSession: false,
-    publicCode: 'TEST123',
-    adminCode: null
+    hasAdminSession: () => false,
+    getAdminCode: () => null,
+    setAdminSession: () => {},
+    clearAdminSession: () => {},
+    getAllAdminSessions: () => []
   })
 }));
 

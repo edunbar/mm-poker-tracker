@@ -10,6 +10,30 @@ interface ProtectedRouteProps {
   requireAuth?: boolean;
 }
 
+// Helper function to extract public code from URL pathname
+function extractPublicCodeFromPath(pathname: string): string | null {
+  const pathParts = pathname.split('/').filter(part => part.length > 0);
+
+  // For routes like /ingest/ABC123, /summary/ABC123, /admin/ABC123, etc.
+  if (pathParts.length >= 2) {
+    const potentialCode = pathParts[1];
+    // Check if it looks like a public code (5 chars, alphanumeric)
+    if (potentialCode && potentialCode.length === 5 && /^[A-Z0-9]+$/.test(potentialCode)) {
+      return potentialCode;
+    }
+  }
+
+  // For routes like /ABC123 (direct game access)
+  if (pathParts.length === 1) {
+    const potentialCode = pathParts[0];
+    if (potentialCode && potentialCode.length === 5 && /^[A-Z0-9]+$/.test(potentialCode)) {
+      return potentialCode;
+    }
+  }
+
+  return null;
+}
+
 export default function ProtectedRoute({
   children,
   requireAdmin = false,
@@ -17,7 +41,11 @@ export default function ProtectedRoute({
 }: ProtectedRouteProps) {
   const location = useLocation();
   const { isAuthenticated, isLoading } = useAuth();
-  const { hasAdminSession } = useAdminSession();
+  const { hasAdminSession: hasAdminSessionForGame } = useAdminSession();
+
+  // Extract public code from URL to check admin session
+  const publicCode = extractPublicCodeFromPath(location.pathname);
+  const hasAdminSession = publicCode ? hasAdminSessionForGame(publicCode) : false;
 
   // Handle user authentication requirement
   if (requireAuth) {

@@ -610,5 +610,122 @@ class TestSecurityHeaders:
         assert '<script>' not in str(data)
 
 
+class TestPasswordSecurityAPIs:
+    """Test password security API endpoints."""
+
+    def test_password_change_success(self, client):
+        """Test successful password change."""
+        from tests.conftest import register_user as register_helper
+        from sqlalchemy import text
+
+        #Clean up first
+        with SessionLocal() as db:
+            db.execute(text("DELETE FROM users CASCADE"))
+            db.commit()
+
+        # Register user
+        response = client.post('/api/auth/register', json={
+            'email': 'pwtest@example.com',
+            'password': 'OldPassword123!',
+            'display_name': 'PW Test User'
+        })
+        token = response.get_json()['access_token']
+
+        # Change password
+        response = client.patch('/api/auth/password',
+            headers={'Authorization': f'Bearer {token}'},
+            json={
+                'current_password': 'OldPassword123!',
+                'new_password': 'NewPassword456!'
+            }
+        )
+
+        assert response.status_code == 200
+        data = response.get_json()
+        assert 'message' in data
+        assert 'success' in data['message'].lower()
+
+    def test_password_change_wrong_current_password(self, client):
+        """Test password change with incorrect current password."""
+        from sqlalchemy import text
+
+        # Clean up
+        with SessionLocal() as db:
+            db.execute(text("DELETE FROM users CASCADE"))
+            db.commit()
+
+        # Register user
+        response = client.post('/api/auth/register', json={
+            'email': 'pwtest2@example.com',
+            'password': 'CorrectPassword123!',
+            'display_name': 'Test User'
+        })
+        token = response.get_json()['access_token']
+
+        # Try with wrong current password
+        response = client.patch('/api/auth/password',
+            headers={'Authorization': f'Bearer {token}'},
+            json={
+                'current_password': 'WrongPassword123!',
+                'new_password': 'NewPassword456!'
+            }
+        )
+
+        assert response.status_code == 401
+        data = response.get_json()
+        assert 'incorrect' in data['error'].lower()
+
+    def test_password_strength_check_strong(self, client):
+        """Test password strength check with strong password."""
+        response = client.post('/api/auth/password-strength', json={
+            'password': 'MyVerySecurePassword123!'
+        })
+
+        assert response.status_code == 200
+        data = response.get_json()
+        assert 'score' in data
+        assert 'strength' in data
+        assert 'feedback' in data
+        assert data['score'] >= 80
+        assert data['strength'] == 'strong'
+
+    def test_password_strength_check_weak(self, client):
+        """Test password strength check with weak password."""
+        response = client.post('/api/auth/password-strength', json={
+            'password': 'weak'
+        })
+
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data['score'] < 40
+        assert data['strength'] == 'weak'
+        assert len(data['feedback']) > 0
+
+    def test_password_strength_common_password(self, client):
+        """Test that common passwords are flagged."""
+        response = client.post('/api/auth/password-strength', json={
+            'password': 'password123'
+        })
+
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data['details']['is_common'] is True
+        assert data['meets_requirements'] is False
+
+    def test_password_requirements_endpoint(self, client):
+        """Test password requirements endpoint."""
+        response = client.get('/api/auth/password-requirements')
+
+        assert response.status_code == 200
+        data = response.get_json()
+        assert 'min_length' in data
+        assert 'max_length' in data
+        assert 'requires_lowercase' in data
+        assert 'requires_uppercase' in data
+        assert 'requires_numbers' in data
+        assert data['min_length'] == 8
+        assert data['max_length'] == 72
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

@@ -44,7 +44,7 @@ from services.game_statistics_config_service import GameStatisticsConfigService
 from decimal import Decimal
 from datetime import timezone, datetime, timedelta
 from sqlalchemy import func
-from db.models import Game, Player, PaymentTransaction, PaymentBalance, Session as SessionModel, SessionPlayerSummary, GamePlayer, AuditLog
+from db.models import Game, Player, PaymentTransaction, PaymentBalance, Session as SessionModel, SessionPlayerSummary, GamePlayer, AuditLog, PokerIdentityClaim
 from werkzeug.datastructures import FileStorage
 
 game_bp = Blueprint('game', __name__)
@@ -189,22 +189,63 @@ def claim_game():
     finally:
         db.close()
 
+@game_bp.route('/public/<public_code>/info', methods=['GET'])
+def get_game_info_by_public_code(public_code: str):
+    """
+    Get basic game information by public code.
+
+    Path Parameters:
+        public_code: Public game code (e.g., "C4QROK")
+
+    Returns:
+        200: {
+            "game_id": "uuid",
+            "public_code": "C4QROK",
+            "title": "Game Title" | null
+        }
+        404: { "error": "Game not found" }
+    """
+    db = SessionLocal()
+    try:
+        game = db.query(Game).filter(Game.public_code == public_code).first()
+
+        if not game:
+            return jsonify({'error': 'Game not found'}), 404
+
+        return jsonify({
+            'game_id': str(game.id),
+            'public_code': game.public_code,
+            'title': game.title
+        }), 200
+
+    except Exception as e:
+        logging.exception(f"Error fetching game info for {public_code}")
+        return jsonify({'error': f'Failed to fetch game info: {str(e)}'}), 500
+
+    finally:
+        db.close()
+
 @game_bp.route('/me', methods=['GET'])
 @require_auth  # JWT ONLY
 def get_my_games():
     """
-    Get all games owned by the authenticated user.
+    Get all games accessible to the authenticated user.
+
+    Includes:
+    1. Games owned by the user (where owner_user_id = user_id)
+    2. Games where the user has claimed a player identity
 
     Auth: JWT only
 
     Returns:
-        200: List of games owned by user
+        200: List of games accessible to user
         {
             "games": [
                 {
                     "id": "uuid",
                     "title": "Game Title",
                     "public_code": "ABC123",
+                    "admin_code": "long-secret-code",  // Only included for owned games
                     "admin_code_expires_at": "2025-01-01T00:00:00",
                     "created_at": "2024-10-01T00:00:00",
                     "session_count": 5
@@ -216,24 +257,51 @@ def get_my_games():
     try:
         current_user_id = g.current_user_id
 
-        # Query all games owned by this user
-        games = db.query(Game).filter(
+        # Query 1: Games owned by this user
+        owned_games = db.query(Game).filter(
             Game.owner_user_id == current_user_id
-        ).order_by(Game.created_at.desc()).all()
+        ).all()
 
-        # Build response with session counts
+        # Query 2: Games where user has claimed a player identity
+        claimed_games = db.query(Game).join(
+            GamePlayer, Game.id == GamePlayer.game_id
+        ).join(
+            Player, GamePlayer.player_id == Player.id
+        ).join(
+            PokerIdentityClaim, Player.id == PokerIdentityClaim.player_id
+        ).filter(
+            PokerIdentityClaim.user_id == current_user_id
+        ).all()
+
+        # Combine and deduplicate games using dictionary (game_id as key)
+        all_games = {str(game.id): game for game in owned_games}
+        for game in claimed_games:
+            game_id = str(game.id)
+            if game_id not in all_games:
+                all_games[game_id] = game
+
+        # Build response with session counts, sorted by created_at desc
         games_data = []
-        for game in games:
+        for game in all_games.values():
             session_count = db.query(SessionModel).filter_by(game_id=game.id).count()
 
-            games_data.append({
+            game_data = {
                 'id': str(game.id),
                 'title': game.title,
                 'public_code': game.public_code,
                 'admin_code_expires_at': game.admin_code_expires_at.isoformat() if game.admin_code_expires_at else None,
                 'created_at': game.created_at.isoformat(),
                 'session_count': session_count
-            })
+            }
+
+            # Only include admin_code for games owned by this user
+            if game.owner_user_id and str(game.owner_user_id) == str(current_user_id):
+                game_data['admin_code'] = game.admin_code
+
+            games_data.append(game_data)
+
+        # Sort by created_at descending
+        games_data.sort(key=lambda x: x['created_at'], reverse=True)
 
         return jsonify({'games': games_data}), 200
 

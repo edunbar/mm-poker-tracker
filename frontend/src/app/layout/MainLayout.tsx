@@ -7,7 +7,31 @@ import { Sidebar } from ".";
 
 const MainLayout: React.FC<React.PropsWithChildren> = ({ children }) => {
   const location = useLocation();
-  const isLandingPage = location.pathname === "/";
+
+  // Helper function to determine if current route should show game sidebar
+  const shouldShowSidebar = (pathname: string): boolean => {
+    // Never show on these routes (user dashboard and auth pages)
+    const noSidebarRoutes = [
+      '/',
+      '/login',
+      '/register',
+      '/forgot-password',
+      '/reset-password',
+      '/my-games',
+      '/claim-game',
+      '/create-game',
+      '/settings'
+    ];
+
+    if (noSidebarRoutes.includes(pathname)) {
+      return false;
+    }
+
+    // Show sidebar for all game-specific routes (with publicCode)
+    return true;
+  };
+
+  const showSidebar = shouldShowSidebar(location.pathname);
   const isAnalyticsPage = location.pathname.includes('/analytics/');
 
   return (
@@ -17,8 +41,8 @@ const MainLayout: React.FC<React.PropsWithChildren> = ({ children }) => {
           <Header />
 
           <div className="flex-1 flex">
-            {/* Sidebar */}
-            {!isLandingPage && (
+            {/* Sidebar - only shown on game-specific routes */}
+            {showSidebar && (
               <aside className="w-64 shrink-0 hidden sm:block border-r border-border">
                 <Sidebar />
               </aside>
@@ -26,7 +50,7 @@ const MainLayout: React.FC<React.PropsWithChildren> = ({ children }) => {
 
             {/* Main Content */}
             <div className="flex-1 px-4 py-6">
-              <div className={`${isAnalyticsPage ? 'w-full' : 'max-w-5xl mx-auto'} w-full`}>
+              <div className={`${!showSidebar || isAnalyticsPage ? 'w-full' : 'max-w-5xl mx-auto'} w-full`}>
                 <main className="flex-1">{children}</main>
               </div>
             </div>

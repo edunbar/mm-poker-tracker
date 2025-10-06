@@ -1,34 +1,43 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
 
 interface AdminSessionContextType {
-  adminCode: string | null;
-  publicCode: string | null;
+  getAdminCode: (publicCode: string) => string | null;
   setAdminSession: (adminCode: string, publicCode: string) => void;
-  clearAdminSession: () => void;
-  hasAdminSession: boolean;
+  clearAdminSession: (publicCode?: string) => void;
+  hasAdminSession: (publicCode: string) => boolean;
+  getAllAdminSessions: () => string[];
 }
 
 const AdminSessionContext = createContext<AdminSessionContextType | undefined>(undefined);
 
-const ADMIN_SESSION_KEY = 'admin_session';
+const ADMIN_SESSION_KEY = 'admin_sessions';
 
 interface AdminSessionProviderProps {
   children: ReactNode;
 }
 
 export function AdminSessionProvider({ children }: AdminSessionProviderProps) {
-  const [adminCode, setAdminCode] = useState<string | null>(null);
-  const [publicCode, setPublicCode] = useState<string | null>(null);
+  // Store admin codes as a map: { [publicCode]: adminCode }
+  const [adminCodes, setAdminCodes] = useState<Record<string, string>>({});
 
-  // Load session from localStorage on mount
+  // Load sessions from localStorage on mount
   useEffect(() => {
-    const savedSession = localStorage.getItem(ADMIN_SESSION_KEY);
-    if (savedSession) {
+    const savedSessions = localStorage.getItem(ADMIN_SESSION_KEY);
+    if (savedSessions) {
       try {
-        const { adminCode: savedAdminCode, publicCode: savedPublicCode } = JSON.parse(savedSession);
-        if (savedAdminCode && savedPublicCode) {
-          setAdminCode(savedAdminCode);
-          setPublicCode(savedPublicCode);
+        const parsed = JSON.parse(savedSessions);
+        // Check if it's the new format (object) or old format (single session)
+        if (typeof parsed === 'object' && parsed !== null) {
+          if ('adminCode' in parsed && 'publicCode' in parsed) {
+            // Old format - migrate to new format
+            const { adminCode, publicCode } = parsed;
+            const newFormat = { [publicCode]: adminCode };
+            setAdminCodes(newFormat);
+            localStorage.setItem(ADMIN_SESSION_KEY, JSON.stringify(newFormat));
+          } else {
+            // New format - use directly
+            setAdminCodes(parsed);
+          }
         }
       } catch {
         localStorage.removeItem(ADMIN_SESSION_KEY);
@@ -36,31 +45,49 @@ export function AdminSessionProvider({ children }: AdminSessionProviderProps) {
     }
   }, []);
 
-  const setAdminSession = (newAdminCode: string, newPublicCode: string) => {
-    setAdminCode(newAdminCode);
-    setPublicCode(newPublicCode);
-    
+  const getAdminCode = (publicCode: string): string | null => {
+    return adminCodes[publicCode] || null;
+  };
+
+  const setAdminSession = (adminCode: string, publicCode: string) => {
+    const newAdminCodes = {
+      ...adminCodes,
+      [publicCode]: adminCode
+    };
+    setAdminCodes(newAdminCodes);
+
     // Save to localStorage
-    localStorage.setItem(ADMIN_SESSION_KEY, JSON.stringify({
-      adminCode: newAdminCode,
-      publicCode: newPublicCode
-    }));
+    localStorage.setItem(ADMIN_SESSION_KEY, JSON.stringify(newAdminCodes));
   };
 
-  const clearAdminSession = () => {
-    setAdminCode(null);
-    setPublicCode(null);
-    localStorage.removeItem(ADMIN_SESSION_KEY);
+  const clearAdminSession = (publicCode?: string) => {
+    if (publicCode) {
+      // Clear specific game
+      const newAdminCodes = { ...adminCodes };
+      delete newAdminCodes[publicCode];
+      setAdminCodes(newAdminCodes);
+      localStorage.setItem(ADMIN_SESSION_KEY, JSON.stringify(newAdminCodes));
+    } else {
+      // Clear all games
+      setAdminCodes({});
+      localStorage.removeItem(ADMIN_SESSION_KEY);
+    }
   };
 
-  const hasAdminSession = Boolean(adminCode && publicCode);
+  const hasAdminSession = (publicCode: string): boolean => {
+    return Boolean(adminCodes[publicCode]);
+  };
+
+  const getAllAdminSessions = (): string[] => {
+    return Object.keys(adminCodes);
+  };
 
   const value: AdminSessionContextType = {
-    adminCode,
-    publicCode,
+    getAdminCode,
     setAdminSession,
     clearAdminSession,
-    hasAdminSession
+    hasAdminSession,
+    getAllAdminSessions
   };
 
   return (

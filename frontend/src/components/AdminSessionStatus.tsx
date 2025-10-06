@@ -5,23 +5,50 @@ import { Button } from '../shared/ui/button';
 interface AdminSessionStatusProps {
   className?: string;
   compact?: boolean;
+  publicCode?: string;
 }
 
-export default function AdminSessionStatus({ className = '', compact = false }: AdminSessionStatusProps) {
-  const { publicCode, hasAdminSession, clearAdminSession } = useAdminSession();
+// Helper function to extract public code from URL pathname
+function extractPublicCodeFromPath(pathname: string): string | null {
+  const pathParts = pathname.split('/').filter(part => part.length > 0);
+
+  if (pathParts.length >= 2) {
+    const potentialCode = pathParts[1];
+    if (potentialCode && potentialCode.length === 5 && /^[A-Z0-9]+$/.test(potentialCode)) {
+      return potentialCode;
+    }
+  }
+
+  if (pathParts.length === 1) {
+    const potentialCode = pathParts[0];
+    if (potentialCode && potentialCode.length === 5 && /^[A-Z0-9]+$/.test(potentialCode)) {
+      return potentialCode;
+    }
+  }
+
+  return null;
+}
+
+export default function AdminSessionStatus({ className = '', compact = false, publicCode: propPublicCode }: AdminSessionStatusProps) {
+  const { hasAdminSession: hasAdminSessionForGame, clearAdminSession } = useAdminSession();
   const navigate = useNavigate();
   const location = useLocation();
 
+  // Use prop if provided, otherwise extract from URL
+  const publicCode = propPublicCode || extractPublicCodeFromPath(location.pathname);
+  const hasAdminSession = publicCode ? hasAdminSessionForGame(publicCode) : false;
+
   const handleClearSession = () => {
-    const currentPublicCode = publicCode;
-    clearAdminSession();
-    
-    // Check if user is on an admin page and redirect to game summary
-    const adminPaths = ['/ingest/', '/ledger/', '/players/', '/audit/'];
-    const isOnAdminPage = adminPaths.some(path => location.pathname.includes(path));
-    
-    if (isOnAdminPage && currentPublicCode) {
-      navigate(`/summary/${currentPublicCode}`);
+    if (publicCode) {
+      clearAdminSession(publicCode);
+
+      // Check if user is on an admin page and redirect to game summary
+      const adminPaths = ['/ingest/', '/ledger/', '/players/', '/audit/'];
+      const isOnAdminPage = adminPaths.some(path => location.pathname.includes(path));
+
+      if (isOnAdminPage) {
+        navigate(`/summary/${publicCode}`);
+      }
     }
   };
 

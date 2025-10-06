@@ -2,13 +2,25 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { Header } from './Header';
 
 // Mock contexts
+jest.mock('../../contexts/AuthContext', () => ({
+  useAuth: () => ({
+    user: null,
+    isAuthenticated: false,
+    isLoading: false,
+    login: jest.fn(),
+    register: jest.fn(),
+    logout: jest.fn(),
+    updateUser: jest.fn()
+  })
+}));
+
 jest.mock('../../contexts/AdminSessionContext', () => ({
   useAdminSession: () => ({
-    hasAdminSession: false,
+    hasAdminSession: () => false,
+    getAdminCode: () => null,
     setAdminSession: () => {},
     clearAdminSession: () => {},
-    publicCode: null,
-    adminCode: null
+    getAllAdminSessions: () => []
   })
 }));
 

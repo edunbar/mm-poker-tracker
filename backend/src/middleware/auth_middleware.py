@@ -12,6 +12,8 @@ from datetime import datetime, timezone, timedelta
 
 from infrastructure.security import JWTTokenService
 from db.models import Game
+from db.database import SessionLocal
+from infrastructure.persistence.sqlalchemy.user_repository import SQLAlchemyUserRepository
 
 
 # JWT service singleton for efficiency
@@ -104,6 +106,29 @@ def require_auth(f):
                 'error': 'Invalid or expired token'
             }), 401
 
+        # Verify token_version to invalidate sessions after password change
+        user_id = payload.get('user_id')
+        token_version = payload.get('token_version', 1)  # Default to 1 for backwards compatibility
+
+        db = SessionLocal()
+        try:
+            user_repo = SQLAlchemyUserRepository(db)
+            user = user_repo.find_by_id(user_id)
+
+            if not user:
+                return jsonify({
+                    'error': 'Invalid token: user not found'
+                }), 401
+
+            # Check if token version matches current user version
+            if user.token_version != token_version:
+                return jsonify({
+                    'error': 'Session expired: please log in again'
+                }), 401
+
+        finally:
+            db.close()
+
         # Inject user info into Flask's g object
         g.current_user_id = payload.get('user_id')
         g.current_user_email = payload.get('email')
@@ -140,10 +165,22 @@ def require_auth_or_admin_code(f):
                     payload = jwt_service.decode_token(token)
 
                     if payload:
-                        g.auth_method = 'jwt'
-                        g.current_user_id = payload.get('user_id')
-                        g.current_user_email = payload.get('email')
-                        return f(*args, **kwargs)
+                        # Verify token_version
+                        user_id = payload.get('user_id')
+                        token_version = payload.get('token_version', 1)
+
+                        db = SessionLocal()
+                        try:
+                            user_repo = SQLAlchemyUserRepository(db)
+                            user = user_repo.find_by_id(user_id)
+
+                            if user and user.token_version == token_version:
+                                g.auth_method = 'jwt'
+                                g.current_user_id = payload.get('user_id')
+                                g.current_user_email = payload.get('email')
+                                return f(*args, **kwargs)
+                        finally:
+                            db.close()
                 except Exception:
                     # JWT validation failed, try admin code fallback
                     pass

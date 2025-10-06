@@ -9,6 +9,7 @@ import {
   LogOut,
   Menu,
   Receipt,
+  Settings,
   Shield,
   Spade,
   User,
@@ -97,7 +98,7 @@ function extractPublicCodeFromPath(pathname: string): string | null {
 }
 
 export function Header() {
-  const { hasAdminSession, setAdminSession, clearAdminSession, publicCode: contextPublicCode } = useAdminSession();
+  const { hasAdminSession: hasAdminSessionForGame, setAdminSession, clearAdminSession } = useAdminSession();
   const { isAuthenticated, isLoading, user, logout } = useAuth();
   const { showSuccess, showError } = useToast();
   const location = useLocation();
@@ -107,10 +108,11 @@ export function Header() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
 
-  // Get public code from URL first (prioritize current page), then fall back to admin session context
+  // Get public code from URL
   const urlPublicCode = extractPublicCodeFromPath(location.pathname);
-  const currentPublicCode = urlPublicCode || contextPublicCode;
+  const currentPublicCode = urlPublicCode;
   const { title } = useGameTitle(currentPublicCode || '');
+  const hasAdminSession = currentPublicCode ? hasAdminSessionForGame(currentPublicCode) : false;
 
   // Close mobile menu on route change
   useEffect(() => {
@@ -142,7 +144,12 @@ export function Header() {
     <>
       <header className="border-b border-border bg-card">
         <div className="w-full px-4 py-3 font-medium flex items-center justify-between text-card-foreground">
-          <Text variant="bodyLarge" weight="semibold">HomeGame</Text>
+          <Link
+            to={isAuthenticated ? '/my-games' : '/'}
+            className="hover:opacity-80 transition-opacity"
+          >
+            <Text variant="bodyLarge" weight="semibold">HomeGame</Text>
+          </Link>
 
           <div className="flex items-center gap-2">
             {/* Mobile Menu Button */}
@@ -191,8 +198,8 @@ export function Header() {
                       title={user?.email}
                     >
                       <User className="h-4 w-4" />
-                      <Text variant="bodySmall" as="span" className="hidden sm:inline max-w-[150px] truncate">
-                        {user?.email}
+                      <Text variant="bodySmall" weight="medium" as="span" className="hidden sm:inline">
+                        {user?.displayName}
                       </Text>
                     </button>
 
@@ -209,20 +216,20 @@ export function Header() {
                               <Text variant="caption" color="muted">{user?.email}</Text>
                             </div>
                             <Link
+                              to="/settings"
+                              onClick={() => setShowUserMenu(false)}
+                              className="w-full flex items-center gap-2 px-4 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                            >
+                              <Settings className="h-4 w-4" />
+                              <Text variant="bodySmall">Settings</Text>
+                            </Link>
+                            <Link
                               to="/my-games"
                               onClick={() => setShowUserMenu(false)}
                               className="w-full flex items-center gap-2 px-4 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
                             >
                               <Home className="h-4 w-4" />
                               <Text variant="bodySmall">My Games</Text>
-                            </Link>
-                            <Link
-                              to="/claim-game"
-                              onClick={() => setShowUserMenu(false)}
-                              className="w-full flex items-center gap-2 px-4 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-                            >
-                              <Shield className="h-4 w-4" />
-                              <Text variant="bodySmall">Claim Game</Text>
                             </Link>
                             <div className="border-t border-border my-1" />
                             <button
@@ -361,7 +368,7 @@ export function Header() {
 
                           {/* Hover overlay with logout button */}
                           <div className="absolute top-0 left-0 right-0 opacity-0 group-hover:opacity-100 transition-opacity duration-150 bg-destructive text-destructive-foreground rounded-md px-2 py-1 flex items-center cursor-pointer"
-                               onClick={clearAdminSession}>
+                               onClick={() => clearAdminSession(currentPublicCode || undefined)}>
                             <LogOut className="w-3 h-3 mr-1" />
                             <Text variant="caption" weight="medium">Leave</Text>
                           </div>

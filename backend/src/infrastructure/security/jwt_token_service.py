@@ -67,13 +67,14 @@ class JWTTokenService:
         self.token_expiry_days = token_expiry_days
         self.algorithm = 'HS256'
 
-    def generate_access_token(self, user_id: str, email: str) -> str:
+    def generate_access_token(self, user_id: str, email: str, token_version: int = 1) -> str:
         """
         Generate a JWT access token for a user.
 
         Args:
             user_id: Unique identifier for the user (UUID)
             email: User's email address
+            token_version: Token version number for session invalidation (default 1)
 
         Returns:
             Encoded JWT token as a string
@@ -85,6 +86,7 @@ class JWTTokenService:
             The token payload includes:
             - user_id: User identifier
             - email: User email
+            - token_version: Version number for invalidating old sessions
             - iat: Issued at timestamp (UTC)
             - exp: Expiration timestamp (UTC)
         """
@@ -99,6 +101,7 @@ class JWTTokenService:
         payload = {
             'user_id': user_id,
             'email': email,
+            'token_version': token_version,
             'iat': now,
             'exp': expiry
         }

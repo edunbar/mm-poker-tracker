@@ -45,7 +45,9 @@ interface OperationDetails {
 
 export default function AuditPage() {
   const { publicCode } = useParams<{ publicCode: string }>();
-  const { adminCode: sessionAdminCode, hasAdminSession } = useAdminSession();
+  const { getAdminCode, hasAdminSession: hasAdminSessionForGame } = useAdminSession();
+  const sessionAdminCode = getAdminCode(publicCode || '');
+  const hasAdminSession = hasAdminSessionForGame(publicCode || '');
   const { showSuccess, showError } = useToast();
   const { title: _title } = useGameTitle(publicCode || '');
   const [auditData, setAuditData] = useState<AuditData | null>(null);

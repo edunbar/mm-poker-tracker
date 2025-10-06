@@ -31,8 +31,8 @@ export default function RegisterPage() {
 
   const getPasswordStrength = (pwd: string): PasswordStrength | null => {
     if (pwd.length === 0) return null;
-    if (pwd.length < 12) return 'weak';
-    if (pwd.length < 16) return 'medium';
+    if (pwd.length < 8) return 'weak';
+    if (pwd.length < 12) return 'medium';
     return 'strong';
   };
 
@@ -71,6 +71,10 @@ export default function RegisterPage() {
 
     if (!displayName.trim()) {
       newErrors.displayName = 'Display name is required';
+    } else if (displayName.trim().length < 2) {
+      newErrors.displayName = 'Display name must be at least 2 characters';
+    } else if (displayName.trim().length > 50) {
+      newErrors.displayName = 'Display name must not exceed 50 characters';
     }
 
     if (!email) {
@@ -81,8 +85,8 @@ export default function RegisterPage() {
 
     if (!password) {
       newErrors.password = 'Password is required';
-    } else if (password.length < 12) {
-      newErrors.password = 'Password must be at least 12 characters';
+    } else if (password.length < 8) {
+      newErrors.password = 'Password must be at least 8 characters';
     } else if (password.length > 72) {
       newErrors.password = 'Password must not exceed 72 characters';
     }
@@ -130,7 +134,7 @@ export default function RegisterPage() {
           </h2>
         </div>
 
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+        <form className="mt-8 space-y-6" onSubmit={handleSubmit} autoComplete="on">
           {errors.general && (
             <div
               role="alert"
@@ -142,19 +146,27 @@ export default function RegisterPage() {
 
           <FormField>
             <FormLabel htmlFor="displayName" required>
-              Display Name
+              Full Name
             </FormLabel>
             <Input
               ref={displayNameInputRef}
               id="displayName"
+              name="displayName"
               type="text"
+              autoComplete="name"
               value={displayName}
               onChange={(e) => setDisplayName(e.target.value)}
               disabled={isLoading}
               error={!!errors.displayName}
+              placeholder="Your first and last name"
               aria-invalid={!!errors.displayName}
-              aria-describedby={errors.displayName ? 'displayName-error' : undefined}
+              aria-describedby={errors.displayName ? 'displayName-error' : 'displayName-help'}
             />
+            {!errors.displayName && (
+              <FormMessage id="displayName-help" variant="muted">
+                This name will appear in games and on the ledger
+              </FormMessage>
+            )}
             {errors.displayName && (
               <FormMessage id="displayName-error" variant="error" role="alert">
                 {errors.displayName}
@@ -169,7 +181,9 @@ export default function RegisterPage() {
             <Input
               ref={emailInputRef}
               id="email"
+              name="email"
               type="email"
+              autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               disabled={isLoading}
@@ -191,7 +205,9 @@ export default function RegisterPage() {
             <Input
               ref={passwordInputRef}
               id="password"
+              name="password"
               type="password"
+              autoComplete="new-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               disabled={isLoading}
@@ -216,7 +232,7 @@ export default function RegisterPage() {
             )}
             {!errors.password && !passwordStrength && (
               <FormMessage variant="muted">
-                Password must be at least 12 characters
+                Password must be at least 8 characters
               </FormMessage>
             )}
           </FormField>

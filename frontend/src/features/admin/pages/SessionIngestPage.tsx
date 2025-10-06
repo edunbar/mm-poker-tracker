@@ -1,6 +1,6 @@
-import { ChevronDown, GitMerge, HelpCircle, X } from "lucide-react";
+import { ChevronDown, GitMerge, HelpCircle, X, Upload, BarChart3, Home } from "lucide-react";
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { useAdminSession } from "../../../contexts/AdminSessionContext";
 import { useAuth } from "../../../contexts/AuthContext";
 import { useToast } from "../../../contexts/ToastContext";
@@ -59,7 +59,8 @@ export default function GameIngestPage() {
 
   // Get public code from URL params and admin session context
   const { publicCode } = useParams<{ publicCode: string }>();
-  const { adminCode } = useAdminSession();
+  const { getAdminCode } = useAdminSession();
+  const adminCode = getAdminCode(publicCode || '');
   const { isAuthenticated, user } = useAuth();
   const { showSuccess, showError, showInfo } = useToast();
   const { title: _title } = useGameTitle(publicCode || '');
@@ -343,6 +344,22 @@ export default function GameIngestPage() {
     setHandLogResult({});
   };
 
+  const handleUploadAnother = () => {
+    // Reset all form state
+    setGameUrl('');
+    setSubmittedUrl('');
+    setRows([]);
+    setDate('');
+    setGameNumber('');
+    setHandLogFile(null);
+    setUploadedSessionId(null);
+    setHandLogUploadStatus('idle');
+    setHandLogError('');
+    setHandLogResult({});
+    upload.reset();
+    handLogUploadTriggered.current = false;
+  };
+
   return (
     <div className="min-h-screen bg-background py-8">
       <div className="max-w-6xl mx-auto px-4 md:px-6 lg:px-8">
@@ -376,6 +393,41 @@ export default function GameIngestPage() {
             ledgerCsvStatus={game.data?.ledger_csv || null}
             onViewCsv={() => setCsvViewerOpen(true)}
           />
+
+          {/* Post-Upload Action Card */}
+          {upload.isSuccess && (
+            <div className="bg-card text-card-foreground rounded-lg border border-border shadow-sm p-6">
+              <div className="flex items-center gap-2 mb-4">
+                <div className="flex items-center justify-center h-8 w-8 rounded-full bg-success/20">
+                  <svg className="h-5 w-5 text-success" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                </div>
+                <Heading variant="h4">What's Next?</Heading>
+              </div>
+
+              <div className="flex flex-wrap gap-3">
+                <Button onClick={handleUploadAnother} variant="default">
+                  <Upload className="h-4 w-4 mr-2" />
+                  Upload Another Session
+                </Button>
+                <Link to={`/summary/${publicCode}`}>
+                  <Button variant="outline">
+                    <BarChart3 className="h-4 w-4 mr-2" />
+                    View Game Stats
+                  </Button>
+                </Link>
+                {isAuthenticated && (
+                  <Link to="/my-games">
+                    <Button variant="outline">
+                      <Home className="h-4 w-4 mr-2" />
+                      Back to My Games
+                    </Button>
+                  </Link>
+                )}
+              </div>
+            </div>
+          )}
 
           {rows.length > 0 && (
             <HandLogUpload

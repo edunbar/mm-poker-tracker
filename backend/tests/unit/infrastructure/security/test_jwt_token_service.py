@@ -266,6 +266,61 @@ class TestEdgeCases:
         assert payload is None
 
 
+class TestTokenVersion:
+    """Test token_version field for session invalidation."""
+
+    def test_token_includes_version_in_payload(self, jwt_service):
+        """Test that generated token includes token_version in payload."""
+        token = jwt_service.generate_access_token("user_123", "user@example.com", token_version=5)
+
+        payload = jwt.decode(token, options={"verify_signature": False})
+
+        assert 'token_version' in payload
+        assert payload['token_version'] == 5
+
+    def test_token_version_defaults_to_one(self, jwt_service):
+        """Test that token_version defaults to 1 when not provided."""
+        token = jwt_service.generate_access_token("user_123", "user@example.com")
+
+        payload = jwt.decode(token, options={"verify_signature": False})
+
+        assert 'token_version' in payload
+        assert payload['token_version'] == 1
+
+    def test_different_versions_generate_different_tokens(self, jwt_service):
+        """Test that different token versions generate different tokens."""
+        token_v1 = jwt_service.generate_access_token("user_123", "user@example.com", token_version=1)
+        token_v2 = jwt_service.generate_access_token("user_123", "user@example.com", token_version=2)
+
+        # Tokens should be different
+        assert token_v1 != token_v2
+
+        # But both should decode successfully
+        payload_v1 = jwt_service.decode_token(token_v1)
+        payload_v2 = jwt_service.decode_token(token_v2)
+
+        assert payload_v1 is not None
+        assert payload_v2 is not None
+        assert payload_v1['token_version'] == 1
+        assert payload_v2['token_version'] == 2
+
+    def test_token_version_preserved_in_round_trip(self, jwt_service):
+        """Test that token_version is preserved when encoding and decoding."""
+        versions_to_test = [1, 2, 10, 100, 999]
+
+        for version in versions_to_test:
+            token = jwt_service.generate_access_token(
+                "user_123",
+                "user@example.com",
+                token_version=version
+            )
+
+            payload = jwt_service.decode_token(token)
+
+            assert payload is not None
+            assert payload['token_version'] == version
+
+
 # Fixtures
 
 @pytest.fixture

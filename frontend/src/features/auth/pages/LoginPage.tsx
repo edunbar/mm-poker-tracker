@@ -12,6 +12,7 @@ export default function LoginPage() {
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [rememberMe, setRememberMe] = useState(false);
   const [errors, setErrors] = useState<{ email?: string; password?: string; general?: string }>({});
   const [isLoading, setIsLoading] = useState(false);
 
@@ -58,7 +59,7 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      await login(email.toLowerCase(), password);
+      await login(email.toLowerCase(), password, rememberMe);
       navigate(returnTo, { replace: true });
     } catch (error: any) {
       const errorMessage = error.response?.data?.error || 'Failed to log in. Please try again.';
@@ -77,7 +78,7 @@ export default function LoginPage() {
           </h2>
         </div>
 
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+        <form className="mt-8 space-y-6" onSubmit={handleSubmit} autoComplete="on">
           {errors.general && (
             <div
               role="alert"
@@ -94,7 +95,9 @@ export default function LoginPage() {
             <Input
               ref={emailInputRef}
               id="email"
+              name="username"
               type="email"
+              autoComplete="username"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               disabled={isLoading}
@@ -116,7 +119,9 @@ export default function LoginPage() {
             <Input
               ref={passwordInputRef}
               id="password"
+              name="password"
               type="password"
+              autoComplete="current-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               disabled={isLoading}
@@ -132,11 +137,24 @@ export default function LoginPage() {
           </FormField>
 
           <div className="flex items-center justify-between">
+            <div className="flex items-center">
+              <input
+                id="remember-me"
+                name="remember-me"
+                type="checkbox"
+                checked={rememberMe}
+                onChange={(e) => setRememberMe(e.target.checked)}
+                disabled={isLoading}
+                className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+              />
+              <label htmlFor="remember-me" className="ml-2 block text-sm">
+                Keep me logged in for 30 days
+              </label>
+            </div>
             <div className="text-sm">
-              {/* <Link to="/forgot-password" className="text-primary hover:underline">
+              <Link to="/forgot-password" className="text-primary hover:underline">
                 Forgot password?
-              </Link> */}
-              {/* Not implemented in MVP */}
+              </Link>
             </div>
           </div>
 

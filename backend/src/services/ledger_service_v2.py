@@ -194,6 +194,9 @@ class LedgerService:
                 # Update payment balances (integrate with existing payment service)
                 self._update_payment_balances_after_deletion(game_id, affected_player_id)
 
+                # Clean up orphaned GamePlayer link if this was the player's last session
+                self._cleanup_orphaned_game_player_link(game_id, affected_player_id)
+
                 # Invalidate cache (integrate with existing cache invalidation)
                 self._invalidate_game_cache(game_id)
 
@@ -266,6 +269,10 @@ class LedgerService:
                 # Update payment balances for all affected players
                 for player_id in affected_player_ids:
                     self._update_payment_balances_after_deletion(game_id, player_id)
+
+                # Clean up orphaned GamePlayer links for all affected players
+                for player_id in affected_player_ids:
+                    self._cleanup_orphaned_game_player_link(game_id, player_id)
 
                 # Invalidate cache
                 self._invalidate_game_cache(game_id)
@@ -400,6 +407,41 @@ class LedgerService:
         except Exception as e:
             logger.error(f"Error updating payment balances: {e}")
             # Don't fail the main operation for payment balance issues
+
+    def _cleanup_orphaned_game_player_link(self, game_id: str, player_id: str) -> None:
+        """
+        Clean up orphaned GamePlayer link if player has no remaining sessions in the game.
+
+        Args:
+            game_id: The game identifier
+            player_id: The player identifier
+        """
+        try:
+            from db.models import GamePlayer, SessionPlayerSummary
+            from db.models import Session as SessionModel
+
+            # Check if player still has any sessions in this game
+            player_has_sessions = self._db_session.query(SessionPlayerSummary).join(
+                SessionModel, SessionPlayerSummary.session_id == SessionModel.id
+            ).filter(
+                SessionModel.game_id == game_id,
+                SessionPlayerSummary.player_id == player_id
+            ).count() > 0
+
+            # If no sessions remain, remove the GamePlayer link
+            if not player_has_sessions:
+                deleted_count = self._db_session.query(GamePlayer).filter(
+                    GamePlayer.game_id == game_id,
+                    GamePlayer.player_id == player_id
+                ).delete()
+
+                if deleted_count > 0:
+                    logger.info(f"Cleaned up orphaned GamePlayer link for player {player_id} in game {game_id}")
+                # Note: Caller is responsible for commit
+
+        except Exception as e:
+            logger.error(f"Error cleaning up orphaned GamePlayer link: {e}")
+            # Don't fail the main operation for cleanup issues
 
     def _invalidate_game_cache(self, game_id: str) -> None:
         """Invalidate game cache after changes."""

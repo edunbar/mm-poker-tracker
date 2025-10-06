@@ -81,7 +81,9 @@ interface PlayerWithMethods {
 export default function PaymentLedgerPage() {
   const { publicCode } = useParams<{ publicCode: string }>();
   const { title: _title } = useGameTitle(publicCode || '');
-  const { adminCode: sessionAdminCode, hasAdminSession } = useAdminSession();
+  const { getAdminCode, hasAdminSession: hasAdminSessionForGame } = useAdminSession();
+  const sessionAdminCode = getAdminCode(publicCode || '');
+  const hasAdminSession = hasAdminSessionForGame(publicCode || '');
   const { isAuthenticated } = useAuth();
   const { showSuccess, showError } = useToast();
   const [paymentSummary, setPaymentSummary] = useState<PlayerPaymentSummary[]>([]);
@@ -136,7 +138,7 @@ export default function PaymentLedgerPage() {
   });
   const [methodToDelete, setMethodToDelete] = useState<PlayerPaymentMethod | null>(null);
 
-  const getAdminCode = () => {
+  const getEffectiveAdminCode = () => {
     return hasAdminSession ? sessionAdminCode : manualAdminCode;
   };
 
@@ -146,7 +148,7 @@ export default function PaymentLedgerPage() {
     };
 
     // Only send X-Admin-Code when not authenticated
-    const adminCode = getAdminCode();
+    const adminCode = getEffectiveAdminCode();
     if (!isAuthenticated && adminCode) {
       headers['X-Admin-Code'] = adminCode;
     }
@@ -248,7 +250,7 @@ export default function PaymentLedgerPage() {
   const handleRecordPayment = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    const adminCode = getAdminCode();
+    const adminCode = getEffectiveAdminCode();
     if (!adminCode) {
       setShowAdminInput(true);
       return;
@@ -323,7 +325,7 @@ export default function PaymentLedgerPage() {
 
     if (!editingPayment) return;
 
-    const adminCode = getAdminCode();
+    const adminCode = getEffectiveAdminCode();
     if (!adminCode) {
       setShowAdminInput(true);
       return;
@@ -386,7 +388,7 @@ export default function PaymentLedgerPage() {
   const confirmDeletePayment = async () => {
     if (!paymentToDelete) return;
 
-    const adminCode = getAdminCode();
+    const adminCode = getEffectiveAdminCode();
     if (!adminCode) {
       setShowAdminInput(true);
       return;
@@ -418,7 +420,7 @@ export default function PaymentLedgerPage() {
   };
 
   const handleMarkSettlementPaid = async (settlement: SettlementSuggestion) => {
-    const adminCode = getAdminCode();
+    const adminCode = getEffectiveAdminCode();
     if (!adminCode) {
       setShowAdminInput(true);
       return;

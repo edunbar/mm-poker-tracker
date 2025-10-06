@@ -5,6 +5,7 @@ from db.models import AuditLog, Player, SessionPlayerSummary, Session, Game, Gam
 from typing import List, Dict, Any, Optional
 import logging
 import uuid
+from datetime import datetime, timezone
 
 logger = logging.getLogger(__name__)
 
@@ -305,16 +306,16 @@ def get_operation_details(operation_id: str) -> Dict[str, Any]:
             audit_log = db.query(AuditLog).filter(
                 AuditLog.id == operation_id
             ).first()
-            
+
             # If not found, try by target_id (for merge operations)
             if not audit_log:
                 audit_log = db.query(AuditLog).filter(
                     AuditLog.target_id == operation_id
                 ).first()
-            
+
             if not audit_log:
                 raise ValueError(f"Operation not found: {operation_id}")
-            
+
             return {
                 'operation_id': operation_id,
                 'action': audit_log.action,
@@ -327,4 +328,126 @@ def get_operation_details(operation_id: str) -> Dict[str, Any]:
 
         except Exception as e:
             logger.error(f"Error getting operation details: {e}")
+            raise
+
+
+def log_security_event(
+    action: str,
+    user_id: str,
+    user_email: str,
+    details: Dict[str, Any] = None,
+    success: bool = True
+) -> None:
+    """
+    Log security-related events (authentication, password changes, etc.).
+
+    This function creates audit log entries for security events such as:
+    - Password changes
+    - Password reset requests
+    - Failed login attempts
+    - Account deletions
+    - Email changes
+
+    Args:
+        action: The security action being logged (e.g., 'PASSWORD_CHANGED',
+                'PASSWORD_RESET_REQUESTED', 'LOGIN_FAILED', 'ACCOUNT_DELETED')
+        user_id: The UUID of the user involved
+        user_email: The email address of the user
+        details: Additional context about the event (optional)
+        success: Whether the action was successful (default True)
+
+    Example:
+        >>> log_security_event(
+        ...     action='PASSWORD_CHANGED',
+        ...     user_id='123e4567-e89b-12d3-a456-426614174000',
+        ...     user_email='user@example.com',
+        ...     details={'ip_address': '192.168.1.1', 'user_agent': 'Mozilla/5.0'}
+        ... )
+    """
+    with SessionLocal() as db:
+        try:
+            # Prepare audit data
+            audit_data = {
+                'user_id': user_id,
+                'email': user_email,
+                'timestamp': datetime.now(timezone.utc).isoformat(),
+                'success': success
+            }
+
+            # Add additional details if provided
+            if details:
+                audit_data.update(details)
+
+            # Create audit log entry
+            audit_entry = AuditLog(
+                game_id=None,  # Security events are not game-specific
+                session_id=None,
+                user_id=user_id,
+                actor_kind='user',
+                actor_id=user_email,
+                action=action,
+                target_table='users',
+                target_id=user_id,
+                before=None,
+                after=audit_data
+            )
+
+            db.add(audit_entry)
+            db.commit()
+
+            logger.info(f"Security event logged: {action} for user {user_email} (success={success})")
+
+        except Exception as e:
+            db.rollback()
+            logger.error(f"Failed to log security event {action} for user {user_email}: {e}")
+            # Don't raise - security logging should not break the application
+
+
+def get_user_security_logs(user_id: str, limit: int = 50, offset: int = 0) -> Dict[str, Any]:
+    """
+    Get security audit logs for a specific user.
+
+    Args:
+        user_id: The UUID of the user
+        limit: Maximum number of logs to return (default 50)
+        offset: Pagination offset (default 0)
+
+    Returns:
+        Dictionary containing:
+        - audit_logs: List of audit log entries
+        - total_count: Total number of logs for this user
+        - page_size: The limit parameter
+        - offset: The offset parameter
+    """
+    with SessionLocal() as db:
+        try:
+            query = db.query(AuditLog).filter(
+                AuditLog.user_id == user_id,
+                AuditLog.target_table == 'users'
+            ).order_by(desc(AuditLog.at))
+
+            total_count = query.count()
+            logs = query.offset(offset).limit(limit).all()
+
+            audit_entries = []
+            for log in logs:
+                entry = {
+                    'id': str(log.id),
+                    'action': log.action,
+                    'timestamp': log.at.isoformat() if log.at else None,
+                    'actor_id': log.actor_id,
+                    'success': log.after.get('success', True) if log.after else True,
+                    'details': log.after
+                }
+                audit_entries.append(entry)
+
+            return {
+                'audit_logs': audit_entries,
+                'total_count': total_count,
+                'page_size': limit,
+                'offset': offset
+            }
+
+        except Exception as e:
+            logger.error(f"Error fetching user security logs: {e}")
             raise
