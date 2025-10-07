@@ -1598,13 +1598,13 @@ def debug_balance_timestamps(public_code: str):
                     (
                         SELECT MIN(pt.created_at)
                         FROM payment_transactions pt
-                        WHERE (pt.from_player_id = pb.player_id OR pt.to_player_id = pb.player_id)
+                        WHERE (pt.payer_id = pb.player_id OR pt.recipient_id = pb.player_id)
                         AND pt.game_id = pb.game_id
                     ) as earliest_payment,
                     (
                         SELECT MAX(pt.created_at)
                         FROM payment_transactions pt
-                        WHERE (pt.from_player_id = pb.player_id OR pt.to_player_id = pb.player_id)
+                        WHERE (pt.payer_id = pb.player_id OR pt.recipient_id = pb.player_id)
                         AND pt.game_id = pb.game_id
                     ) as latest_payment
                 FROM payment_balances pb
