@@ -1560,6 +1560,77 @@ def recalculate_payment_balances(public_code: str):
             return jsonify({"error": str(e)}), 500
 
 
+@game_bp.get("/<public_code>/payments/debug-timestamps")
+def debug_balance_timestamps(public_code: str):
+    """
+    Debug endpoint to check balance_negative_since timestamps.
+    Admin only.
+    """
+    admin_code = request.headers.get('X-Admin-Code')
+    if not admin_code:
+        return jsonify({"error": "Admin code required"}), 401
+
+    with SessionLocal() as db:
+        try:
+            game = db.query(Game).filter(Game.public_code == public_code).first()
+            if not game or game.admin_code != admin_code:
+                return jsonify({"error": "Game not found or invalid admin code"}), 404
+
+            # Get all negative balances with diagnostic info
+            query = text("""
+                SELECT
+                    p.display_name as player_name,
+                    pb.payment_balance / 100.0 as balance_dollars,
+                    pb.balance_negative_since,
+                    pb.balance_negative_since::date as timestamp_date,
+                    CASE
+                        WHEN pb.balance_negative_since IS NULL THEN NULL
+                        ELSE EXTRACT(DAY FROM (NOW() AT TIME ZONE 'UTC' - pb.balance_negative_since))::INTEGER
+                    END as days_negative,
+                    (SELECT MIN(pt.payment_date)
+                     FROM payment_transactions pt
+                     WHERE (pt.payer_id = pb.player_id OR pt.recipient_id = pb.player_id)
+                       AND pt.game_id = pb.game_id
+                       AND pt.status = 'completed'
+                    ) as earliest_payment,
+                    (SELECT MAX(pt.payment_date)
+                     FROM payment_transactions pt
+                     WHERE (pt.payer_id = pb.player_id OR pt.recipient_id = pb.player_id)
+                       AND pt.game_id = pb.game_id
+                       AND pt.status = 'completed'
+                    ) as latest_payment
+                FROM payment_balances pb
+                JOIN players p ON p.id = pb.player_id
+                WHERE pb.game_id = :game_id
+                    AND pb.payment_balance < 0
+                ORDER BY pb.balance_negative_since DESC NULLS LAST
+            """)
+
+            results = db.execute(query, {"game_id": str(game.id)}).mappings().all()
+
+            debug_data = []
+            for row in results:
+                debug_data.append({
+                    "player_name": row.player_name,
+                    "balance_dollars": float(row.balance_dollars),
+                    "balance_negative_since": row.balance_negative_since.isoformat() if row.balance_negative_since else None,
+                    "timestamp_date": str(row.timestamp_date) if row.timestamp_date else None,
+                    "days_negative": row.days_negative,
+                    "earliest_payment": row.earliest_payment.isoformat() if row.earliest_payment else None,
+                    "latest_payment": row.latest_payment.isoformat() if row.latest_payment else None
+                })
+
+            return jsonify({
+                "game_code": public_code,
+                "negative_balances": debug_data,
+                "total_negative_players": len(debug_data)
+            }), 200
+
+        except Exception as e:
+            logging.error(f"Error getting debug timestamps: {e}")
+            return jsonify({"error": str(e)}), 500
+
+
 # ==========================================================
 # Alert System Endpoints
 # ==========================================================
