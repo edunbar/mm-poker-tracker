@@ -23,6 +23,7 @@ from domain.poker.value_objects import (
     SessionId, PlayerId, GameId, Money, Hand
 )
 from infrastructure.persistence.sqlalchemy.poker_repository import SQLAlchemyPokerSessionRepository
+from services.metrics_service import log_metric
 
 log = logging.getLogger(__name__)
 
@@ -174,6 +175,14 @@ class SessionIngestionService:
             )
 
             log.info(f"Successfully ingested session {session_id} with {len(ingestion_results)} players")
+
+            # Log business metric
+            log_metric("session_uploaded", {
+                "game_id": str(game.id),
+                "public_code": public_code,
+                "session_id": session_id,
+                "players_count": len(ingestion_results)
+            })
 
             return {
                 "success": True,

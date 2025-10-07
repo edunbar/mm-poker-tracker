@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { ChevronDown, ChevronUp, DollarSign, Edit, History, Plus, Target, Trash2, Users, X } from 'lucide-react';
+import { AlertTriangle, Bell, ChevronDown, ChevronUp, DollarSign, Edit, History, Plus, Target, Trash2, Users, X } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { API_BASE_URL } from '../../../config/api';
@@ -7,7 +7,9 @@ import { useAdminSession } from '../../../contexts/AdminSessionContext';
 import { useToast } from '../../../contexts/ToastContext';
 import { useGameTitle } from '../../../shared/hooks/useGameTitle';
 import { Button } from '../../../shared/ui/button';
+import { Tooltip, TooltipContent, TooltipTrigger } from '../../../shared/ui/tooltip';
 import { Heading, Text } from '../../../shared/ui/typography';
+import { AlertSettings } from '../../admin/components/AlertSettings';
 
 interface PlayerPaymentSummary {
   player_id: string;
@@ -15,9 +17,9 @@ interface PlayerPaymentSummary {
   poker_net_winnings: number;
   total_paid: number;
   total_received: number;
-  realized_cash_earnings?: number;  // Calculated field: received - paid
-  net_balance?: number;  // Calculated field: (poker_winnings + paid_out) - received
-  days_since_last_payment?: number | null;  // Days since their last payment
+  balance: number;  // Payment balance from API
+  realized_earnings: number;  // Realized cash earnings from API
+  days_since_last_payment?: number | null;  // Days since balance became negative
 }
 
 interface SettlementSuggestion {
@@ -67,7 +69,8 @@ export default function PaymentLedgerPage() {
   const [settlements, setSettlements] = useState<SettlementSuggestion[]>([]);
   const [paymentHistory, setPaymentHistory] = useState<PaymentTransaction[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'summary' | 'settlements' | 'history' | 'record'>('summary');
+  const [activeTab, setActiveTab] = useState<'summary' | 'settlements' | 'history' | 'record' | 'alerts'>('summary');
+  const [playerViolations, setPlayerViolations] = useState<Map<string, string>>(new Map());
 
   // Sorting state
   const [sortField, setSortField] = useState<keyof PlayerPaymentSummary | null>(null);
@@ -132,18 +135,59 @@ export default function PaymentLedgerPage() {
     }
   }, [publicCode]);
 
+  const fetchAlertStatus = useCallback(async () => {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/api/games/${publicCode}/alerts/status`);
+      const playerAlertsData = response.data.player_alerts || [];
+      const violationsMap = new Map<string, string>();
+
+      playerAlertsData
+        .filter((alert: { violation_count: number }) => alert.violation_count > 0)
+        .forEach((alert: {
+          player_id: string;
+          player_name: string;
+          violations: Array<{
+            rule_type: string;
+            threshold_value: number;
+            current_value: number;
+            threshold_value_dollars?: number;
+            current_value_dollars?: number;
+          }>
+        }) => {
+          const violationMessages = alert.violations.map(v => {
+            if (v.rule_type === 'amount_threshold') {
+              return `Owes $${v.current_value_dollars?.toFixed(2)} (threshold: $${v.threshold_value_dollars?.toFixed(2)})`;
+            } else if (v.rule_type === 'days_overdue') {
+              return `${v.current_value} days overdue (threshold: ${v.threshold_value} days)`;
+            }
+            return '';
+          }).filter(Boolean);
+
+          if (violationMessages.length > 0) {
+            violationsMap.set(alert.player_id, violationMessages.join(', '));
+          }
+        });
+
+      setPlayerViolations(violationsMap);
+    } catch (error) {
+      // Silently handle error - alerts are optional feature
+    }
+  }, [publicCode]);
+
+
   useEffect(() => {
     if (publicCode) {
       setLoading(true);
       Promise.all([
         fetchPaymentSummary(),
         fetchSettlements(),
-        fetchPaymentHistory()
+        fetchPaymentHistory(),
+        fetchAlertStatus()
       ]).finally(() => {
         setLoading(false);
       });
     }
-  }, [publicCode, fetchPaymentSummary, fetchSettlements, fetchPaymentHistory]);
+  }, [publicCode, fetchPaymentSummary, fetchSettlements, fetchPaymentHistory, fetchAlertStatus]);
 
   const handleRecordPayment = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -192,7 +236,8 @@ export default function PaymentLedgerPage() {
       await Promise.all([
         fetchPaymentSummary(),
         fetchSettlements(),
-        fetchPaymentHistory()
+        fetchPaymentHistory(),
+        fetchAlertStatus()
       ]);
 
       showSuccess('Payment Recorded', 'Payment recorded successfully!');
@@ -271,7 +316,8 @@ export default function PaymentLedgerPage() {
       await Promise.all([
         fetchPaymentSummary(),
         fetchSettlements(),
-        fetchPaymentHistory()
+        fetchPaymentHistory(),
+        fetchAlertStatus()
       ]);
 
       showSuccess('Payment Updated', 'Payment updated successfully!');
@@ -310,7 +356,8 @@ export default function PaymentLedgerPage() {
       await Promise.all([
         fetchPaymentSummary(),
         fetchSettlements(),
-        fetchPaymentHistory()
+        fetchPaymentHistory(),
+        fetchAlertStatus()
       ]);
 
       showSuccess('Payment Deleted', 'Payment deleted successfully!');
@@ -357,7 +404,8 @@ export default function PaymentLedgerPage() {
       // Refresh payment data but keep settlements stable
       await Promise.all([
         fetchPaymentSummary(),
-        fetchPaymentHistory()
+        fetchPaymentHistory(),
+        fetchAlertStatus()
       ]);
 
       showSuccess(
@@ -396,17 +444,9 @@ export default function PaymentLedgerPage() {
 
     let aValue: string | number | null | undefined, bValue: string | number | null | undefined;
 
-    // Handle calculated fields
-    if (sortField === 'realized_cash_earnings') {
-      aValue = a.total_received - a.total_paid;
-      bValue = b.total_received - b.total_paid;
-    } else if (sortField === 'net_balance') {
-      aValue = (a.poker_net_winnings + a.total_paid) - a.total_received;
-      bValue = (b.poker_net_winnings + b.total_paid) - b.total_received;
-    } else {
-      aValue = a[sortField];
-      bValue = b[sortField];
-    }
+    // Direct field access - no mapping needed
+    aValue = a[sortField];
+    bValue = b[sortField];
 
     // Handle null/undefined values
     if ((aValue === null || aValue === undefined) && (bValue === null || bValue === undefined)) return 0;
@@ -482,6 +522,7 @@ export default function PaymentLedgerPage() {
           </div>
         </div>
 
+
         {/* Tab Navigation */}
         <div className="border-b border-border mb-6">
           <nav className="-mb-px flex flex-col sm:flex-row sm:space-x-8 space-y-2 sm:space-y-0">
@@ -521,20 +562,34 @@ export default function PaymentLedgerPage() {
               <History className="w-4 h-4 inline mr-2" />
               Payment History
             </Button>
-            {/* Only show Record Payment tab for admin users */}
+            {/* Only show Record Payment and Alerts tabs for admin users */}
             {canEdit && (
-              <Button
-                onClick={() => setActiveTab('record')}
-                variant="ghost"
-                className={`py-2 px-3 sm:px-1 border-b-2 sm:border-b-2 border-l-4 sm:border-l-0 font-medium text-sm rounded-none w-full sm:w-auto justify-start sm:justify-center ${
-                  activeTab === 'record'
-                    ? 'border-primary text-primary'
-                    : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
-                }`}
-              >
-                <Plus className="w-4 h-4 inline mr-2" />
-                Record Payment
-              </Button>
+              <>
+                <Button
+                  onClick={() => setActiveTab('record')}
+                  variant="ghost"
+                  className={`py-2 px-3 sm:px-1 border-b-2 sm:border-b-2 border-l-4 sm:border-l-0 font-medium text-sm rounded-none w-full sm:w-auto justify-start sm:justify-center ${
+                    activeTab === 'record'
+                      ? 'border-primary text-primary'
+                      : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
+                  }`}
+                >
+                  <Plus className="w-4 h-4 inline mr-2" />
+                  Record Payment
+                </Button>
+                <Button
+                  onClick={() => setActiveTab('alerts')}
+                  variant="ghost"
+                  className={`py-2 px-3 sm:px-1 border-b-2 sm:border-b-2 border-l-4 sm:border-l-0 font-medium text-sm rounded-none w-full sm:w-auto justify-start sm:justify-center ${
+                    activeTab === 'alerts'
+                      ? 'border-primary text-primary'
+                      : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
+                  }`}
+                >
+                  <Bell className="w-4 h-4 inline mr-2" />
+                  Alerts
+                </Button>
+              </>
             )}
           </nav>
         </div>
@@ -598,20 +653,20 @@ export default function PaymentLedgerPage() {
                       <Button
                         variant="ghost"
                         className="flex items-center justify-center space-x-1 hover:text-foreground p-0 h-auto"
-                        onClick={() => handleSort('realized_cash_earnings')}
+                        onClick={() => handleSort('realized_earnings')}
                       >
                         <Text variant="caption" weight="medium" color="muted">Realized Cash Earnings</Text>
-                        {getSortIcon('realized_cash_earnings')}
+                        {getSortIcon('realized_earnings')}
                       </Button>
                     </th>
                     <th className="px-6 py-3 text-center uppercase tracking-wider">
                       <Button
                         variant="ghost"
                         className="flex items-center justify-center space-x-1 hover:text-foreground p-0 h-auto"
-                        onClick={() => handleSort('net_balance')}
+                        onClick={() => handleSort('balance')}
                       >
                         <Text variant="caption" weight="medium" color="muted">Amount Owed</Text>
-                        {getSortIcon('net_balance')}
+                        {getSortIcon('balance')}
                       </Button>
                     </th>
                     <th className="px-6 py-3 text-center uppercase tracking-wider">
@@ -620,7 +675,7 @@ export default function PaymentLedgerPage() {
                         className="flex items-center justify-center space-x-1 hover:text-foreground p-0 h-auto"
                         onClick={() => handleSort('days_since_last_payment')}
                       >
-                        <Text variant="caption" weight="medium" color="muted">Days Since Last Payment</Text>
+                        <Text variant="caption" weight="medium" color="muted">Days Balance Negative</Text>
                         {getSortIcon('days_since_last_payment')}
                       </Button>
                     </th>
@@ -630,7 +685,19 @@ export default function PaymentLedgerPage() {
                   {sortedPaymentSummary.map((player) => (
                     <tr key={player.player_id}>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <Text variant="bodySmall" weight="medium">{player.player_name}</Text>
+                        <div className="flex items-center gap-2">
+                          {playerViolations.has(player.player_id) && (
+                            <Tooltip>
+                              <TooltipTrigger>
+                                <AlertTriangle className="w-4 h-4 text-destructive" />
+                              </TooltipTrigger>
+                              <TooltipContent className="left-0 translate-x-0">
+                                {playerViolations.get(player.player_id)}
+                              </TooltipContent>
+                            </Tooltip>
+                          )}
+                          <Text variant="bodySmall" weight="medium">{player.player_name}</Text>
+                        </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-center">
                         <Text variant="bodySmall">{formatCurrency(player.poker_net_winnings)}</Text>
@@ -642,50 +709,40 @@ export default function PaymentLedgerPage() {
                         <Text variant="bodySmall">{formatCurrency(player.total_received)}</Text>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-center">
-                        {(() => {
-                          const realizedCashEarnings = player.total_received - player.total_paid;
-                          return (
-                            <Text
-                              variant="bodySmall"
-                              weight="medium"
-                              color={
-                                realizedCashEarnings > 0
-                                  ? 'success'
-                                  : realizedCashEarnings < 0
-                                  ? 'destructive'
-                                  : 'default'
-                              }
-                            >
-                              {formatCurrency(realizedCashEarnings)}
-                            </Text>
-                          );
-                        })()}
+                        <Text
+                          variant="bodySmall"
+                          weight="medium"
+                          color={
+                            player.realized_earnings > 0
+                              ? 'success'
+                              : player.realized_earnings < 0
+                              ? 'destructive'
+                              : 'default'
+                          }
+                        >
+                          {formatCurrency(player.realized_earnings)}
+                        </Text>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-center">
-                        {(() => {
-                          const amountOwed = (player.poker_net_winnings + player.total_paid) - player.total_received;
-                          return (
-                            <Text
-                              variant="bodySmall"
-                              weight="medium"
-                              color={
-                                amountOwed > 0.005
-                                  ? 'success'
-                                  : amountOwed < -0.005
-                                  ? 'destructive'
-                                  : 'default'
-                              }
-                            >
-                              {formatCurrency(amountOwed)}
-                            </Text>
-                          );
-                        })()}
+                        <Text
+                          variant="bodySmall"
+                          weight="medium"
+                          color={
+                            player.balance > 0.005
+                              ? 'success'
+                              : player.balance < -0.005
+                              ? 'destructive'
+                              : 'default'
+                          }
+                        >
+                          {formatCurrency(player.balance)}
+                        </Text>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-center">
                         <Text variant="bodySmall">
                           {player.days_since_last_payment !== null && player.days_since_last_payment !== undefined
                             ? `${player.days_since_last_payment} days`
-                            : 'Never'
+                            : '–'
                           }
                         </Text>
                       </td>
@@ -698,12 +755,21 @@ export default function PaymentLedgerPage() {
             {/* Mobile Card View */}
             <div className="md:hidden divide-y divide-border">
               {sortedPaymentSummary.map((player) => {
-                const realizedCashEarnings = player.total_received - player.total_paid;
-                const amountOwed = (player.poker_net_winnings + player.total_paid) - player.total_received;
-
                 return (
                   <div key={player.player_id} className="p-4">
-                    <Text variant="bodyLarge" weight="semibold" className="mb-3">{player.player_name}</Text>
+                    <div className="mb-3 flex items-center gap-2">
+                      {playerViolations.has(player.player_id) && (
+                        <Tooltip>
+                          <TooltipTrigger>
+                            <AlertTriangle className="w-5 h-5 text-destructive" />
+                          </TooltipTrigger>
+                          <TooltipContent className="left-0 translate-x-0">
+                            {playerViolations.get(player.player_id)}
+                          </TooltipContent>
+                        </Tooltip>
+                      )}
+                      <Text variant="bodyLarge" weight="semibold">{player.player_name}</Text>
+                    </div>
 
                     <div className="space-y-2">
                       <div className="flex justify-between">
@@ -727,14 +793,14 @@ export default function PaymentLedgerPage() {
                           variant="bodySmall"
                           weight="bold"
                           color={
-                            realizedCashEarnings > 0
+                            player.realized_earnings > 0
                               ? 'success'
-                              : realizedCashEarnings < 0
+                              : player.realized_earnings < 0
                               ? 'destructive'
                               : 'default'
                           }
                         >
-                          {formatCurrency(realizedCashEarnings)}
+                          {formatCurrency(player.realized_earnings)}
                         </Text>
                       </div>
 
@@ -744,23 +810,23 @@ export default function PaymentLedgerPage() {
                           variant="bodySmall"
                           weight="bold"
                           color={
-                            amountOwed > 0.005
+                            player.balance > 0.005
                               ? 'success'
-                              : amountOwed < -0.005
+                              : player.balance < -0.005
                               ? 'destructive'
                               : 'default'
                           }
                         >
-                          {formatCurrency(amountOwed)}
+                          {formatCurrency(player.balance)}
                         </Text>
                       </div>
 
                       <div className="flex justify-between">
-                        <Text variant="bodySmall" color="muted">Days Since Last Payment</Text>
+                        <Text variant="bodySmall" color="muted">Days Balance Negative</Text>
                         <Text variant="bodySmall">
                           {player.days_since_last_payment !== null && player.days_since_last_payment !== undefined
                             ? `${player.days_since_last_payment} days`
-                            : 'Never'
+                            : '–'
                           }
                         </Text>
                       </div>
@@ -1174,6 +1240,11 @@ export default function PaymentLedgerPage() {
               </div>
             </form>
           </div>
+        )}
+
+        {/* Alerts Tab - Only for admin users */}
+        {activeTab === 'alerts' && canEdit && (
+          <AlertSettings publicCode={publicCode || ''} />
         )}
 
         {/* Edit Payment Modal - Only for admin users */}

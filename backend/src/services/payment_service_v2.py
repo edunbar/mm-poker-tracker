@@ -375,7 +375,9 @@ class PaymentService:
             # Convert to compatible format
             summaries = []
             for balance in player_balances:
-                days_since_payment = balance.days_since_last_payment(datetime.now(timezone.utc))
+                # Use days_balance_negative (how long balance has been negative)
+                # instead of days_since_last_payment
+                days_balance_neg = balance.days_balance_negative(datetime.now(timezone.utc))
 
                 summaries.append(PlayerPaymentSummary(
                     player_id=str(balance.player_id),
@@ -385,7 +387,7 @@ class PaymentService:
                     total_received=balance.total_received.amount / 100,
                     balance=balance.balance.amount / 100,
                     realized_earnings=balance.realized_earnings.amount / 100,
-                    days_since_last_payment=days_since_payment
+                    days_since_last_payment=days_balance_neg  # Now represents days balance negative
                 ))
 
             # Sort by balance descending (highest owed first)

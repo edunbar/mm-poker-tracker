@@ -15,6 +15,7 @@ from db.models import (
     SessionPlayerSummary,
     AuditLog,
 )
+from services.metrics_service import log_metric
 
 # Database-only implementation (Google Sheets removed)
 
@@ -413,6 +414,14 @@ def ingest_session(
             },
         )
         db.commit()
+
+        # Log business metric
+        log_metric("session_uploaded", {
+            "game_id": str(game.id),
+            "public_code": public_code,
+            "session_id": session_id,
+            "players_count": affected_rows
+        })
 
         # Invalidate cache for this game (use v2 service)
         from services.game_summary_service_v2 import invalidate_game_cache

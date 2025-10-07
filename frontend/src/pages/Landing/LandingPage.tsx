@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { API_BASE_URL } from "../../config/api";
 import { useAdminSession } from "../../contexts/AdminSessionContext";
+import { useToast } from "../../contexts/ToastContext";
 import { Button } from "../../shared/ui/button";
 import { FormField, FormLabel, FormMessage } from "../../shared/ui/form-field";
 import { Input } from "../../shared/ui/input";
@@ -21,16 +22,39 @@ export default function LandingPage() {
   } | null>(null);
   const navigate = useNavigate();
   const { setAdminSession } = useAdminSession();
+  const { showError } = useToast();
 
-  const handleJoinGame = (e: React.FormEvent) => {
+  const handleJoinGame = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (gameId) {
+    if (!gameId) return;
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      // Validate game exists by calling the summary endpoint
+      const response = await fetch(`${API_BASE_URL}/api/games/${gameId}/summary`);
+
+      if (response.status === 404) {
+        showError("Game Not Found", "Please check your game code and try again");
+        return;
+      }
+
+      if (!response.ok) {
+        throw new Error("Failed to validate game");
+      }
+
+      // Game exists, proceed with navigation
       // Store admin session only if admin ID is provided
       if (adminId) {
         setAdminSession(adminId, gameId);
       }
-      
+
       navigate(`/${gameId}`);
+    } catch (err) {
+      showError("Error", "An unexpected error occurred. Please try again.");
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -237,9 +261,10 @@ export default function LandingPage() {
               
               <Button
                 type="submit"
+                disabled={isLoading}
                 className="w-full"
               >
-                Join Game
+                {isLoading ? 'Validating Game...' : 'Join Game'}
               </Button>
             </form>
           ) : (

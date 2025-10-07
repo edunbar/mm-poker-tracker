@@ -11,7 +11,6 @@ export default function GameSummaryPage({ publicCode }: GameSummaryPageProps) {
   const { data, isLoading, error } = usePlayerSummaries(publicCode);
   const rows: PlayerSummaryRow[] = data?.rows || [];
 
-
   return (
     <div className="min-h-screen bg-background py-8">
       <div className="max-w-6xl mx-auto px-4 md:px-6 lg:px-8">

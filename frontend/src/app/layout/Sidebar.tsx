@@ -1,3 +1,4 @@
+import axios from "axios";
 import {
   BarChart3,
   BookOpen,
@@ -12,11 +13,14 @@ import {
   Users,
   Zap
 } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import { useAdminSession } from "../../contexts/AdminSessionContext";
 import { adminNav, publicNav } from "../../features/admin/nav";
 import { useGameTitle } from "../../shared/hooks/useGameTitle";
 import { Text } from "../../shared/ui/typography";
+
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000';
 
 // Icon mapping for navigation items
 const getNavIcon = (label: string) => {
@@ -86,13 +90,36 @@ function extractPublicCodeFromPath(pathname: string): string | null {
 }
 
 export default function Sidebar() {
-  const { hasAdminSession, clearAdminSession, publicCode: contextPublicCode } = useAdminSession();
+  const { hasAdminSession, clearAdminSession, publicCode: contextPublicCode, adminCode } = useAdminSession();
   const location = useLocation();
+  const [alertCount, setAlertCount] = useState(0);
 
   // Get public code from URL first (prioritize current page), then fall back to admin session context
   const urlPublicCode = extractPublicCodeFromPath(location.pathname);
   const currentPublicCode = urlPublicCode || contextPublicCode;
   const { title } = useGameTitle(currentPublicCode || '');
+
+  const fetchAlertCount = useCallback(async () => {
+    if (!currentPublicCode) return;
+
+    try {
+      const headers = adminCode ? { 'X-Admin-Code': adminCode } : {};
+      const response = await axios.get(
+        `${API_BASE_URL}/api/games/${currentPublicCode}/alerts/status`,
+        { headers }
+      );
+      setAlertCount(response.data.players_with_violations || 0);
+    } catch {
+      // Silently fail - show 0 if not authorized or error
+      setAlertCount(0);
+    }
+  }, [currentPublicCode, adminCode]);
+
+  useEffect(() => {
+    if (currentPublicCode) {
+      fetchAlertCount();
+    }
+  }, [currentPublicCode, fetchAlertCount]);
 
   return (
     <nav className="h-full bg-card flex flex-col">
@@ -153,6 +180,11 @@ export default function Sidebar() {
                     >
                       <span className="mr-3">{icon}</span>
                       <Text variant="bodySmall" weight="medium">{item.label}</Text>
+                      {item.label === "Payment Ledger" && alertCount > 0 && (
+                        <span className="ml-auto bg-red-500 text-white rounded-full px-2 py-0.5 text-xs font-medium">
+                          {alertCount}
+                        </span>
+                      )}
                     </NavLink>
                   )}
                 </div>
@@ -193,6 +225,11 @@ export default function Sidebar() {
                         >
                           <span className="mr-3">{icon}</span>
                           <Text variant="bodySmall" weight="medium">{item.label}</Text>
+                          {item.label === "Payment Ledger" && alertCount > 0 && (
+                            <span className="ml-auto bg-red-500 text-white rounded-full px-2 py-0.5 text-xs font-medium">
+                              {alertCount}
+                            </span>
+                          )}
                         </NavLink>
                       )}
                     </div>

@@ -1,4 +1,5 @@
 import { Route, Routes, useParams } from "react-router-dom";
+import { GamePageWrapper } from "../components/GamePageWrapper";
 import ProtectedRoute from "../components/ProtectedRoute";
 import AuditPage from "../features/admin/pages/AuditPage";
 import GameLedgerPage from "../features/admin/pages/GameLedgerPage";
@@ -17,31 +18,15 @@ export default function AppRoutes() {
     <Routes>
       <Route path="/" element={<LandingPage />} />
       <Route path="/:publicCode" element={<GameSummaryPageWrapper />} />
-      <Route path="/ingest/:publicCode" element={
-        <ProtectedRoute requireAdmin={true}>
-          <GameIngestPage />
-        </ProtectedRoute>
-      } />
-      <Route path="/live/:publicCode" element={
-        <ProtectedRoute requireAdmin={true}>
-          <LiveGameIngestPage />
-        </ProtectedRoute>
-      } />
-      <Route path="/ledger/:publicCode" element={<GameLedgerPage />} />
+      <Route path="/ingest/:publicCode" element={<GameIngestPageWrapper />} />
+      <Route path="/live/:publicCode" element={<LiveGameIngestPageWrapper />} />
+      <Route path="/ledger/:publicCode" element={<GameLedgerPageWrapper />} />
       <Route path="/summary/:publicCode" element={<GameSummaryPageWrapper />} />
       <Route path="/rules/:publicCode" element={<RuleBookPageWrapper />} />
       <Route path="/analytics/:publicCode" element={<AdvancedAnalyticsPageWrapper />} />
       <Route path="/session-analytics/:publicCode" element={<HandAnalyticsPageWrapper />} />
-      <Route path="/ledger-analysis/:publicCode" element={
-        <ProtectedRoute requireAdmin={true}>
-          <LedgerAnalysisPage />
-        </ProtectedRoute>
-      } />
-      <Route path="/audit/:publicCode" element={
-        <ProtectedRoute requireAdmin={true}>
-          <AuditPage />
-        </ProtectedRoute>
-      } />
+      <Route path="/ledger-analysis/:publicCode" element={<LedgerAnalysisPageWrapper />} />
+      <Route path="/audit/:publicCode" element={<AuditPageWrapper />} />
       <Route path="/payments/:publicCode" element={<PaymentLedgerPageWrapper />} />
     </Routes>
   );
@@ -49,24 +34,98 @@ export default function AppRoutes() {
 
 function GameSummaryPageWrapper() {
   const { publicCode } = useParams();
-  return <GameSummaryPage publicCode={publicCode || ""} />;
+  return (
+    <GamePageWrapper publicCode={publicCode || ""}>
+      <GameSummaryPage publicCode={publicCode || ""} />
+    </GamePageWrapper>
+  );
 }
 
 function RuleBookPageWrapper() {
   const { publicCode } = useParams();
-  return <RuleBookPage publicCode={publicCode || ""} />;
+  return (
+    <GamePageWrapper publicCode={publicCode || ""}>
+      <RuleBookPage publicCode={publicCode || ""} />
+    </GamePageWrapper>
+  );
 }
 
 function AdvancedAnalyticsPageWrapper() {
   const { publicCode } = useParams();
-  return <AdvancedAnalyticsPage publicCode={publicCode || ""} />;
+  return (
+    <GamePageWrapper publicCode={publicCode || ""}>
+      <AdvancedAnalyticsPage publicCode={publicCode || ""} />
+    </GamePageWrapper>
+  );
 }
 
 function PaymentLedgerPageWrapper() {
-  return <PaymentLedgerPage />;
+  const { publicCode } = useParams();
+  return (
+    <GamePageWrapper publicCode={publicCode || ""}>
+      <PaymentLedgerPage />
+    </GamePageWrapper>
+  );
+}
+
+function GameLedgerPageWrapper() {
+  const { publicCode } = useParams();
+  return (
+    <GamePageWrapper publicCode={publicCode || ""}>
+      <GameLedgerPage />
+    </GamePageWrapper>
+  );
 }
 
 function HandAnalyticsPageWrapper() {
   const { publicCode } = useParams();
-  return <HandAnalyticsPage publicCode={publicCode || ""} />;
+  return (
+    <GamePageWrapper publicCode={publicCode || ""}>
+      <HandAnalyticsPage publicCode={publicCode || ""} />
+    </GamePageWrapper>
+  );
+}
+
+function GameIngestPageWrapper() {
+  const { publicCode } = useParams();
+  return (
+    <GamePageWrapper publicCode={publicCode || ""}>
+      <ProtectedRoute requireAdmin={true}>
+        <GameIngestPage />
+      </ProtectedRoute>
+    </GamePageWrapper>
+  );
+}
+
+function LiveGameIngestPageWrapper() {
+  const { publicCode } = useParams();
+  return (
+    <GamePageWrapper publicCode={publicCode || ""}>
+      <ProtectedRoute requireAdmin={true}>
+        <LiveGameIngestPage />
+      </ProtectedRoute>
+    </GamePageWrapper>
+  );
+}
+
+function LedgerAnalysisPageWrapper() {
+  const { publicCode } = useParams();
+  return (
+    <GamePageWrapper publicCode={publicCode || ""}>
+      <ProtectedRoute requireAdmin={true}>
+        <LedgerAnalysisPage />
+      </ProtectedRoute>
+    </GamePageWrapper>
+  );
+}
+
+function AuditPageWrapper() {
+  const { publicCode } = useParams();
+  return (
+    <GamePageWrapper publicCode={publicCode || ""}>
+      <ProtectedRoute requireAdmin={true}>
+        <AuditPage />
+      </ProtectedRoute>
+    </GamePageWrapper>
+  );
 }
