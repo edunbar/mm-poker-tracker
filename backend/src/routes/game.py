@@ -1574,65 +1574,66 @@ def debug_balance_timestamps(public_code: str):
         if not admin_code:
             return jsonify({"error": "Admin code required"}), 401
 
-        # Verify admin access
-        game = db.query(Game).filter(Game.public_code == public_code).first()
-        if not game:
-            return jsonify({"error": "Game not found"}), 404
+        with SessionLocal() as db:
+            # Verify admin access
+            game = db.query(Game).filter(Game.public_code == public_code).first()
+            if not game:
+                return jsonify({"error": "Game not found"}), 404
 
-        if game.admin_code != admin_code:
-            return jsonify({"error": "Invalid admin code"}), 403
+            if game.admin_code != admin_code:
+                return jsonify({"error": "Invalid admin code"}), 403
 
-        # Query to get balance_negative_since timestamps with additional diagnostic info
-        query = text("""
-            SELECT
-                pb.player_id,
-                p.display_name,
-                pb.payment_balance,
-                pb.balance_negative_since,
-                CASE
-                    WHEN pb.balance_negative_since IS NOT NULL
-                    THEN EXTRACT(EPOCH FROM (NOW() - pb.balance_negative_since)) / 86400
-                    ELSE NULL
-                END as days_negative,
-                (
-                    SELECT MIN(pt.created_at)
-                    FROM payment_transactions pt
-                    WHERE (pt.from_player_id = pb.player_id OR pt.to_player_id = pb.player_id)
-                    AND pt.game_id = pb.game_id
-                ) as earliest_payment,
-                (
-                    SELECT MAX(pt.created_at)
-                    FROM payment_transactions pt
-                    WHERE (pt.from_player_id = pb.player_id OR pt.to_player_id = pb.player_id)
-                    AND pt.game_id = pb.game_id
-                ) as latest_payment
-            FROM payment_balances pb
-            JOIN players p ON p.id = pb.player_id
-            WHERE pb.game_id = :game_id
-            AND pb.payment_balance < 0
-            ORDER BY pb.balance_negative_since DESC NULLS LAST
-        """)
+            # Query to get balance_negative_since timestamps with additional diagnostic info
+            query = text("""
+                SELECT
+                    pb.player_id,
+                    p.display_name,
+                    pb.payment_balance,
+                    pb.balance_negative_since,
+                    CASE
+                        WHEN pb.balance_negative_since IS NOT NULL
+                        THEN EXTRACT(EPOCH FROM (NOW() - pb.balance_negative_since)) / 86400
+                        ELSE NULL
+                    END as days_negative,
+                    (
+                        SELECT MIN(pt.created_at)
+                        FROM payment_transactions pt
+                        WHERE (pt.from_player_id = pb.player_id OR pt.to_player_id = pb.player_id)
+                        AND pt.game_id = pb.game_id
+                    ) as earliest_payment,
+                    (
+                        SELECT MAX(pt.created_at)
+                        FROM payment_transactions pt
+                        WHERE (pt.from_player_id = pb.player_id OR pt.to_player_id = pb.player_id)
+                        AND pt.game_id = pb.game_id
+                    ) as latest_payment
+                FROM payment_balances pb
+                JOIN players p ON p.id = pb.player_id
+                WHERE pb.game_id = :game_id
+                AND pb.payment_balance < 0
+                ORDER BY pb.balance_negative_since DESC NULLS LAST
+            """)
 
-        result = db.execute(query, {"game_id": game.id})
-        rows = result.fetchall()
+            result = db.execute(query, {"game_id": game.id})
+            rows = result.fetchall()
 
-        diagnostic_data = []
-        for row in rows:
-            diagnostic_data.append({
-                "player_id": str(row.player_id),
-                "display_name": row.display_name,
-                "payment_balance": row.payment_balance,
-                "balance_negative_since": row.balance_negative_since.isoformat() if row.balance_negative_since else None,
-                "days_negative": round(row.days_negative, 1) if row.days_negative else None,
-                "earliest_payment": row.earliest_payment.isoformat() if row.earliest_payment else None,
-                "latest_payment": row.latest_payment.isoformat() if row.latest_payment else None,
-            })
+            diagnostic_data = []
+            for row in rows:
+                diagnostic_data.append({
+                    "player_id": str(row.player_id),
+                    "display_name": row.display_name,
+                    "payment_balance": row.payment_balance,
+                    "balance_negative_since": row.balance_negative_since.isoformat() if row.balance_negative_since else None,
+                    "days_negative": round(row.days_negative, 1) if row.days_negative else None,
+                    "earliest_payment": row.earliest_payment.isoformat() if row.earliest_payment else None,
+                    "latest_payment": row.latest_payment.isoformat() if row.latest_payment else None,
+                })
 
-        return jsonify({
-            "game_code": public_code,
-            "negative_balances": diagnostic_data,
-            "count": len(diagnostic_data)
-        }), 200
+            return jsonify({
+                "game_code": public_code,
+                "negative_balances": diagnostic_data,
+                "count": len(diagnostic_data)
+            }), 200
 
     except Exception as e:
         logging.error(f"Error fetching balance timestamps: {e}")
