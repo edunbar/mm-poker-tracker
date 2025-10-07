@@ -1,9 +1,8 @@
 import axios from 'axios';
 import { AlertTriangle, Edit2, Plus, Save, Trash2, X } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
+import { API_BASE_URL } from '../../../config/api';
 import { useAdminSession } from '../../../contexts/AdminSessionContext';
-
-const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000';
 
 interface AlertRule {
   id: string;

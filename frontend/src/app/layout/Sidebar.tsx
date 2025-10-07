@@ -15,12 +15,11 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
+import { API_BASE_URL } from "../../config/api";
 import { useAdminSession } from "../../contexts/AdminSessionContext";
 import { adminNav, publicNav } from "../../features/admin/nav";
 import { useGameTitle } from "../../shared/hooks/useGameTitle";
 import { Text } from "../../shared/ui/typography";
-
-const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000';
 
 // Icon mapping for navigation items
 const getNavIcon = (label: string) => {
