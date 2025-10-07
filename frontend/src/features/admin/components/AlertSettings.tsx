@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { AlertTriangle, Plus, Edit2, Trash2, Save, X } from 'lucide-react';
+import { AlertTriangle, Edit2, Plus, Save, Trash2, X } from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
 import { useAdminSession } from '../../../contexts/AdminSessionContext';
 
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000';
@@ -27,13 +27,7 @@ export function AlertSettings({ publicCode }: AlertSettingsProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (publicCode) {
-      fetchRules();
-    }
-  }, [publicCode]);
-
-  const fetchRules = async () => {
+  const fetchRules = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -42,13 +36,19 @@ export function AlertSettings({ publicCode }: AlertSettingsProps) {
         { headers: { 'X-Admin-Code': adminCode } }
       );
       setRules(response.data.rules);
-    } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to fetch alert rules');
-      console.error('Failed to fetch alert rules:', err);
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { error?: string } } };
+      setError(error.response?.data?.error || 'Failed to fetch alert rules');
     } finally {
       setLoading(false);
     }
-  };
+  }, [publicCode, adminCode]);
+
+  useEffect(() => {
+    if (publicCode) {
+      fetchRules();
+    }
+  }, [publicCode, fetchRules]);
 
   const handleCreateRule = async () => {
     if (!newThreshold || parseFloat(newThreshold) <= 0) {
@@ -76,9 +76,9 @@ export function AlertSettings({ publicCode }: AlertSettingsProps) {
       await fetchRules();
       setIsAddingRule(false);
       setNewThreshold('');
-    } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to create rule');
-      console.error('Failed to create rule:', err);
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { error?: string } } };
+      setError(error.response?.data?.error || 'Failed to create rule');
     } finally {
       setLoading(false);
     }
@@ -113,16 +113,16 @@ export function AlertSettings({ publicCode }: AlertSettingsProps) {
       await fetchRules();
       setEditingRuleId(null);
       setEditThreshold('');
-    } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to update rule');
-      console.error('Failed to update rule:', err);
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { error?: string } } };
+      setError(error.response?.data?.error || 'Failed to update rule');
     } finally {
       setLoading(false);
     }
   };
 
   const handleDeleteRule = async (ruleId: string) => {
-    if (!confirm('Delete this alert rule? This action cannot be undone.')) return;
+    if (!window.confirm('Delete this alert rule? This action cannot be undone.')) return;
 
     try {
       setLoading(true);
@@ -132,9 +132,9 @@ export function AlertSettings({ publicCode }: AlertSettingsProps) {
         { headers: { 'X-Admin-Code': adminCode } }
       );
       await fetchRules();
-    } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to delete rule');
-      console.error('Failed to delete rule:', err);
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { error?: string } } };
+      setError(error.response?.data?.error || 'Failed to delete rule');
     } finally {
       setLoading(false);
     }
@@ -264,7 +264,7 @@ export function AlertSettings({ publicCode }: AlertSettingsProps) {
             <label className="block text-sm font-medium mb-1">Rule Type</label>
             <select
               value={newRuleType}
-              onChange={(e) => setNewRuleType(e.target.value as any)}
+              onChange={(e) => setNewRuleType(e.target.value as 'amount_threshold' | 'days_overdue')}
               className="border border-input bg-background px-3 py-2 rounded-md text-sm w-full"
               disabled={loading}
             >
