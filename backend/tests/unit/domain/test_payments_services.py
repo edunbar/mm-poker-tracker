@@ -7,6 +7,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
 import pytest
 from unittest.mock import Mock
 from uuid import uuid4
+from datetime import datetime, timezone
 
 # Import for coverage
 import src.domain.payments.services
@@ -43,7 +44,8 @@ class TestSettlementOptimizer:
             game_id=GameId(str(uuid4())),
             poker_net_winnings=Money("0.00"),
             total_paid=Money("0.00"),
-            total_received=Money("50.00")  # Owes $50
+            total_received=Money("50.00"),  # Owes $50
+            balance_negative_since=datetime.now(timezone.utc)
         )
 
         result = SettlementOptimizer.calculate_optimal_settlements([balance])
@@ -62,7 +64,8 @@ class TestSettlementOptimizer:
             game_id=game_id,
             poker_net_winnings=Money("0.00"),
             total_paid=Money("0.00"),
-            total_received=Money("50.00")  # Owes $50
+            total_received=Money("50.00"),  # Owes $50
+            balance_negative_since=datetime.now(timezone.utc)
         )
 
         # Player 2 is owed money
@@ -97,7 +100,8 @@ class TestSettlementOptimizer:
                     player_id=player_id,
                     game_id=game_id,
                     poker_net_winnings=Money("0.00"),
-                    total_received=Money("30.00")
+                    total_received=Money("30.00"),
+                    balance_negative_since=datetime.now(timezone.utc)
                 )
             elif i == 1:
                 # Owed money

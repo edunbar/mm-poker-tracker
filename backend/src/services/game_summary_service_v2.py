@@ -108,10 +108,8 @@ def get_player_summaries(public_code: str) -> Dict[str, Any]:
         from db.models import Game
         game = db.query(Game).filter(Game.public_code == public_code).first()
         if not game:
-            # Return empty result for non-existent games (matching v1 behavior)
-            result = {"title": None, "rows": []}
-            _set_cache(cache_key, result)
-            return result
+            # Raise error for non-existent games
+            raise ValueError(f"Game not found with code: {public_code}")
 
         repository = SQLAlchemyGameSummaryRepository(db)
         game_id = GameId(str(game.id))  # Use the actual UUID
@@ -165,10 +163,8 @@ def get_player_analytics(public_code: str) -> Dict[str, Any]:
         from db.models import Game
         game = db.query(Game).filter(Game.public_code == public_code).first()
         if not game:
-            # Return empty result for non-existent games (matching v1 behavior)
-            result = {"analytics": {}}
-            _set_cache(cache_key, result)
-            return result
+            # Raise error for non-existent games
+            raise ValueError(f"Game not found with code: {public_code}")
 
         repository = SQLAlchemyGameSummaryRepository(db)
         game_id = GameId(str(game.id))  # Use the actual UUID
@@ -224,10 +220,8 @@ def get_session_extremes(public_code: str) -> Dict[str, Any]:
         from db.models import Game
         game = db.query(Game).filter(Game.public_code == public_code).first()
         if not game:
-            # Return empty result for non-existent games (matching v1 behavior)
-            result = {"best_sessions": [], "worst_sessions": []}
-            _set_cache(cache_key, result)
-            return result
+            # Raise error for non-existent games
+            raise ValueError(f"Game not found with code: {public_code}")
 
         repository = SQLAlchemyGameSummaryRepository(db)
         game_id = GameId(str(game.id))  # Use the actual UUID

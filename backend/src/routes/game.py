@@ -262,24 +262,31 @@ def upload_live_game():
 
 @game_bp.get("/<public_code>/summary")
 def players_summary(public_code: str):
-    result = get_player_summaries(public_code)
-    title = result.get("title")
-    rows = result.get("rows", [])
+    try:
+        result = get_player_summaries(public_code)
+        title = result.get("title")
+        rows = result.get("rows", [])
 
-    # Add service version info for debugging
-    from services import get_service_info
-    service_info = get_service_info()
+        # Add service version info for debugging
+        from services import get_service_info
+        service_info = get_service_info()
 
-    return jsonify({
-        "game": public_code,
-        "title": title,
-        "rows": rows,
-        "_service_info": {
-            "game_summary_service_version": service_info.get("game_summary_service", "unknown"),
-            "use_domain_services": service_info.get("use_domain_services", False),
-            "direct_import": "game_summary_service_v2"
-        }
-    })
+        return jsonify({
+            "game": public_code,
+            "title": title,
+            "rows": rows,
+            "_service_info": {
+                "game_summary_service_version": service_info.get("game_summary_service", "unknown"),
+                "use_domain_services": service_info.get("use_domain_services", False),
+                "direct_import": "game_summary_service_v2"
+            }
+        })
+    except ValueError as e:
+        logging.error(f"Game not found: {e}")
+        return jsonify({"error": "Game not found"}), 404
+    except Exception as e:
+        logging.exception("Error fetching player summaries")
+        return jsonify({"error": "Internal server error"}), 500
 
 @game_bp.get("/<public_code>/analytics")
 def players_analytics(public_code: str):
@@ -289,6 +296,9 @@ def players_analytics(public_code: str):
     try:
         result = get_player_analytics(public_code)
         return jsonify(result)
+    except ValueError as e:
+        logging.error(f"Game not found: {e}")
+        return jsonify({"error": "Game not found"}), 404
     except Exception as e:
         logging.error(f"Error fetching player analytics: {e}")
         return jsonify({"error": "Failed to fetch analytics"}), 500
@@ -302,6 +312,9 @@ def players_session_extremes(public_code: str):
     try:
         result = get_session_extremes(public_code)
         return jsonify(result)
+    except ValueError as e:
+        logging.error(f"Game not found: {e}")
+        return jsonify({"error": "Game not found"}), 404
     except Exception as e:
         logging.error(f"Error fetching session extremes: {e}")
         return jsonify({"error": "Failed to fetch session extremes"}), 500
@@ -1545,6 +1558,238 @@ def recalculate_payment_balances(public_code: str):
             db.rollback()
             logging.error(f"Error recalculating payment balances: {e}")
             return jsonify({"error": str(e)}), 500
+
+
+# ==========================================================
+# Alert System Endpoints
+# ==========================================================
+
+@game_bp.get("/<public_code>/alerts/rules")
+def get_alert_rules(public_code: str):
+    """
+    Get alert rules for a game (admin only).
+
+    Returns all alert rules configured for the game.
+    Header: X-Admin-Code: <admin_code>
+    """
+    try:
+        admin_code = request.headers.get("X-Admin-Code")
+        if not admin_code:
+            return jsonify({"error": "X-Admin-Code header required"}), 401
+
+        from services.session_ingestion_service import _require_admin_for_game
+        with SessionLocal() as db:
+            game = _require_admin_for_game(db, public_code, admin_code)
+
+            from services.alert_service import AlertService
+            alert_service = AlertService(db)
+            rules = alert_service.get_alert_rules(str(game.id))
+
+            return jsonify({"rules": [r.to_dict() for r in rules]}), 200
+
+    except PermissionError as e:
+        logging.error(f"Permission error getting alert rules: {e}")
+        return jsonify({"error": str(e)}), 403
+    except ValueError as e:
+        logging.error(f"Value error getting alert rules: {e}")
+        return jsonify({"error": str(e)}), 404
+    except Exception as e:
+        logging.error(f"Error getting alert rules: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@game_bp.post("/<public_code>/alerts/rules")
+def create_alert_rule(public_code: str):
+    """
+    Create new alert rule (admin only).
+
+    Body expects:
+    {
+      "rule_type": "amount_threshold" | "days_overdue",
+      "threshold_value": int  // cents for amount_threshold, days for days_overdue
+    }
+    Header: X-Admin-Code: <admin_code>
+    """
+    try:
+        admin_code = request.headers.get("X-Admin-Code")
+        if not admin_code:
+            return jsonify({"error": "X-Admin-Code header required"}), 401
+
+        body = request.get_json(force=True)
+        if not body:
+            return jsonify({"error": "Request body required"}), 400
+
+        rule_type = body.get('rule_type')
+        threshold_value = body.get('threshold_value')
+
+        if not rule_type or threshold_value is None:
+            return jsonify({"error": "rule_type and threshold_value required"}), 400
+
+        from services.session_ingestion_service import _require_admin_for_game
+        with SessionLocal() as db:
+            game = _require_admin_for_game(db, public_code, admin_code)
+
+            from services.alert_service import AlertService
+            alert_service = AlertService(db)
+            rule = alert_service.create_alert_rule(
+                str(game.id),
+                rule_type,
+                int(threshold_value),
+                admin_code
+            )
+
+            db.commit()
+
+            return jsonify({
+                "message": "Alert rule created successfully",
+                "rule": rule.to_dict()
+            }), 201
+
+    except PermissionError as e:
+        logging.error(f"Permission error creating alert rule: {e}")
+        return jsonify({"error": str(e)}), 403
+    except ValueError as e:
+        logging.error(f"Value error creating alert rule: {e}")
+        return jsonify({"error": str(e)}), 400
+    except Exception as e:
+        logging.error(f"Error creating alert rule: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@game_bp.put("/<public_code>/alerts/rules/<rule_id>")
+def update_alert_rule(public_code: str, rule_id: str):
+    """
+    Update alert rule threshold and active status (admin only).
+
+    Body expects:
+    {
+      "threshold_value": int,
+      "is_active": bool  // optional, defaults to true
+    }
+    Header: X-Admin-Code: <admin_code>
+    """
+    try:
+        admin_code = request.headers.get("X-Admin-Code")
+        if not admin_code:
+            return jsonify({"error": "X-Admin-Code header required"}), 401
+
+        body = request.get_json(force=True)
+        if not body:
+            return jsonify({"error": "Request body required"}), 400
+
+        threshold_value = body.get('threshold_value')
+        is_active = body.get('is_active', True)
+
+        if threshold_value is None:
+            return jsonify({"error": "threshold_value required"}), 400
+
+        from services.session_ingestion_service import _require_admin_for_game
+        with SessionLocal() as db:
+            game = _require_admin_for_game(db, public_code, admin_code)
+
+            from services.alert_service import AlertService
+            alert_service = AlertService(db)
+            rule = alert_service.update_alert_rule(
+                str(game.id),
+                rule_id,
+                int(threshold_value),
+                is_active,
+                admin_code
+            )
+
+            db.commit()
+
+            return jsonify({
+                "message": "Alert rule updated successfully",
+                "rule": rule.to_dict()
+            }), 200
+
+    except PermissionError as e:
+        logging.error(f"Permission error updating alert rule: {e}")
+        return jsonify({"error": str(e)}), 403
+    except ValueError as e:
+        logging.error(f"Value error updating alert rule: {e}")
+        return jsonify({"error": str(e)}), 404
+    except Exception as e:
+        logging.error(f"Error updating alert rule: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@game_bp.delete("/<public_code>/alerts/rules/<rule_id>")
+def delete_alert_rule(public_code: str, rule_id: str):
+    """
+    Delete alert rule (admin only).
+
+    Header: X-Admin-Code: <admin_code>
+    """
+    try:
+        admin_code = request.headers.get("X-Admin-Code")
+        if not admin_code:
+            return jsonify({"error": "X-Admin-Code header required"}), 401
+
+        from services.session_ingestion_service import _require_admin_for_game
+        with SessionLocal() as db:
+            game = _require_admin_for_game(db, public_code, admin_code)
+
+            from services.alert_service import AlertService
+            alert_service = AlertService(db)
+            success = alert_service.delete_alert_rule(str(game.id), rule_id, admin_code)
+
+            if not success:
+                return jsonify({"error": "Alert rule not found"}), 404
+
+            db.commit()
+
+            return jsonify({"message": "Alert rule deleted successfully"}), 200
+
+    except PermissionError as e:
+        logging.error(f"Permission error deleting alert rule: {e}")
+        return jsonify({"error": str(e)}), 403
+    except ValueError as e:
+        logging.error(f"Value error deleting alert rule: {e}")
+        return jsonify({"error": str(e)}), 404
+    except Exception as e:
+        logging.error(f"Error deleting alert rule: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@game_bp.get("/<public_code>/alerts/status")
+def get_alert_status(public_code: str):
+    """
+    Get computed alert violations for the game (public endpoint).
+
+    Computes violations on-demand from current player balances and active rules.
+    Returns players who owe money and violate any active alert rules.
+    This endpoint is public since it only exposes existing payment data with highlighting.
+    """
+    try:
+        with SessionLocal() as db:
+            # Look up game by public code
+            game = db.query(Game).filter_by(public_code=public_code).first()
+            if not game:
+                return jsonify({"error": "Game not found"}), 404
+
+            from services.alert_service import AlertService
+            alert_service = AlertService(db)
+            status = alert_service.compute_alert_status(str(game.id))
+
+            # Convert cents to dollars in API response for frontend convenience
+            response = status.to_dict()
+            for player_alert in response['player_alerts']:
+                player_alert['total_amount_owed_dollars'] = player_alert['total_amount_owed'] / 100.0
+                for violation in player_alert['violations']:
+                    if violation['rule_type'] == 'amount_threshold':
+                        violation['current_value_dollars'] = violation['current_value'] / 100.0
+                        violation['threshold_value_dollars'] = violation['threshold_value'] / 100.0
+
+            return jsonify(response), 200
+
+    except ValueError as e:
+        logging.error(f"Value error getting alert status: {e}")
+        return jsonify({"error": str(e)}), 404
+    except Exception as e:
+        logging.error(f"Error computing alert status: {e}")
+        return jsonify({"error": str(e)}), 500
 
 
 @game_bp.get("/<public_code>/sessions/<session_id>/ledger-csv")

@@ -55,7 +55,7 @@ class SettlementOptimizer:
             # Amount to transfer is minimum of what's owed and what's due
             transfer_amount = min(creditor_amount, Money(str(abs(debtor_amount.amount))))
 
-            if transfer_amount > Money("0.01"):  # Only suggest payments over 1 cent
+            if transfer_amount >= Money("0.01"):  # Only suggest payments of 1 cent or more
                 suggestions.append(SettlementSuggestion(
                     payer_id=debtor_balance.player_id,
                     payer_name=f"Player {debtor_balance.player_id}",  # Will be filled by service
@@ -72,10 +72,10 @@ class SettlementOptimizer:
             creditors[0] = (creditor_balance, creditor_amount)
             debtors[0] = (debtor_balance, debtor_amount)
 
-            # Remove players who are now settled
-            if creditor_amount <= Money("0.01"):
+            # Remove players who are now settled (less than 1 cent remaining)
+            if creditor_amount < Money("0.01"):
                 creditors.pop(0)
-            if debtor_amount >= Money("-0.01"):
+            if debtor_amount > Money("-0.01"):
                 debtors.pop(0)
 
         return suggestions

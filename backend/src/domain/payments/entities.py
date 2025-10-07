@@ -171,6 +171,12 @@ class PlayerBalance:
 
     This entity encapsulates all payment-related data for a player in a specific game,
     including poker winnings, payments made/received, and calculated balances.
+
+    CRITICAL: balance_negative_since field enforces payment-grade invariants:
+    - Must be set when balance < 0
+    - Must be NULL when balance >= 0
+    - Must be timezone-aware UTC timestamp
+    - Cannot be in the future
     """
 
     player_id: PlayerId
@@ -179,9 +185,14 @@ class PlayerBalance:
     total_paid: Money
     total_received: Money
     last_payment_date: Optional[datetime] = None
+    balance_negative_since: Optional[datetime] = None
 
     def __post_init__(self) -> None:
-        """Validate player balance data."""
+        """
+        Validate player balance data and enforce payment-grade invariants.
+
+        FAIL FAST: Raises ValueError immediately on invalid states.
+        """
         if not isinstance(self.player_id, PlayerId):
             raise TypeError("player_id must be a PlayerId instance")
         if not isinstance(self.game_id, GameId):
@@ -199,6 +210,37 @@ class PlayerBalance:
         if not self.total_received.is_non_negative():
             raise ValueError("Total received cannot be negative")
 
+        # FAIL FAST: Validate balance_negative_since invariants
+        balance = self.balance
+        if balance < Money.zero() and self.balance_negative_since is None:
+            raise ValueError(
+                f"INVARIANT VIOLATION: Negative balance ({balance.amount} cents) "
+                f"requires balance_negative_since timestamp. Player: {self.player_id}, Game: {self.game_id}"
+            )
+
+        if balance >= Money.zero() and self.balance_negative_since is not None:
+            raise ValueError(
+                f"INVARIANT VIOLATION: Non-negative balance ({balance.amount} cents) "
+                f"cannot have balance_negative_since timestamp. Player: {self.player_id}, Game: {self.game_id}"
+            )
+
+        # Validate timezone awareness (UTC required)
+        if self.balance_negative_since and self.balance_negative_since.tzinfo is None:
+            raise ValueError(
+                f"INVARIANT VIOLATION: balance_negative_since must be timezone-aware (UTC). "
+                f"Player: {self.player_id}, Game: {self.game_id}"
+            )
+
+        # Validate not in future
+        if self.balance_negative_since:
+            from datetime import timezone as tz
+            now_utc = datetime.now(tz.utc)
+            if self.balance_negative_since > now_utc:
+                raise ValueError(
+                    f"INVARIANT VIOLATION: balance_negative_since cannot be in the future. "
+                    f"Timestamp: {self.balance_negative_since.isoformat()}, Now: {now_utc.isoformat()}"
+                )
+
     @classmethod
     def create_new(
         cls,
@@ -207,7 +249,8 @@ class PlayerBalance:
         poker_net_winnings: Money,
         total_paid: Money = None,
         total_received: Money = None,
-        last_payment_date: Optional[datetime] = None
+        last_payment_date: Optional[datetime] = None,
+        balance_negative_since: Optional[datetime] = None
     ) -> PlayerBalance:
         """
         Factory method to create a new PlayerBalance.
@@ -219,9 +262,13 @@ class PlayerBalance:
             total_paid: Total amount paid out (defaults to zero)
             total_received: Total amount received (defaults to zero)
             last_payment_date: Date of last payment
+            balance_negative_since: Timestamp when balance became negative (if applicable)
 
         Returns:
             New PlayerBalance instance
+
+        Raises:
+            ValueError: If invariants are violated (via __post_init__)
         """
         return cls(
             player_id=player_id,
@@ -229,7 +276,8 @@ class PlayerBalance:
             poker_net_winnings=poker_net_winnings,
             total_paid=total_paid or Money.zero(),
             total_received=total_received or Money.zero(),
-            last_payment_date=last_payment_date
+            last_payment_date=last_payment_date,
+            balance_negative_since=balance_negative_since
         )
 
     @property
@@ -303,6 +351,37 @@ class PlayerBalance:
             return delta.days
         return None
 
+    def days_balance_negative(self, current_date: datetime) -> Optional[int]:
+        """
+        Calculate days balance has been continuously negative.
+
+        This is the primary metric for payment overdue alerts.
+
+        Args:
+            current_date: Current datetime (must be timezone-aware UTC)
+
+        Returns:
+            Number of days balance has been negative, or None if currently non-negative
+
+        Raises:
+            ValueError: If balance is negative but balance_negative_since is NULL
+                       (database integrity violation - FAIL FAST)
+
+        CRITICAL: This method enforces invariants and fails loudly on violations.
+        """
+        if self.balance >= Money.zero():
+            return None
+
+        if self.balance_negative_since is None:
+            raise ValueError(
+                f"CRITICAL DATABASE INTEGRITY VIOLATION: Player {self.player_id} "
+                f"in game {self.game_id} has negative balance ({self.balance.amount} cents) "
+                f"but balance_negative_since is NULL. This should be impossible due to constraints."
+            )
+
+        delta = current_date - self.balance_negative_since
+        return delta.days
+
     def has_payment_activity(self) -> bool:
         """Check if the player has any payment activity."""
         return not (self.total_paid.is_zero() and self.total_received.is_zero())
@@ -335,6 +414,9 @@ class PlayerBalance:
 
     def to_dict(self) -> dict:
         """Convert to dictionary format for API responses."""
+        from datetime import timezone
+        now_utc = datetime.now(timezone.utc)
+
         return {
             "player_id": str(self.player_id),
             "game_id": str(self.game_id),
@@ -345,7 +427,9 @@ class PlayerBalance:
             "realized_earnings": self.realized_earnings.amount / 100.0,
             "balance_status": str(self.get_balance_status()),
             "last_payment_date": self.last_payment_date.isoformat() if self.last_payment_date else None,
-            "days_since_last_payment": self.days_since_last_payment(datetime.now()) if self.last_payment_date else None
+            "balance_negative_since": self.balance_negative_since.isoformat() if self.balance_negative_since else None,
+            "days_since_last_payment": self.days_since_last_payment(now_utc) if self.last_payment_date else None,
+            "days_balance_negative": self.days_balance_negative(now_utc)
         }
 
 

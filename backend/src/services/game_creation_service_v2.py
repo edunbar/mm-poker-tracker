@@ -24,6 +24,7 @@ from domain.poker.exceptions import (
     RepositoryError
 )
 from infrastructure.persistence.sqlalchemy.game_repository import SQLAlchemyGameRepository
+from services.metrics_service import log_metric
 
 logger = logging.getLogger(__name__)
 
@@ -78,6 +79,12 @@ class GameCreationService:
         try:
             # Use domain service to create game
             game = self._domain_service.create_game(title=title)
+
+            # Log business metric
+            log_metric("game_created", {
+                "game_id": str(game.id),
+                "public_code": str(game.public_code)
+            })
 
             # Convert domain entity to legacy format
             return self._to_legacy_format(game)

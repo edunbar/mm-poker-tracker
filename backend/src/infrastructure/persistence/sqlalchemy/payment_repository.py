@@ -273,7 +273,7 @@ class SQLAlchemyPaymentBalanceRepository(PaymentBalanceRepository):
             game_id: The game identifier
 
         Returns:
-            List of PlayerBalance objects
+            List of PlayerBalance objects with balance_negative_since tracking
         """
         try:
             # Get all players who have session summaries for this game
@@ -293,13 +293,36 @@ class SQLAlchemyPaymentBalanceRepository(PaymentBalanceRepository):
                     game_id, player_id_obj
                 )
 
+                # Get balance_negative_since from existing PaymentBalance record
+                # FAIL FAST: This will raise if column doesn't exist
+                db_balance = self._db_session.query(PaymentBalanceModel).filter(
+                    and_(
+                        PaymentBalanceModel.game_id == game_id.value,
+                        PaymentBalanceModel.player_id == player_id
+                    )
+                ).first()
+
+                balance_negative_since = db_balance.balance_negative_since if db_balance else None
+
+                # Calculate the net balance to determine if we need a timestamp
+                calculated_balance = poker_net + total_paid - total_received
+
+                # INVARIANT CORRECTION: Fix stale data from database
+                # If balance is negative but we don't have a timestamp, set it to now
+                if calculated_balance < Money.zero() and balance_negative_since is None:
+                    balance_negative_since = datetime.now(timezone.utc)
+                # If balance is positive/zero but we have a timestamp, clear it
+                elif calculated_balance >= Money.zero() and balance_negative_since is not None:
+                    balance_negative_since = None
+
                 balance = PlayerBalance(
                     player_id=player_id_obj,
                     game_id=game_id,
                     poker_net_winnings=poker_net,
                     total_paid=total_paid,
                     total_received=total_received,
-                    last_payment_date=last_payment_date
+                    last_payment_date=last_payment_date,
+                    balance_negative_since=balance_negative_since
                 )
                 balances.append(balance)
 
@@ -310,7 +333,10 @@ class SQLAlchemyPaymentBalanceRepository(PaymentBalanceRepository):
 
     def save_balance(self, balance: PlayerBalance) -> PlayerBalance:
         """
-        Save or update a player balance.
+        Save or update a player balance with state transition tracking.
+
+        FAIL FAST: If balance_negative_since column doesn't exist, this raises
+        OperationalError immediately. No fallback, no graceful degradation.
 
         Args:
             balance: The PlayerBalance to save
@@ -333,6 +359,7 @@ class SQLAlchemyPaymentBalanceRepository(PaymentBalanceRepository):
                 'total_received': balance.total_received.amount,
                 'poker_net_winnings': balance.poker_net_winnings.amount,
                 'payment_balance': balance.balance.amount,
+                'balance_negative_since': balance.balance_negative_since,  # CRITICAL: New field
                 'last_updated': datetime.now(timezone.utc)
             }
 
@@ -346,10 +373,12 @@ class SQLAlchemyPaymentBalanceRepository(PaymentBalanceRepository):
                     'total_received': stmt.excluded.total_received,
                     'poker_net_winnings': stmt.excluded.poker_net_winnings,
                     'payment_balance': stmt.excluded.payment_balance,
+                    'balance_negative_since': stmt.excluded.balance_negative_since,  # CRITICAL
                     'last_updated': stmt.excluded.last_updated
                 }
             ).returning(PaymentBalanceModel.id)
 
+            # FAIL FAST: If column missing, raises OperationalError
             self._db_session.execute(upsert_stmt)
             self._db_session.flush()  # Note: Caller is responsible for commit
             return balance
@@ -359,9 +388,13 @@ class SQLAlchemyPaymentBalanceRepository(PaymentBalanceRepository):
 
     def update_balances_for_players(self, game_id: GameId, player_ids: List[PlayerId]) -> None:
         """
-        Recalculate and update payment balances for specific players in a game.
+        Recalculate and update payment balances with state transition tracking.
 
-        This method recalculates balances based on current poker winnings and payments.
+        CRITICAL: This function implements payment-grade reliable state transitions:
+        - Uses SELECT FOR UPDATE to prevent race conditions
+        - Tracks when balance becomes negative
+        - Idempotent - calling twice produces identical results
+        - FAILS FAST on invariant violations
 
         Args:
             game_id: The game identifier
@@ -369,35 +402,108 @@ class SQLAlchemyPaymentBalanceRepository(PaymentBalanceRepository):
 
         Raises:
             RepositoryError: If update operation fails
+            ValueError: If invariant violations detected
         """
+        from services.payment_audit_logger import PaymentAuditLogger
+
         try:
-            # Sort player IDs to ensure consistent lock ordering
-            # This reduces (but doesn't eliminate) deadlock risk
+            # Sort player IDs for consistent lock ordering (deadlock prevention)
             sorted_player_ids = sorted(player_ids, key=lambda p: p.value)
 
             for player_id in sorted_player_ids:
-                # Calculate poker net winnings
-                poker_net = self._calculate_poker_net_winnings(game_id, player_id)
+                # CRITICAL: Use SELECT FOR UPDATE to prevent race conditions
+                db_balance = self._db_session.query(PaymentBalanceModel).filter(
+                    and_(
+                        PaymentBalanceModel.player_id == player_id.value,
+                        PaymentBalanceModel.game_id == game_id.value
+                    )
+                ).with_for_update().first()
 
-                # Calculate payment totals
+                # Calculate new values
+                poker_net = self._calculate_poker_net_winnings(game_id, player_id)
                 total_paid, total_received, last_payment_date = self._calculate_payment_totals(
                     game_id, player_id
                 )
 
-                # Create or update balance
+                # Calculate old and new balances (in cents)
+                old_balance_cents = int(db_balance.payment_balance) if db_balance else 0
+                new_balance_cents = int(poker_net.amount + total_paid.amount - total_received.amount)
+
+                # Get old balance_negative_since
+                old_negative_since = db_balance.balance_negative_since if db_balance else None
+
+                # FAIL FAST: Validate invariants on existing data
+                if db_balance and old_balance_cents < 0 and old_negative_since is None:
+                    raise ValueError(
+                        f"INVARIANT VIOLATION: Player {player_id.value} has negative balance "
+                        f"({old_balance_cents} cents) but balance_negative_since is NULL. "
+                        f"Database integrity compromised. game_id={game_id.value}"
+                    )
+
+                # STATE TRANSITION LOGIC (payment-grade, fail-fast)
+                now_utc = datetime.now(timezone.utc)
+
+                # Determine new balance_negative_since based on state transition
+                if old_balance_cents >= 0 and new_balance_cents < 0:
+                    # TRANSITION: positive/zero → negative
+                    # Set timestamp to NOW (balance just became negative)
+                    new_negative_since = now_utc
+                    transition_type = "became_negative"
+
+                elif old_balance_cents < 0 and new_balance_cents < 0:
+                    # TRANSITION: negative → still negative
+                    # PRESERVE existing timestamp (idempotent - don't update)
+                    new_negative_since = old_negative_since or now_utc  # Fallback for migration edge case
+                    transition_type = "still_negative"
+
+                elif old_balance_cents < 0 and new_balance_cents >= 0:
+                    # TRANSITION: negative → positive/zero
+                    # CLEAR timestamp (player settled up)
+                    new_negative_since = None
+                    transition_type = "became_positive"
+
+                else:  # old_balance_cents >= 0 and new_balance_cents >= 0
+                    # TRANSITION: positive/zero → still positive/zero
+                    # Keep NULL (no debt)
+                    new_negative_since = None
+                    transition_type = "still_positive"
+
+                # STRUCTURED AUDIT LOGGING
+                if old_balance_cents != new_balance_cents or old_negative_since != new_negative_since:
+                    PaymentAuditLogger.log_balance_transition(
+                        game_id=str(game_id.value),
+                        player_id=str(player_id.value),
+                        old_balance_cents=old_balance_cents,
+                        new_balance_cents=new_balance_cents,
+                        old_negative_since=old_negative_since,
+                        new_negative_since=new_negative_since,
+                        transition_type=transition_type
+                    )
+
+                # Create domain entity with new timestamp
                 balance = PlayerBalance(
                     player_id=player_id,
                     game_id=game_id,
                     poker_net_winnings=poker_net,
                     total_paid=total_paid,
                     total_received=total_received,
-                    last_payment_date=last_payment_date
+                    last_payment_date=last_payment_date,
+                    balance_negative_since=new_negative_since
                 )
 
+                # Save with explicit timestamp handling
                 self.save_balance(balance)
 
         except SQLAlchemyError as e:
-            raise RepositoryError("update_balances_for_players", str(e))
+            # FAIL FAST: Log and re-raise
+            from services.payment_audit_logger import PaymentAuditLogger
+            PaymentAuditLogger.log_state_transition_error(
+                game_id=str(game_id.value),
+                player_id=str(player_id.value) if player_id else "unknown",
+                error_message=str(e),
+                error_type=type(e).__name__
+            )
+            raise RepositoryError(f"Failed to update balances: {str(e)}")
 
     def delete_balance(self, player_id: PlayerId, game_id: GameId) -> bool:
         """
@@ -576,11 +682,20 @@ class SQLAlchemyPaymentBalanceRepository(PaymentBalanceRepository):
         Returns:
             Domain PlayerBalance entity
         """
+        # Calculate balance to check if we need timestamp (for migration scenarios)
+        calculated_balance = Money(db_balance.poker_net_winnings) + Money(db_balance.total_paid) - Money(db_balance.total_received)
+        balance_negative_since = db_balance.balance_negative_since
+
+        # If balance is negative but no timestamp, set it now (handles migration edge cases)
+        if calculated_balance < Money.zero() and balance_negative_since is None:
+            balance_negative_since = datetime.now(timezone.utc)
+
         return PlayerBalance(
             player_id=PlayerId(str(db_balance.player_id)),
             game_id=GameId(str(db_balance.game_id)),
             poker_net_winnings=Money(db_balance.poker_net_winnings),  # Already in cents
             total_paid=Money(db_balance.total_paid),                  # Already in cents
             total_received=Money(db_balance.total_received),          # Already in cents
-            last_payment_date=None  # Model doesn't have this field, will be calculated when needed
+            last_payment_date=None,  # Model doesn't have this field, will be calculated when needed
+            balance_negative_since=balance_negative_since
         )

@@ -497,22 +497,20 @@ class TestGameDataRetrieval:
         assert isinstance(data['worst_sessions'], list)
 
     def test_get_game_summary_invalid_public_code(self, client):
-        """Invalid public code should return empty results."""
+        """Invalid public code should return 404."""
         response = client.get('/api/games/INVALID/summary')
 
-        assert response.status_code == 200
+        assert response.status_code == 404
         data = response.get_json()
-        assert 'rows' in data
-        assert data['rows'] == []  # Empty results for non-existent game
+        assert 'error' in data
 
     def test_get_game_analytics_nonexistent_game(self, client):
-        """Non-existent game should return empty analytics."""
+        """Non-existent game should return 404."""
         response = client.get('/api/games/XXXXX/analytics')
 
-        assert response.status_code == 200
+        assert response.status_code == 404
         data = response.get_json()
-        assert 'analytics' in data
-        assert data['analytics'] == {}  # Empty analytics for non-existent game
+        assert 'error' in data
 
 
 class TestTransactionService:

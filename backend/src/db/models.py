@@ -1,7 +1,7 @@
 from decimal import Decimal
 from sqlalchemy import (
     Column, String, Text, ForeignKey, UniqueConstraint,
-    BigInteger, TIMESTAMP, func, Table, ARRAY, Index, text, Boolean, Numeric
+    BigInteger, TIMESTAMP, func, Table, ARRAY, Index, text, Boolean, Numeric, CheckConstraint
 )
 from sqlalchemy.dialects.postgresql import UUID, CITEXT, JSONB
 from sqlalchemy.orm import relationship
@@ -68,6 +68,7 @@ class Game(Base):
     created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
     # renamed from `metadata` to avoid colliding with SQLAlchemy's declarative metadata
     meta = Column(JSONB, nullable=False, server_default=text("'{}'::jsonb"))
+    alert_settings = Column(JSONB, nullable=False, server_default=text("'{}'::jsonb"))
 
     players = relationship('GamePlayer', back_populates='game', cascade="all, delete-orphan")
     sessions = relationship('Session', back_populates='game', cascade="all, delete-orphan")
@@ -333,28 +334,48 @@ class PaymentTransaction(Base):
 # ==========================================================
 class PaymentBalance(Base):
     __tablename__ = 'payment_balances'
-    
+
     id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
     game_id = Column(UUID(as_uuid=True), ForeignKey('games.id', ondelete='CASCADE'), nullable=False)
     player_id = Column(UUID(as_uuid=True), ForeignKey('players.id', ondelete='CASCADE'), nullable=False)
-    
+
     # Running totals (in cents)
     total_paid = Column(BigInteger, nullable=False, server_default=text("0"))
     total_received = Column(BigInteger, nullable=False, server_default=text("0"))
     poker_net_winnings = Column(BigInteger, nullable=False, server_default=text("0"))  # From SessionPlayerSummary
     payment_balance = Column(BigInteger, nullable=False, server_default=text("0"))  # Net amount owed/owed to
-    
+
+    # CRITICAL: Track when balance became negative (payment-grade feature)
+    # NULL when balance >= 0, timestamp when balance < 0
+    # Enforced by database constraints
+    balance_negative_since = Column(TIMESTAMP(timezone=True), nullable=True)
+
     # Timestamps
     last_updated = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
-    
+
     # Relationships
     game = relationship('Game', back_populates='payment_balances')
     player = relationship('Player', back_populates='payment_balances')
-    
+
     __table_args__ = (
         UniqueConstraint('game_id', 'player_id', name='uq_payment_balances_game_player'),
         Index('ix_payment_balances_game', 'game_id'),
         Index('ix_payment_balances_balance', 'game_id', 'payment_balance'),  # For finding who owes/is owed
+        # Partial index on negative balances for alert queries
+        Index('idx_payment_balances_negative_since', 'game_id', 'balance_negative_since',
+              postgresql_where=text('balance_negative_since IS NOT NULL')),
+        # FAIL FAST: Database constraints enforce invariants
+        # Constraint 1: Negative balance ↔ timestamp exists
+        CheckConstraint(
+            '(payment_balance < 0 AND balance_negative_since IS NOT NULL) OR '
+            '(payment_balance >= 0 AND balance_negative_since IS NULL)',
+            name='chk_balance_negative_since_consistent'
+        ),
+        # Constraint 2: Timestamp cannot be in the future
+        CheckConstraint(
+            'balance_negative_since IS NULL OR balance_negative_since <= NOW()',
+            name='chk_balance_negative_since_not_future'
+        ),
     )
 
 
