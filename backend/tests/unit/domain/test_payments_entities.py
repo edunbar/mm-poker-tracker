@@ -5,7 +5,7 @@ import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
 
 import pytest
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from unittest.mock import Mock
 from uuid import uuid4
@@ -442,7 +442,8 @@ class TestPlayerBalance:
             game_id=GameId(str(uuid4())),
             poker_net_winnings=Money("0.00"),
             total_paid=Money("0.00"),
-            total_received=Money("50.00")  # Received more than won
+            total_received=Money("50.00"),  # Received more than won
+            balance_negative_since=datetime.now(timezone.utc)
         )
 
         status = balance.get_balance_status()
@@ -465,7 +466,8 @@ class TestPlayerBalance:
             game_id=GameId(str(uuid4())),
             poker_net_winnings=Money("0.00"),
             total_paid=Money("0.00"),
-            total_received=Money("50.00")
+            total_received=Money("50.00"),
+            balance_negative_since=datetime.now(timezone.utc)
         )
 
         owed = balance.amount_owed()
@@ -503,7 +505,8 @@ class TestPlayerBalance:
             game_id=GameId(str(uuid4())),
             poker_net_winnings=Money("0.00"),
             total_paid=Money("0.00"),
-            total_received=Money("50.00")
+            total_received=Money("50.00"),
+            balance_negative_since=datetime.now(timezone.utc)
         )
 
         due2 = balance2.amount_due()

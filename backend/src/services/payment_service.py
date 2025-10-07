@@ -496,9 +496,12 @@ class PaymentService:
 
             # STATE TRANSITION: Determine balance_negative_since based on balance changes
             now_utc = datetime.now(timezone.utc)
-            old_balance = balance.payment_balance if balance else 0
-            new_balance = payment_balance
+            old_balance = int(balance.payment_balance) if balance else 0
+            new_balance = int(payment_balance)
             old_negative_since = balance.balance_negative_since if balance else None
+
+            # Debug logging
+            logger.debug(f"State transition for player {player_id}: old_balance={old_balance}, new_balance={new_balance}, old_negative_since={old_negative_since}")
 
             # Calculate new balance_negative_since timestamp
             if old_balance >= 0 and new_balance < 0:
@@ -514,6 +517,8 @@ class PaymentService:
                 # TRANSITION: positive/zero → still positive/zero (keep NULL)
                 new_negative_since = None
 
+            # Debug logging
+            logger.debug(f"Transition result: new_negative_since={new_negative_since}")
             if balance:
                 balance.total_paid = total_paid
                 balance.total_received = total_received

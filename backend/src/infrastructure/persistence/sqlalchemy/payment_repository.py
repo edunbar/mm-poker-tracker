@@ -307,10 +307,13 @@ class SQLAlchemyPaymentBalanceRepository(PaymentBalanceRepository):
                 # Calculate the net balance to determine if we need a timestamp
                 calculated_balance = poker_net + total_paid - total_received
 
+                # INVARIANT CORRECTION: Fix stale data from database
                 # If balance is negative but we don't have a timestamp, set it to now
-                # This handles new balances and migration scenarios
                 if calculated_balance < Money.zero() and balance_negative_since is None:
                     balance_negative_since = datetime.now(timezone.utc)
+                # If balance is positive/zero but we have a timestamp, clear it
+                elif calculated_balance >= Money.zero() and balance_negative_since is not None:
+                    balance_negative_since = None
 
                 balance = PlayerBalance(
                     player_id=player_id_obj,

@@ -1011,15 +1011,14 @@ class TestGameSummaryServiceParity:
         """Test that both services handle errors consistently."""
         nonexistent_code = "TEST9"  # Valid format but non-existent
 
-        # Both services should handle non-existent games gracefully
+        # V1 service returns empty results for non-existent games
         old_result = old_get_player_summaries(nonexistent_code)
-        new_result = new_get_player_summaries(nonexistent_code)
-
-        # Should return empty results rather than crash
         assert isinstance(old_result, dict)
-        assert isinstance(new_result, dict)
         assert old_result["rows"] == []
-        assert new_result["rows"] == []
+
+        # V2 service raises ValueError (route layer converts to 404)
+        with pytest.raises(ValueError, match="Game not found"):
+            new_result = new_get_player_summaries(nonexistent_code)
 
 
 if __name__ == "__main__":
