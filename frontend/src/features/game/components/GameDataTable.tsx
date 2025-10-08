@@ -1,6 +1,6 @@
 import React, { useMemo } from "react";
 import { PlayerSummaryRow } from "../../../entities/game/types";
-import { EnhancedDataTable, createColumn } from "../../../shared/ui/enhanced-data-table";
+import { EnhancedDataTable, createColumn, useTableState } from "../../../shared/ui/enhanced-data-table";
 
 interface GameDataTableProps {
   playersInfos: PlayerSummaryRow[];
@@ -17,23 +17,25 @@ function formatNumber(n: number | null | undefined) {
 }
 
 const GameDataTable: React.FC<GameDataTableProps> = ({ playersInfos = [] }) => {
+  // Use table state hook for sorting
+  const { sortConfig, sortedData, handleSort } = useTableState(playersInfos, 'rank', 'asc');
   // derive totals similar to IngestDataTable's deriveTotals
   const derived = useMemo(() => {
-    if (!Array.isArray(playersInfos) || playersInfos.length === 0) {
+    if (!Array.isArray(sortedData) || sortedData.length === 0) {
       return { buyInTotal: 0, cashOutTotal: 0, net: 0 };
     }
-    const buyInTotal = playersInfos.reduce(
+    const buyInTotal = sortedData.reduce(
       (s, p) => s + (Number(p.buyIn) || 0),
       0
     );
-    const cashOutTotal = playersInfos.reduce(
+    const cashOutTotal = sortedData.reduce(
       (s, p) => s + (Number(p.cashOut) || 0),
       0
     );
-    const net = playersInfos.reduce((s, p) => s + (Number(p.net) || 0), 0);
+    const net = sortedData.reduce((s, p) => s + (Number(p.net) || 0), 0);
     const balanced = Math.round((buyInTotal - cashOutTotal) * 100) === 0;
     return { buyInTotal, cashOutTotal, net, balanced };
-  }, [playersInfos]);
+  }, [sortedData]);
 
   const columns = useMemo(() => [
     createColumn('player', 'Player', 'player', {
@@ -42,16 +44,13 @@ const GameDataTable: React.FC<GameDataTableProps> = ({ playersInfos = [] }) => {
     }),
     createColumn('rank', 'Rank', 'rank', {
       sortable: true,
-      align: 'right' as const,
       className: 'hidden md:table-cell'
     }),
     createColumn('buyIn', 'Buy In', (row: PlayerSummaryRow) => formatNumber(row.buyIn), {
-      sortable: true,
-      align: 'right' as const
+      sortable: true
     }),
     createColumn('cashOut', 'Cash Out', (row: PlayerSummaryRow) => formatNumber(row.cashOut), {
-      sortable: true,
-      align: 'right' as const
+      sortable: true
     }),
     createColumn('net', 'Net', (row: PlayerSummaryRow) => (
       <span className={`font-medium ${
@@ -64,12 +63,10 @@ const GameDataTable: React.FC<GameDataTableProps> = ({ playersInfos = [] }) => {
         {formatNumber(row.net)}
       </span>
     ), {
-      sortable: true,
-      align: 'right' as const
+      sortable: true
     }),
     createColumn('gamesPlayed', 'Games', 'gamesPlayed', {
       sortable: true,
-      align: 'right' as const,
       className: 'hidden md:table-cell'
     }),
   ], []);
@@ -84,8 +81,8 @@ const GameDataTable: React.FC<GameDataTableProps> = ({ playersInfos = [] }) => {
       net: derived.net,
       gamesPlayed: 0,
     };
-    return [...playersInfos, totalsRow];
-  }, [playersInfos, derived]);
+    return [...sortedData, totalsRow];
+  }, [sortedData, derived]);
 
   if (!Array.isArray(playersInfos) || playersInfos.length === 0) {
     return <div>No player summary data available.</div>;
@@ -95,6 +92,8 @@ const GameDataTable: React.FC<GameDataTableProps> = ({ playersInfos = [] }) => {
     <EnhancedDataTable
       data={dataWithTotals}
       columns={columns}
+      {...(sortConfig && { sortConfig })}
+      onSort={handleSort}
       className="rounded-xl"
       variant="default"
       emptyState={<div>No player summary data available.</div>}
