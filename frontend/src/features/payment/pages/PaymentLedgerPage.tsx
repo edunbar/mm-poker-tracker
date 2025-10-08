@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { AlertTriangle, Bell, ChevronDown, ChevronUp, DollarSign, Edit, History, Plus, Target, Trash2, Users, X } from 'lucide-react';
+import { AlertTriangle, Bell, ChevronDown, ChevronUp, CreditCard, DollarSign, Edit, History, Plus, Star, Target, Trash2, Users, X } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { API_BASE_URL } from '../../../config/api';
@@ -60,6 +60,21 @@ interface ApiError {
   };
 }
 
+interface PlayerPaymentMethod {
+  id: string;
+  payment_method: string;
+  payment_address: string;
+  is_primary: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+interface PlayerWithMethods {
+  player_id: string;
+  player_name: string;
+  methods: PlayerPaymentMethod[];
+}
+
 export default function PaymentLedgerPage() {
   const { publicCode } = useParams<{ publicCode: string }>();
   const { title: _title } = useGameTitle(publicCode || '');
@@ -68,9 +83,10 @@ export default function PaymentLedgerPage() {
   const [paymentSummary, setPaymentSummary] = useState<PlayerPaymentSummary[]>([]);
   const [settlements, setSettlements] = useState<SettlementSuggestion[]>([]);
   const [paymentHistory, setPaymentHistory] = useState<PaymentTransaction[]>([]);
+  const [paymentMethods, setPaymentMethods] = useState<PlayerWithMethods[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'summary' | 'settlements' | 'history' | 'record' | 'alerts'>('summary');
-  const [playerViolations, setPlayerViolations] = useState<Map<string, string>>(new Map());
+  const [activeTab, setActiveTab] = useState<'summary' | 'settlements' | 'history' | 'record' | 'alerts' | 'methods'>('summary');
+  const [playersWithViolations, setPlayersWithViolations] = useState<Map<string, string>>(new Map());
 
   // Sorting state
   const [sortField, setSortField] = useState<keyof PlayerPaymentSummary | null>(null);
@@ -103,6 +119,18 @@ export default function PaymentLedgerPage() {
 
   // Delete confirmation modal state
   const [paymentToDelete, setPaymentToDelete] = useState<PaymentTransaction | null>(null);
+
+  // Payment method modal state
+  const [showMethodModal, setShowMethodModal] = useState(false);
+  const [editingMethod, setEditingMethod] = useState<PlayerPaymentMethod | null>(null);
+  const [methodPlayerId, setMethodPlayerId] = useState<string>('');
+  const [editingPlayerMethods, setEditingPlayerMethods] = useState<string | null>(null);
+  const [methodForm, setMethodForm] = useState({
+    payment_method: '',
+    payment_address: '',
+    is_primary: false
+  });
+  const [methodToDelete, setMethodToDelete] = useState<PlayerPaymentMethod | null>(null);
 
   const getAdminCode = () => {
     return hasAdminSession ? sessionAdminCode : manualAdminCode;
@@ -168,9 +196,18 @@ export default function PaymentLedgerPage() {
           }
         });
 
-      setPlayerViolations(violationsMap);
+      setPlayersWithViolations(violationsMap);
     } catch (error) {
       // Silently handle error - alerts are optional feature
+    }
+  }, [publicCode]);
+
+  const fetchPaymentMethods = useCallback(async () => {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/api/games/${publicCode}/all-payment-methods`);
+      setPaymentMethods(response.data);
+    } catch (error) {
+      // Silently handle error
     }
   }, [publicCode]);
 
@@ -182,12 +219,13 @@ export default function PaymentLedgerPage() {
         fetchPaymentSummary(),
         fetchSettlements(),
         fetchPaymentHistory(),
-        fetchAlertStatus()
+        fetchAlertStatus(),
+        fetchPaymentMethods()
       ]).finally(() => {
         setLoading(false);
       });
     }
-  }, [publicCode, fetchPaymentSummary, fetchSettlements, fetchPaymentHistory, fetchAlertStatus]);
+  }, [publicCode, fetchPaymentSummary, fetchSettlements, fetchPaymentHistory, fetchAlertStatus, fetchPaymentMethods]);
 
   const handleRecordPayment = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -430,6 +468,102 @@ export default function PaymentLedgerPage() {
     return new Date(dateString).toLocaleDateString();
   };
 
+  // Payment method handlers
+  const handleAddMethod = (playerId: string) => {
+    setMethodPlayerId(playerId);
+    setEditingMethod(null);
+    setMethodForm({
+      payment_method: '',
+      payment_address: '',
+      is_primary: false
+    });
+    setShowMethodModal(true);
+  };
+
+  const handleEditMethod = (playerId: string, method: PlayerPaymentMethod) => {
+    setMethodPlayerId(playerId);
+    setEditingMethod(method);
+    setMethodForm({
+      payment_method: method.payment_method,
+      payment_address: method.payment_address,
+      is_primary: method.is_primary
+    });
+    setShowMethodModal(true);
+  };
+
+  const handleSaveMethod = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!methodForm.payment_method || !methodForm.payment_address) {
+      showError('Validation Error', 'Please fill in payment method and address');
+      return;
+    }
+
+    setSubmitLoading(true);
+
+    try {
+      if (editingMethod) {
+        // Update existing method
+        await axios.put(
+          `${API_BASE_URL}/api/games/players/${methodPlayerId}/payment-methods/${editingMethod.id}`,
+          methodForm
+        );
+        showSuccess('Method Updated', 'Payment method updated successfully');
+      } else {
+        // Add new method
+        await axios.post(
+          `${API_BASE_URL}/api/games/players/${methodPlayerId}/payment-methods`,
+          methodForm
+        );
+        showSuccess('Method Added', 'Payment method added successfully');
+      }
+
+      // Refresh payment methods
+      await fetchPaymentMethods();
+      setShowMethodModal(false);
+    } catch (error) {
+      const errorMsg = (error as ApiError).response?.data?.error || 'Failed to save payment method';
+      showError('Error', errorMsg);
+    } finally {
+      setSubmitLoading(false);
+    }
+  };
+
+  const handleSetPrimary = async (playerId: string, methodId: string) => {
+    setSubmitLoading(true);
+    try {
+      await axios.post(
+        `${API_BASE_URL}/api/games/players/${playerId}/payment-methods/${methodId}/set-primary`
+      );
+      showSuccess('Primary Set', 'Primary payment method updated');
+      await fetchPaymentMethods();
+    } catch (error) {
+      const errorMsg = (error as ApiError).response?.data?.error || 'Failed to set primary method';
+      showError('Error', errorMsg);
+    } finally {
+      setSubmitLoading(false);
+    }
+  };
+
+  const confirmDeleteMethod = async () => {
+    if (!methodToDelete) return;
+
+    setSubmitLoading(true);
+    try {
+      await axios.delete(
+        `${API_BASE_URL}/api/games/players/${methodPlayerId}/payment-methods/${methodToDelete.id}`
+      );
+      showSuccess('Method Deleted', 'Payment method deleted successfully');
+      await fetchPaymentMethods();
+      setMethodToDelete(null);
+    } catch (error) {
+      const errorMsg = (error as ApiError).response?.data?.error || 'Failed to delete payment method';
+      showError('Error', errorMsg);
+    } finally {
+      setSubmitLoading(false);
+    }
+  };
+
   const handleSort = (field: keyof PlayerPaymentSummary) => {
     if (sortField === field) {
       setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
@@ -467,6 +601,15 @@ export default function PaymentLedgerPage() {
   const getSortIcon = (field: keyof PlayerPaymentSummary) => {
     if (sortField !== field) return null;
     return sortDirection === 'asc' ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />;
+  };
+
+  // Get primary payment method for a player
+  const getPrimaryPaymentMethod = (playerId: string): PlayerPaymentMethod | null => {
+    const playerMethods = paymentMethods.find(pm => pm.player_id === playerId);
+    if (!playerMethods || !playerMethods.methods || playerMethods.methods.length === 0) {
+      return null;
+    }
+    return playerMethods.methods.find(m => m.is_primary) || null;
   };
 
   // Group settlements by payer
@@ -561,6 +704,18 @@ export default function PaymentLedgerPage() {
             >
               <History className="w-4 h-4 inline mr-2" />
               Payment History
+            </Button>
+            <Button
+              onClick={() => setActiveTab('methods')}
+              variant="ghost"
+              className={`py-2 px-3 sm:px-1 border-b-2 sm:border-b-2 border-l-4 sm:border-l-0 font-medium text-sm rounded-none w-full sm:w-auto justify-start sm:justify-center ${
+                activeTab === 'methods'
+                  ? 'border-primary text-primary'
+                  : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
+              }`}
+            >
+              <CreditCard className="w-4 h-4 inline mr-2" />
+              Payment Methods
             </Button>
             {/* Only show Record Payment and Alerts tabs for admin users */}
             {canEdit && (
@@ -686,13 +841,13 @@ export default function PaymentLedgerPage() {
                     <tr key={player.player_id}>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center gap-2">
-                          {playerViolations.has(player.player_id) && (
+                          {playersWithViolations.has(player.player_id) && (
                             <Tooltip>
                               <TooltipTrigger>
                                 <AlertTriangle className="w-4 h-4 text-destructive" />
                               </TooltipTrigger>
                               <TooltipContent className="left-0 translate-x-0">
-                                {playerViolations.get(player.player_id)}
+                                {playersWithViolations.get(player.player_id)}
                               </TooltipContent>
                             </Tooltip>
                           )}
@@ -758,13 +913,13 @@ export default function PaymentLedgerPage() {
                 return (
                   <div key={player.player_id} className="p-4">
                     <div className="mb-3 flex items-center gap-2">
-                      {playerViolations.has(player.player_id) && (
+                      {playersWithViolations.has(player.player_id) && (
                         <Tooltip>
                           <TooltipTrigger>
                             <AlertTriangle className="w-5 h-5 text-destructive" />
                           </TooltipTrigger>
                           <TooltipContent className="left-0 translate-x-0">
-                            {playerViolations.get(player.player_id)}
+                            {playersWithViolations.get(player.player_id)}
                           </TooltipContent>
                         </Tooltip>
                       )}
@@ -848,64 +1003,121 @@ export default function PaymentLedgerPage() {
               </Text>
             </div>
             {(settlements || []).length > 0 ? (
-              <div className="p-4 md:p-6">
-                <div className="space-y-4 md:space-y-6">
+              <div className="p-2">
+                {/* Desktop View - Grouped by Payer */}
+                <div className="hidden md:block space-y-4">
                   {Object.entries(groupedSettlements).map(([payerId, payerInfo]) => (
-                    <div key={payerId} className="bg-muted/50 rounded-lg p-3 md:p-4 border border-border">
+                    <div key={payerId} className="border border-border rounded-lg overflow-hidden shadow-sm">
                       {/* Payer Header */}
-                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 pb-3 border-b border-border gap-3">
-                        <div className="flex items-center space-x-3">
-                          <div className="w-10 h-10 bg-destructive/10 rounded-full flex items-center justify-center shrink-0">
-                            <DollarSign className="w-5 h-5 text-destructive" />
-                          </div>
-                          <div>
-                            <Heading variant="h3">
-                              {payerInfo.payer_name} owes
-                            </Heading>
-                          </div>
+                      <div className="bg-muted/50 px-4 py-3 flex items-center justify-between border-b border-border">
+                        <div className="flex items-center gap-2">
+                          <Text variant="body" weight="bold">{payerInfo.payer_name} owes</Text>
                         </div>
-                        <div className="text-left sm:text-right">
-                          <div>
-                            <Heading variant="h4" color="destructive">{formatCurrency(payerInfo.total_owed)}</Heading>
-                          </div>
+                        <Text variant="bodyLarge" weight="bold" color="destructive">
+                          {formatCurrency(payerInfo.total_owed)}
+                        </Text>
+                      </div>
+
+                      {/* Payments Table */}
+                      <table className="min-w-full">
+                        <tbody className="bg-card divide-y divide-border">
+                          {payerInfo.payments.map((payment, index) => {
+                            const primaryMethod = getPrimaryPaymentMethod(payment.recipient_id);
+                            return (
+                              <tr key={index} className="hover:bg-muted/20">
+                                <td className="px-4 py-3">
+                                  <div className="flex items-center gap-2">
+                                    <Text variant="body" weight="medium">{payment.recipient_name}</Text>
+                                    {primaryMethod ? (
+                                      <div className="inline-flex items-center gap-1 px-2.5 py-1 rounded text-xs border border-primary bg-primary/10 text-primary whitespace-nowrap">
+                                        <span className="font-medium">{primaryMethod.payment_method}:</span>
+                                        <span className="text-muted-foreground">{primaryMethod.payment_address}</span>
+                                      </div>
+                                    ) : (
+                                      <Text variant="caption" color="muted" className="italic">(No payment method)</Text>
+                                    )}
+                                  </div>
+                                </td>
+                                <td className="px-4 py-3 text-right whitespace-nowrap w-32">
+                                  <Text variant="body" weight="bold" color="success">
+                                    {formatCurrency(payment.amount)}
+                                  </Text>
+                                </td>
+                                {canEdit && (
+                                  <td className="px-4 py-3 text-right whitespace-nowrap w-36">
+                                    <Button
+                                      onClick={() => handleMarkSettlementPaid(payment)}
+                                      disabled={submitLoading}
+                                      size="sm"
+                                      variant="ghost"
+                                      className="h-7 px-2 text-xs"
+                                      title="Record this settlement as paid"
+                                    >
+                                      <DollarSign className="w-3 h-3 mr-1" />
+                                      Mark as Paid
+                                    </Button>
+                                  </td>
+                                )}
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Mobile View - Grouped by Payer */}
+                <div className="md:hidden space-y-4">
+                  {Object.entries(groupedSettlements).map(([payerId, payerInfo]) => (
+                    <div key={payerId} className="border border-border rounded-lg overflow-hidden shadow-sm">
+                      {/* Payer Header */}
+                      <div className="bg-muted/50 px-3 py-3 border-b border-border">
+                        <div className="flex items-center justify-between">
+                          <Text variant="body" weight="bold">{payerInfo.payer_name} owes</Text>
+                          <Text variant="bodyLarge" weight="bold" color="destructive">
+                            {formatCurrency(payerInfo.total_owed)}
+                          </Text>
                         </div>
                       </div>
 
-                      {/* Individual Payments */}
-                      <div className="space-y-0">
-                        {payerInfo.payments.map((payment, paymentIndex) => (
-                          <div key={paymentIndex}>
-                            {paymentIndex > 0 && <hr className="border-border" />}
-                            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between py-3 gap-2">
-                              <div className="flex items-center justify-between sm:block">
-                                <Text variant="bodySmall" weight="bold">{payment.recipient_name}</Text>
-                                <div className="sm:hidden">
-                                  <Text variant="bodyLarge" weight="semibold" color="success">{formatCurrency(payment.amount)}</Text>
-                                </div>
-                              </div>
-                              <div className="flex items-center justify-between sm:justify-end sm:space-x-4">
-                                <div className="hidden sm:block text-right">
-                                  <div>
-                                    <Text variant="bodyLarge" weight="semibold" color="success">{formatCurrency(payment.amount)}</Text>
+                      {/* Payments List */}
+                      <div className="divide-y divide-border">
+                        {payerInfo.payments.map((payment, index) => {
+                          const primaryMethod = getPrimaryPaymentMethod(payment.recipient_id);
+                          return (
+                            <div key={index} className="p-3">
+                              <div className="mb-2">
+                                <Text variant="body" weight="medium">{payment.recipient_name}</Text>
+                                {primaryMethod ? (
+                                  <div className="inline-flex items-center gap-1 px-2.5 py-1 rounded text-xs border border-primary bg-primary/10 text-primary w-fit mt-1 whitespace-nowrap">
+                                    <span className="font-medium">{primaryMethod.payment_method}:</span>
+                                    <span className="text-muted-foreground">{primaryMethod.payment_address}</span>
                                   </div>
-                                </div>
-                                {/* Only show Mark as Paid button for admin users */}
+                                ) : (
+                                  <Text variant="caption" color="muted" className="italic block mt-1">(No payment method)</Text>
+                                )}
+                              </div>
+                              <div className="flex items-center justify-between pt-2 border-t border-border">
+                                <Text variant="bodyLarge" weight="bold" color="success">
+                                  {formatCurrency(payment.amount)}
+                                </Text>
                                 {canEdit && (
                                   <Button
                                     onClick={() => handleMarkSettlementPaid(payment)}
                                     disabled={submitLoading}
                                     size="sm"
-                                    className="bg-black text-white hover:opacity-90 flex items-center space-x-1 text-xs px-2 py-1 min-h-[44px] sm:min-h-0"
+                                    className="h-8 px-3 text-xs"
                                     title="Record this settlement as paid"
                                   >
-                                    <DollarSign className="w-4 h-4" />
-                                    <Text variant="caption">Mark as Paid</Text>
+                                    <DollarSign className="w-3 h-3 mr-1" />
+                                    Mark as Paid
                                   </Button>
                                 )}
                               </div>
                             </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     </div>
                   ))}
@@ -1247,6 +1459,274 @@ export default function PaymentLedgerPage() {
           <AlertSettings publicCode={publicCode || ''} />
         )}
 
+        {/* Payment Methods Tab */}
+        {activeTab === 'methods' && (
+          <div className="bg-card text-card-foreground shadow rounded-lg border border-border">
+            <div className="px-6 py-4 border-b border-border">
+              <Heading variant="h2">Payment Methods</Heading>
+              <Text variant="bodySmall" color="muted">
+                View and manage payment methods for all players
+              </Text>
+            </div>
+
+            {(paymentMethods || []).length > 0 ? (
+              <div className="p-4">
+                {/* Desktop Table View */}
+                <div className="hidden md:block overflow-x-auto">
+                  <table className="min-w-full divide-y divide-border">
+                    <thead className="bg-muted/50">
+                      <tr>
+                        <th className="px-4 py-2 text-left">
+                          <Text variant="caption" weight="medium" color="muted">Player</Text>
+                        </th>
+                        <th className="px-4 py-2 text-left">
+                          <Text variant="caption" weight="medium" color="muted">Payment Methods</Text>
+                        </th>
+                        <th className="px-4 py-2 text-right">
+                          <Text variant="caption" weight="medium" color="muted">Actions</Text>
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-card divide-y divide-border">
+                      {paymentMethods.map((playerData) => (
+                        <>
+                          <tr key={playerData.player_id} className="hover:bg-muted/30">
+                            <td className="px-4 py-2 whitespace-nowrap">
+                              <Text variant="bodySmall" weight="medium">{playerData.player_name}</Text>
+                            </td>
+                            <td className="px-4 py-2">
+                              {playerData.methods.length > 0 ? (
+                                <div className="flex flex-wrap gap-1.5">
+                                  {playerData.methods.map((method) => (
+                                    <div
+                                      key={method.id}
+                                      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs border ${
+                                        method.is_primary
+                                          ? 'border-primary bg-primary/10 text-primary'
+                                          : 'border-border bg-muted/50'
+                                      }`}
+                                    >
+                                      {method.is_primary && (
+                                        <Star className="w-3 h-3 fill-primary text-primary" />
+                                      )}
+                                      <span className="font-medium">{method.payment_method}:</span>
+                                      <span className="text-muted-foreground">{method.payment_address}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : (
+                                <Text variant="caption" color="muted">No methods added</Text>
+                              )}
+                            </td>
+                            <td className="px-4 py-2 text-right whitespace-nowrap">
+                              <div className="flex items-center justify-end gap-1">
+                                <Button
+                                  onClick={() => handleAddMethod(playerData.player_id)}
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-7 px-2 text-xs"
+                                >
+                                  <Plus className="w-3 h-3 mr-1" />
+                                  Add
+                                </Button>
+                                {playerData.methods.length > 0 && (
+                                  <Button
+                                    onClick={() => setEditingPlayerMethods(
+                                      editingPlayerMethods === playerData.player_id ? null : playerData.player_id
+                                    )}
+                                    size="sm"
+                                    variant="ghost"
+                                    className="h-7 px-2 text-xs"
+                                  >
+                                    <Edit className="w-3 h-3 mr-1" />
+                                    Edit
+                                  </Button>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                          {editingPlayerMethods === playerData.player_id && (
+                            <tr key={`${playerData.player_id}-edit`} className="bg-muted/20">
+                              <td colSpan={3} className="px-4 py-3">
+                                <div className="space-y-2">
+                                  {playerData.methods.map((method) => (
+                                    <div
+                                      key={method.id}
+                                      className="flex items-center justify-between p-2 rounded bg-background border border-border"
+                                    >
+                                      <div className="flex items-center gap-2">
+                                        {method.is_primary && (
+                                          <Star className="w-3 h-3 text-primary fill-primary flex-shrink-0" />
+                                        )}
+                                        <div className="text-xs">
+                                          <span className="font-medium">{method.payment_method}:</span>{' '}
+                                          <span className="text-muted-foreground">{method.payment_address}</span>
+                                        </div>
+                                      </div>
+                                      <div className="flex items-center gap-1">
+                                        {!method.is_primary && (
+                                          <Button
+                                            onClick={() => handleSetPrimary(playerData.player_id, method.id)}
+                                            size="sm"
+                                            variant="ghost"
+                                            className="h-6 px-2 text-xs"
+                                            disabled={submitLoading}
+                                          >
+                                            <Star className="w-3 h-3 mr-1" />
+                                            Set Primary
+                                          </Button>
+                                        )}
+                                        <Button
+                                          onClick={() => handleEditMethod(playerData.player_id, method)}
+                                          size="sm"
+                                          variant="ghost"
+                                          className="h-6 px-2 text-xs"
+                                        >
+                                          <Edit className="w-3 h-3 mr-1" />
+                                          Edit
+                                        </Button>
+                                        <Button
+                                          onClick={() => {
+                                            setMethodPlayerId(playerData.player_id);
+                                            setMethodToDelete(method);
+                                          }}
+                                          size="sm"
+                                          variant="ghost"
+                                          className="h-6 px-2 text-xs text-destructive hover:text-destructive"
+                                          disabled={submitLoading}
+                                        >
+                                          <Trash2 className="w-3 h-3 mr-1" />
+                                          Delete
+                                        </Button>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Mobile Compact List View */}
+                <div className="md:hidden space-y-2">
+                  {paymentMethods.map((playerData) => (
+                    <div key={playerData.player_id} className="border border-border rounded p-2">
+                      <div className="flex items-center justify-between mb-2">
+                        <Text variant="bodySmall" weight="medium">{playerData.player_name}</Text>
+                        <div className="flex items-center gap-1">
+                          <Button
+                            onClick={() => handleAddMethod(playerData.player_id)}
+                            size="sm"
+                            variant="ghost"
+                            className="h-7 px-2 text-xs"
+                          >
+                            <Plus className="w-3 h-3" />
+                          </Button>
+                          {playerData.methods.length > 0 && (
+                            <Button
+                              onClick={() => setEditingPlayerMethods(
+                                editingPlayerMethods === playerData.player_id ? null : playerData.player_id
+                              )}
+                              size="sm"
+                              variant="ghost"
+                              className="h-7 px-2 text-xs"
+                            >
+                              <Edit className="w-3 h-3" />
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                      {playerData.methods.length > 0 ? (
+                        <>
+                          <div className="flex flex-wrap gap-1.5 mb-2">
+                            {playerData.methods.map((method) => (
+                              <div
+                                key={method.id}
+                                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs border ${
+                                  method.is_primary
+                                    ? 'border-primary bg-primary/10 text-primary'
+                                    : 'border-border bg-muted/50'
+                                }`}
+                              >
+                                {method.is_primary && (
+                                  <Star className="w-3 h-3 fill-primary text-primary" />
+                                )}
+                                <span className="font-medium">{method.payment_method}:</span>
+                                <span className="text-muted-foreground">{method.payment_address}</span>
+                              </div>
+                            ))}
+                          </div>
+                          {editingPlayerMethods === playerData.player_id && (
+                            <div className="space-y-1 pt-2 border-t border-border">
+                              {playerData.methods.map((method) => (
+                                <div
+                                  key={method.id}
+                                  className="flex items-center justify-between p-1.5 rounded bg-background border border-border"
+                                >
+                                  <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                                    {method.is_primary && (
+                                      <Star className="w-3 h-3 text-primary fill-primary flex-shrink-0" />
+                                    )}
+                                    <div className="truncate text-xs">
+                                      <span className="font-medium">{method.payment_method}:</span>{' '}
+                                      <span className="text-muted-foreground">{method.payment_address}</span>
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center gap-0.5 ml-2 flex-shrink-0">
+                                    {!method.is_primary && (
+                                      <button
+                                        onClick={() => handleSetPrimary(playerData.player_id, method.id)}
+                                        className="p-1 text-muted-foreground hover:text-foreground"
+                                        disabled={submitLoading}
+                                        title="Set as primary"
+                                      >
+                                        <Star className="w-3 h-3" />
+                                      </button>
+                                    )}
+                                    <button
+                                      onClick={() => handleEditMethod(playerData.player_id, method)}
+                                      className="p-1 text-muted-foreground hover:text-foreground"
+                                      title="Edit"
+                                    >
+                                      <Edit className="w-3 h-3" />
+                                    </button>
+                                    <button
+                                      onClick={() => {
+                                        setMethodPlayerId(playerData.player_id);
+                                        setMethodToDelete(method);
+                                      }}
+                                      className="p-1 text-muted-foreground hover:text-destructive"
+                                      disabled={submitLoading}
+                                      title="Delete"
+                                    >
+                                      <Trash2 className="w-3 h-3" />
+                                    </button>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </>
+                      ) : (
+                        <Text variant="caption" color="muted">No methods added</Text>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className="p-8 text-center">
+                <CreditCard className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
+                <Text variant="body" color="muted">No payment methods configured yet</Text>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Edit Payment Modal - Only for admin users */}
         {editingPayment && canEdit && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -1556,6 +2036,165 @@ export default function PaymentLedgerPage() {
                       <>
                         <Trash2 className="w-4 h-4 mr-2" />
                         Delete Payment
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Add/Edit Payment Method Modal */}
+        {showMethodModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-card text-card-foreground rounded-lg shadow-xl border border-border max-w-md w-full mx-4">
+              <div className="flex items-center justify-between p-6 border-b border-border">
+                <Heading variant="h3">{editingMethod ? 'Edit' : 'Add'} Payment Method</Heading>
+                <Button
+                  onClick={() => setShowMethodModal(false)}
+                  variant="ghost"
+                  size="icon-sm"
+                  className="text-muted-foreground hover:text-foreground"
+                >
+                  <X className="w-6 h-6" />
+                </Button>
+              </div>
+
+              <form onSubmit={handleSaveMethod} className="p-6 space-y-4">
+                <div>
+                  <Text variant="bodySmall" weight="medium" as="label" className="block mb-1">
+                    Payment Method *
+                  </Text>
+                  <select
+                    value={methodForm.payment_method}
+                    onChange={(e) => setMethodForm({...methodForm, payment_method: e.target.value})}
+                    className="w-full px-3 py-2 border border-input rounded-md focus:ring-ring focus:border-ring bg-background text-foreground"
+                    required
+                  >
+                    <option value="">Select method...</option>
+                    <option value="Venmo">Venmo</option>
+                    <option value="Zelle">Zelle</option>
+                    <option value="Apple Cash">Apple Cash</option>
+                    <option value="Cash">Cash</option>
+                    <option value="PayPal">PayPal</option>
+                    <option value="Bank Transfer">Bank Transfer</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+
+                <div>
+                  <Text variant="bodySmall" weight="medium" as="label" className="block mb-1">
+                    Address/Handle *
+                  </Text>
+                  <input
+                    type="text"
+                    value={methodForm.payment_address}
+                    onChange={(e) => setMethodForm({...methodForm, payment_address: e.target.value})}
+                    className="w-full px-3 py-2 border border-input rounded-md focus:ring-ring focus:border-ring bg-background text-foreground"
+                    placeholder="@username, phone, or email"
+                    required
+                  />
+                  <Text variant="caption" color="muted" className="mt-1">
+                    For Venmo, enter your username (@ will be added automatically)
+                  </Text>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="is_primary"
+                    checked={methodForm.is_primary}
+                    onChange={(e) => setMethodForm({...methodForm, is_primary: e.target.checked})}
+                    className="rounded border-input"
+                  />
+                  <Text variant="bodySmall" as="label" htmlFor="is_primary">
+                    Set as primary payment method
+                  </Text>
+                </div>
+
+                <div className="flex justify-end gap-3 pt-4">
+                  <Button
+                    type="button"
+                    onClick={() => setShowMethodModal(false)}
+                    variant="outline"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="submit"
+                    disabled={submitLoading}
+                    className="bg-black text-white hover:opacity-90"
+                  >
+                    {submitLoading ? 'Saving...' : 'Save'}
+                  </Button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* Delete Payment Method Confirmation Modal */}
+        {methodToDelete && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-card text-card-foreground rounded-lg shadow-xl border border-border max-w-md w-full mx-4">
+              <div className="flex items-center justify-between p-6 border-b border-border">
+                <Heading variant="h3">Confirm Delete</Heading>
+                <Button
+                  onClick={() => setMethodToDelete(null)}
+                  variant="ghost"
+                  size="icon-sm"
+                  className="text-muted-foreground hover:text-foreground"
+                  disabled={submitLoading}
+                >
+                  <X className="w-6 h-6" />
+                </Button>
+              </div>
+
+              <div className="p-6">
+                <div className="flex items-center mb-4">
+                  <div className="flex-shrink-0 w-10 h-10 bg-destructive/20 rounded-full flex items-center justify-center">
+                    <Trash2 className="w-6 h-6 text-destructive" />
+                  </div>
+                  <div className="ml-4">
+                    <Text variant="bodyLarge" weight="medium" as="h4">Delete Payment Method</Text>
+                    <Text variant="bodySmall" color="muted">This action cannot be undone.</Text>
+                  </div>
+                </div>
+
+                <div className="bg-muted rounded-lg p-4 mb-4">
+                  <Text variant="bodySmall" weight="medium" className="mb-1">
+                    {methodToDelete.payment_method}
+                  </Text>
+                  <Text variant="caption" color="muted">
+                    {methodToDelete.payment_address}
+                  </Text>
+                </div>
+
+                <div className="flex justify-end space-x-3">
+                  <Button
+                    type="button"
+                    onClick={() => setMethodToDelete(null)}
+                    variant="outline"
+                    disabled={submitLoading}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={confirmDeleteMethod}
+                    disabled={submitLoading}
+                    variant="destructive"
+                    className="flex items-center"
+                  >
+                    {submitLoading ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
+                        Deleting...
+                      </>
+                    ) : (
+                      <>
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        Delete
                       </>
                     )}
                   </Button>
