@@ -35,6 +35,7 @@ from services.game_creation_service_v2 import (
     validate_game_title
 )
 from services.payment_service_v2 import PaymentService
+from services.player_payment_method_service import PlayerPaymentMethodService
 from services.hand_log_service import HandLogService
 from services.hand_analytics_service import get_hand_analytics
 from services.poker_statistics_service import PokerStatisticsProcessor
@@ -1147,6 +1148,194 @@ def delete_payment_transaction(public_code: str, payment_id: str):
     except Exception as e:
         logging.error(f"Error deleting payment: {e}")
         return jsonify({"error": str(e)}), 500
+
+
+# ==========================================================
+# Payment Methods Routes
+# ----------------------------------------------------------
+# Routes for managing player payment method preferences.
+# Payment methods are GLOBAL (not per-game), and anyone can view/edit them.
+# ==========================================================
+
+@game_bp.get("/<public_code>/all-payment-methods")
+def get_all_payment_methods(public_code: str):
+    """
+    Get all payment methods for all players in a game.
+
+    This is a public endpoint - no authentication required.
+    Payment methods are displayed for all players to facilitate payments.
+
+    Returns:
+    [
+      {
+        "player_id": "uuid",
+        "player_name": "Alice",
+        "methods": [
+          {
+            "id": "uuid",
+            "payment_method": "Venmo",
+            "payment_address": "@alice",
+            "is_primary": true,
+            "created_at": "2025-10-07T...",
+            "updated_at": "2025-10-07T..."
+          }
+        ]
+      }
+    ]
+    """
+    try:
+        with SessionLocal() as db:
+            # Get game by public code
+            game = db.query(Game).filter(Game.public_code == public_code).first()
+            if not game:
+                return jsonify({"error": "Game not found"}), 404
+
+            # Get all payment methods for players in this game
+            service = PlayerPaymentMethodService(db)
+            methods = service.get_all_payment_methods_for_game(str(game.id))
+
+            return jsonify(methods), 200
+
+    except Exception as e:
+        logging.error(f"Error getting payment methods: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@game_bp.post("/players/<player_id>/payment-methods")
+def add_payment_method(player_id: str):
+    """
+    Add a new payment method for a player.
+
+    This is a public endpoint - no authentication required.
+    Anyone can add payment methods for any player.
+
+    Body expects:
+    {
+      "payment_method": "Venmo",
+      "payment_address": "alice",
+      "is_primary": false
+    }
+    """
+    try:
+        body = request.get_json(force=True)
+        if not body:
+            return jsonify({"error": "Request body is required"}), 400
+
+        # Validate required fields
+        if "payment_method" not in body or "payment_address" not in body:
+            return jsonify({"error": "payment_method and payment_address are required"}), 400
+
+        with SessionLocal() as db:
+            service = PlayerPaymentMethodService(db)
+
+            # Add payment method
+            new_method = service.add_payment_method(
+                player_id=player_id,
+                payment_method=body["payment_method"],
+                payment_address=body["payment_address"],
+                is_primary=body.get("is_primary", False)
+            )
+
+            db.commit()
+            return jsonify(new_method), 201
+
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+    except Exception as e:
+        logging.error(f"Error adding payment method: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@game_bp.put("/players/<player_id>/payment-methods/<method_id>")
+def update_payment_method(player_id: str, method_id: str):
+    """
+    Update an existing payment method.
+
+    This is a public endpoint - no authentication required.
+    Anyone can edit payment methods.
+
+    Body expects:
+    {
+      "payment_method": "Venmo",     // optional
+      "payment_address": "@alice",   // optional
+      "is_primary": true             // optional
+    }
+    """
+    try:
+        body = request.get_json(force=True)
+        if not body:
+            return jsonify({"error": "Request body is required"}), 400
+
+        with SessionLocal() as db:
+            service = PlayerPaymentMethodService(db)
+
+            # Update payment method
+            updated_method = service.update_payment_method(
+                method_id=method_id,
+                payment_method=body.get("payment_method"),
+                payment_address=body.get("payment_address"),
+                is_primary=body.get("is_primary")
+            )
+
+            db.commit()
+            return jsonify(updated_method), 200
+
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+    except Exception as e:
+        logging.error(f"Error updating payment method: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@game_bp.post("/players/<player_id>/payment-methods/<method_id>/set-primary")
+def set_payment_method_primary(player_id: str, method_id: str):
+    """
+    Set a payment method as primary.
+
+    This will unset all other primaries for this player and set this one.
+    This is a public endpoint - no authentication required.
+    """
+    try:
+        with SessionLocal() as db:
+            service = PlayerPaymentMethodService(db)
+
+            # Set as primary (atomic operation)
+            updated_method = service.set_primary(method_id)
+
+            db.commit()
+            return jsonify(updated_method), 200
+
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+    except Exception as e:
+        logging.error(f"Error setting primary payment method: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@game_bp.delete("/players/<player_id>/payment-methods/<method_id>")
+def delete_payment_method(player_id: str, method_id: str):
+    """
+    Delete a payment method.
+
+    This is a public endpoint - no authentication required.
+    Anyone can delete payment methods.
+    """
+    try:
+        with SessionLocal() as db:
+            service = PlayerPaymentMethodService(db)
+
+            # Delete payment method
+            service.delete_payment_method(method_id)
+
+            db.commit()
+            return jsonify({"message": "Payment method deleted successfully"}), 200
+
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+    except Exception as e:
+        logging.error(f"Error deleting payment method: {e}")
+        return jsonify({"error": str(e)}), 500
+
 
 @game_bp.put("/<public_code>/sessions/<session_id>/players/<player_id>")
 def update_session_player_values(public_code: str, session_id: str, player_id: str):

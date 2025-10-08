@@ -35,6 +35,7 @@ class Player(Base):
     payments_sent = relationship('PaymentTransaction', back_populates='payer', foreign_keys='PaymentTransaction.payer_id', cascade="all, delete-orphan")
     payments_received = relationship('PaymentTransaction', back_populates='recipient', foreign_keys='PaymentTransaction.recipient_id', cascade="all, delete-orphan")
     payment_balances = relationship('PaymentBalance', back_populates='player', cascade="all, delete-orphan")
+    payment_methods = relationship('PlayerPaymentMethod', back_populates='player', cascade="all, delete-orphan")
     poker_events = relationship('PokerEvent', back_populates='player', cascade="all, delete-orphan")
     hands_won = relationship('HandSummary', back_populates='winner', cascade="all, delete-orphan")
 
@@ -636,4 +637,46 @@ class GameStatisticsConfig(Base):
     __table_args__ = (
         Index('ix_game_statistics_config_game_id', 'game_id'),
         Index('ix_game_statistics_config_type', 'config_name'),
+    )
+
+
+# ==========================================================
+# PlayerPaymentMethods Table
+# ----------------------------------------------------------
+# Stores payment method preferences for players (GLOBAL, not per-game).
+# A player's Venmo handle is the same across all games they participate in.
+#
+# Columns:
+# - id              : UUID primary key.
+# - player_id       : FK to players.id (CASCADE on delete).
+# - payment_method  : Payment method type (Venmo, Zelle, Apple Cash, Cash, etc.)
+# - payment_address : Handle/phone/email for this payment method
+# - is_primary      : Whether this is the player's preferred payment method
+# - created_at      : When the payment method was added
+# - updated_at      : When the payment method was last modified
+#
+# Constraints:
+# - Only ONE is_primary=true per player (enforced by partial unique index)
+# - Players can have multiple payment methods of the same type
+# ==========================================================
+class PlayerPaymentMethod(Base):
+    __tablename__ = 'player_payment_methods'
+
+    id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
+    player_id = Column(UUID(as_uuid=True), ForeignKey('players.id', ondelete='CASCADE'), nullable=False)
+
+    payment_method = Column(Text, nullable=False)  # "Venmo", "Zelle", "Apple Cash", etc.
+    payment_address = Column(Text, nullable=False)  # Handle, phone, or email
+    is_primary = Column(Boolean, nullable=False, server_default=text("false"))
+
+    created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
+    updated_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
+
+    # Relationships
+    player = relationship('Player', back_populates='payment_methods')
+
+    __table_args__ = (
+        Index('idx_payment_methods_player', 'player_id'),
+        # Partial unique index: only one primary per player
+        # This is created via raw SQL in migration because SQLAlchemy doesn't support partial indexes directly
     )
