@@ -91,18 +91,27 @@ class PlayerPaymentMethodService:
         """
         Get all payment methods for all players in a game.
 
+        Only returns players who have session summaries (actual poker activity),
+        matching the behavior of the payment summary and other game data views.
+
         Args:
             game_id: UUID of the game
 
         Returns:
             List of player payment method data with player names
         """
-        # Get all players in this game
+        # Import here to avoid circular dependency
+        from db.models import SessionPlayerSummary, Session
+
+        # Get only players who have session summaries (actual poker activity)
+        # This ensures consistency with the Balance Summary and other tabs
         game_players = self.db.query(Player).join(
-            GamePlayer, GamePlayer.player_id == Player.id
+            SessionPlayerSummary, SessionPlayerSummary.player_id == Player.id
+        ).join(
+            Session, Session.id == SessionPlayerSummary.session_id
         ).filter(
-            GamePlayer.game_id == game_id
-        ).all()
+            Session.game_id == game_id
+        ).distinct().all()
 
         result = []
         for player in game_players:
