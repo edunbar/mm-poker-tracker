@@ -1,10 +1,13 @@
 // @ts-nocheck
-import { Crown, Target, Diamond, Flame, Skull, Clock, Frown, Users, Trophy, HelpCircle, Maximize2, X } from 'lucide-react';
+import { Crown, Target, Diamond, Flame, Skull, Clock, Frown, Users, Trophy, HelpCircle, Maximize2, X, Spade, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useState } from 'react';
 import { Heading, Text } from '../../../shared/ui/typography';
+import { useHandAnalytics } from '../api/getHandAnalytics';
 import { usePlayerAnalytics } from '../api/getPlayerAnalytics';
 import { usePlayerSummaries } from '../api/getPlayerSummaries';
+import { useAdaptivePokerStatistics } from '../api/getPokerStatistics';
 import { useSessionExtremes } from '../api/getSessionExtremes';
+import PokerStatisticsTable from '../components/PokerStatisticsTable';
 
 // Custom Skull Icon Component
 const SkullIcon = ({ className }: { className?: string }) => (
@@ -60,10 +63,13 @@ export default function AdvancedAnalyticsPage({ publicCode }: AdvancedAnalyticsP
   const { data, isLoading, error } = usePlayerSummaries(publicCode);
   const { data: analyticsData, isLoading: analyticsLoading } = usePlayerAnalytics(publicCode);
   const { data: sessionExtremesData, isLoading: sessionExtremesLoading } = useSessionExtremes(publicCode);
+  const { data: handAnalyticsData, isLoading: handAnalyticsLoading, error: handAnalyticsError } = useHandAnalytics(publicCode);
+  const { data: statsData, isLoading: statsLoading } = useAdaptivePokerStatistics(publicCode);
   const rows: PlayerSummaryRow[] = data?.rows || [];
-  const [activeTab, setActiveTab] = useState<'fame' | 'shame'>('fame');
+  const [activeTab, setActiveTab] = useState<'fame' | 'shame' | 'hands'>('fame');
   const [expandedCategory, setExpandedCategory] = useState<AnalyticsCategory | null>(null);
   const [expandedData, setExpandedData] = useState<AnalyticsPlayer[]>([]);
+  const [currentHandIndex, setCurrentHandIndex] = useState<Record<string, number>>({});
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-US', {
@@ -621,6 +627,19 @@ export default function AdvancedAnalyticsPage({ publicCode }: AdvancedAnalyticsP
                     <Text variant="bodySmall" weight="medium">Wall of Shame</Text>
                   </div>
                 </button>
+                <button
+                  onClick={() => setActiveTab('hands')}
+                  className={`py-2 px-3 sm:px-1 border-b-2 sm:border-b-2 border-l-4 sm:border-l-0 font-medium text-sm rounded-none w-full sm:w-auto justify-start sm:justify-center ${
+                    activeTab === 'hands'
+                      ? 'border-primary text-primary'
+                      : 'border-transparent text-muted-foreground hover:text-foreground hover:border-gray-300'
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <Spade className="h-4 w-4" />
+                    <Text variant="bodySmall" weight="medium">Hand Analytics</Text>
+                  </div>
+                </button>
               </nav>
             </div>
 
@@ -785,6 +804,188 @@ export default function AdvancedAnalyticsPage({ publicCode }: AdvancedAnalyticsP
                       </div>
                     );
                   })}
+                </div>
+              )}
+
+              {activeTab === 'hands' && (
+                <div className="space-y-8">
+                  {/* Poker Statistics Section */}
+                  <div>
+                    {statsLoading ? (
+                      <div className="bg-card text-card-foreground rounded-lg border border-border shadow-sm p-6">
+                        <Text variant="body" color="muted">Loading poker statistics...</Text>
+                      </div>
+                    ) : statsData && statsData.players.length > 0 ? (
+                      <PokerStatisticsTable players={statsData.players} />
+                    ) : (
+                      <div className="bg-card text-card-foreground rounded-lg border border-border shadow-sm p-6">
+                        <Text variant="body" color="muted">
+                          No poker statistics available. Statistics are calculated from sessions with detailed hand logs.
+                        </Text>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Hand Analytics Section */}
+                  {handAnalyticsLoading && (
+                    <div className="bg-card text-card-foreground rounded-lg border border-border shadow-sm p-12 text-center">
+                      <Text variant="body" color="muted">Loading hand analytics...</Text>
+                    </div>
+                  )}
+
+                  {!!handAnalyticsError && (
+                    <div className="mb-6 p-4 bg-destructive/10 border-l-4 border-destructive rounded">
+                      <Text variant="body" color="destructive" weight="medium">Error</Text>
+                      <Text variant="body" color="destructive">
+                        {String(handAnalyticsError instanceof Error ? handAnalyticsError.message : "An error occurred while loading hand analytics")}
+                      </Text>
+                    </div>
+                  )}
+
+                  {!handAnalyticsLoading && !handAnalyticsError && handAnalyticsData && (
+                    <>
+                      {handAnalyticsData.sessions.length === 0 ? (
+                        <div className="bg-card text-card-foreground rounded-lg border border-border shadow-sm p-12 text-center">
+                          <Text variant="body" color="muted">No hand data available yet. Upload hand logs to see analytics.</Text>
+                        </div>
+                      ) : (
+                        <>
+                          <div className="mb-4">
+                            <Text variant="body" color="muted">
+                              Hand data available for {handAnalyticsData.total_sessions_with_hand_data} of {handAnalyticsData.total_sessions_in_game} sessions
+                            </Text>
+                          </div>
+                          <div className="space-y-6">
+                            {handAnalyticsData.sessions.map((session) => (
+                              <div
+                                key={session.session_id}
+                                className="bg-card text-card-foreground rounded-lg border border-border shadow-sm p-6"
+                              >
+                                <div className="mb-4">
+                                  <Heading variant="h3">
+                                    Session #{session.session_number} - {session.date}
+                                  </Heading>
+                                </div>
+
+                                <div className="space-y-2">
+                                  <Text variant="body">
+                                    {session.total_hands} hands played over {session.duration_hours} hours (~{session.hands_per_hour} hands/hour)
+                                  </Text>
+                                  <Text variant="body">
+                                    {session.active_players} active players
+                                  </Text>
+                                </div>
+
+                                {session.top_winners.length > 0 && (
+                                  <div className="mt-6">
+                                    <Heading variant="h4" className="mb-3">
+                                      Most Hands Won
+                                    </Heading>
+                                    <div className="space-y-2">
+                                      {session.top_winners.map((winner, index) => (
+                                        <div key={winner.player_id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 bg-muted/50 rounded-md gap-2">
+                                          <div className="flex items-center gap-3">
+                                            <Text variant="body" weight="medium" className="text-muted-foreground min-w-[24px]">
+                                              {index + 1}.
+                                            </Text>
+                                            <Text variant="body" weight="medium">
+                                              {winner.player_name}
+                                            </Text>
+                                          </div>
+                                          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 sm:gap-4">
+                                            <Text variant="body">
+                                              {winner.hands_won} hands
+                                            </Text>
+                                            <Text variant="body" weight="medium" className="min-w-[60px] text-right">
+                                              {winner.win_percentage}%
+                                            </Text>
+                                            <Text variant="bodySmall" className="text-muted-foreground">
+                                              (Biggest: ${(winner.biggest_pot / 100).toFixed(2)})
+                                            </Text>
+                                          </div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+
+                                {session.top_10_hands && session.top_10_hands.length > 0 && (() => {
+                                  const sessionHandIndex = currentHandIndex[session.session_id] ?? 0;
+                                  const currentHand = session.top_10_hands[sessionHandIndex];
+                                  const totalHands = session.top_10_hands.length;
+
+                                  if (!currentHand) return null;
+
+                                  return (
+                                    <div className="mt-6">
+                                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-3 gap-3">
+                                        <Heading variant="h4">
+                                          Top 10 Largest Hands
+                                        </Heading>
+                                        <div className="flex items-center gap-2 justify-center sm:justify-end">
+                                          <button
+                                            onClick={() => setCurrentHandIndex(prev => ({
+                                              ...prev,
+                                              [session.session_id]: Math.max(0, sessionHandIndex - 1)
+                                            }))}
+                                            disabled={sessionHandIndex === 0}
+                                            className="p-2 min-h-[44px] min-w-[44px] flex items-center justify-center rounded-md hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                          >
+                                            <ChevronLeft className="w-5 h-5" />
+                                          </button>
+                                          <Text variant="body" className="min-w-[80px] text-center">
+                                            {sessionHandIndex + 1} of {totalHands}
+                                          </Text>
+                                          <button
+                                            onClick={() => setCurrentHandIndex(prev => ({
+                                              ...prev,
+                                              [session.session_id]: Math.min(totalHands - 1, sessionHandIndex + 1)
+                                            }))}
+                                            disabled={sessionHandIndex === totalHands - 1}
+                                            className="p-2 min-h-[44px] min-w-[44px] flex items-center justify-center rounded-md hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                          >
+                                            <ChevronRight className="w-5 h-5" />
+                                          </button>
+                                        </div>
+                                      </div>
+                                      <div className="border border-border rounded-md p-4 bg-card">
+                                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-3 gap-2">
+                                          <div>
+                                            <Text variant="body" weight="semibold">
+                                              Hand #{currentHand.hand_number}
+                                            </Text>
+                                          </div>
+                                          <div className="sm:text-right">
+                                            <Text variant="body" weight="semibold" className="text-primary">
+                                              ${(currentHand.pot_size / 100).toFixed(2)}
+                                            </Text>
+                                            {currentHand.winner_name && (
+                                              <Text variant="bodySmall" color="muted">
+                                                Won by {currentHand.winner_name}
+                                              </Text>
+                                            )}
+                                          </div>
+                                        </div>
+                                        <div className="bg-muted/30 rounded p-3 font-mono text-sm">
+                                          {currentHand.action_log.map((action, idx) => (
+                                            <div key={idx} className="py-0.5">
+                                              <Text variant="bodySmall" className="font-mono">
+                                                {action}
+                                              </Text>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  );
+                                })()}
+                              </div>
+                            ))}
+                          </div>
+                        </>
+                      )}
+                    </>
+                  )}
                 </div>
               )}
             </div>

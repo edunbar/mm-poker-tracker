@@ -144,64 +144,103 @@ const PokerStatisticsTable: React.FC<PokerStatisticsTableProps> = ({
   players = [],
   className
 }) => {
+  // Custom sorting state - start unsorted to match backend's initial state
+  const [sortConfig, setSortConfig] = React.useState<{ key: string; direction: 'asc' | 'desc' } | null>(null);
+
+  const handleSort = (columnId: string) => {
+    setSortConfig(prevConfig => {
+      // If clicking the same column that's already sorted
+      if (prevConfig && prevConfig.key === columnId) {
+        // Toggle: desc -> asc -> null
+        if (prevConfig.direction === 'desc') {
+          return { key: columnId, direction: 'asc' };
+        }
+        return null; // Remove sorting
+      }
+      // New column: start with desc
+      return { key: columnId, direction: 'desc' };
+    });
+  };
+
+  const sortedData = React.useMemo(() => {
+    if (!sortConfig) return players;
+
+    return [...players].sort((a, b) => {
+      const aValue = (a as unknown as Record<string, unknown>)[sortConfig.key];
+      const bValue = (b as unknown as Record<string, unknown>)[sortConfig.key];
+
+      // Handle null/undefined values - push them to the end
+      if (aValue === null || aValue === undefined) {
+        if (bValue === null || bValue === undefined) return 0;
+        return 1;
+      }
+      if (bValue === null || bValue === undefined) return -1;
+
+      // Numeric comparison
+      if (typeof aValue === 'number' && typeof bValue === 'number') {
+        const diff = aValue - bValue;
+        return sortConfig.direction === 'asc' ? diff : -diff;
+      }
+
+      // String comparison
+      const aStr = String(aValue).toLowerCase();
+      const bStr = String(bValue).toLowerCase();
+      if (aStr < bStr) {
+        return sortConfig.direction === 'asc' ? -1 : 1;
+      }
+      if (aStr > bStr) {
+        return sortConfig.direction === 'asc' ? 1 : -1;
+      }
+      return 0;
+    });
+  }, [players, sortConfig]);
+
   const columns = useMemo(() => [
     createColumn('playerName', 'Player', 'playerName', {
       sortable: true,
       className: 'font-semibold text-left',
       width: 'auto',
     }),
-    createColumn('handsPlayed', (
-      <div className="flex justify-end">
-        <span>Hands</span>
-      </div>
-    ), (row: PlayerStatistic) => (
-      <div className="flex justify-end">
-        <span className="font-medium">{row.handsPlayed}</span>
-      </div>
+    createColumn('handsPlayed', 'Hands', (row: PlayerStatistic) => (
+      <span className="font-medium">{row.handsPlayed}</span>
     ), {
       sortable: true,
-      align: 'right' as const,
-      className: 'font-medium',
+      align: 'left' as const,
+      className: 'font-medium text-left',
       width: 'auto',
     }),
     createColumn('vpip', 'VPIP', (row: PlayerStatistic) => (
-      <div className="text-center">
-        <span className="font-sans font-medium">
-          {formatPercentage(row.vpip)}
-        </span>
-      </div>
+      <span className="font-sans font-medium">
+        {formatPercentage(row.vpip)}
+      </span>
     ), {
       sortable: true,
-      align: 'center' as const,
-      className: 'text-center',
+      align: 'left' as const,
+      className: 'text-left',
       width: 'auto',
     }),
     createColumn('pfr', 'PFR', (row: PlayerStatistic) => (
-      <div className="text-center">
-        <span className="font-sans font-medium">
-          {formatPercentage(row.pfr)}
-        </span>
-      </div>
+      <span className="font-sans font-medium">
+        {formatPercentage(row.pfr)}
+      </span>
     ), {
       sortable: true,
-      align: 'center' as const,
-      className: 'text-center',
+      align: 'left' as const,
+      className: 'text-left',
       width: 'auto',
     }),
     createColumn('aggressionFrequency', 'AF', (row: PlayerStatistic) => (
-      <div className="text-center">
-        <span className="font-sans font-medium">
-          {formatPercentage(row.aggressionFrequency)}
-        </span>
-      </div>
+      <span className="font-sans font-medium">
+        {formatPercentage(row.aggressionFrequency)}
+      </span>
     ), {
       sortable: true,
-      align: 'center' as const,
-      className: 'text-center hidden md:table-cell',
+      align: 'left' as const,
+      className: 'text-left hidden md:table-cell',
       width: 'auto',
     }),
     createColumn('playStyle', 'Style', (row: PlayerStatistic) => (
-      <div className="flex items-center gap-2 justify-center">
+      <div className="flex items-center gap-2">
         <Badge
           variant="secondary"
           className={`${row.styleColor || getPlayStyleColor(row.playStyle)} font-medium whitespace-nowrap text-xs sm:text-sm px-2 py-0.5 sm:px-2.5 sm:py-1`}
@@ -218,39 +257,32 @@ const PokerStatisticsTable: React.FC<PokerStatisticsTableProps> = ({
       </div>
     ), {
       sortable: true,
-      align: 'center' as const,
-      className: 'text-center',
+      align: 'left' as const,
+      className: 'text-left',
       width: 'auto',
     }),
     createColumn('streetBreakdown', 'Street AF', (row: PlayerStatistic) => (
-      <div className="flex justify-center">
-        <div className="text-sm space-y-1 bg-muted/30 rounded px-3 py-2">
-          <div className="flex justify-between items-center">
-            <span className="text-muted-foreground font-medium">F:</span>
-            <span className="font-sans font-medium">{formatPercentage(row.flopAF)}</span>
-          </div>
-          <div className="flex justify-between items-center">
-            <span className="text-muted-foreground font-medium">T:</span>
-            <span className="font-sans font-medium">{formatPercentage(row.turnAF)}</span>
-          </div>
-          <div className="flex justify-between items-center">
-            <span className="text-muted-foreground font-medium">R:</span>
-            <span className="font-sans font-medium">{formatPercentage(row.riverAF)}</span>
-          </div>
+      <div className="text-sm space-y-1 bg-muted/30 rounded px-3 py-2 inline-block">
+        <div className="flex justify-between items-center gap-3">
+          <span className="text-muted-foreground font-medium">F:</span>
+          <span className="font-sans font-medium">{formatPercentage(row.flopAF)}</span>
+        </div>
+        <div className="flex justify-between items-center gap-3">
+          <span className="text-muted-foreground font-medium">T:</span>
+          <span className="font-sans font-medium">{formatPercentage(row.turnAF)}</span>
+        </div>
+        <div className="flex justify-between items-center gap-3">
+          <span className="text-muted-foreground font-medium">R:</span>
+          <span className="font-sans font-medium">{formatPercentage(row.riverAF)}</span>
         </div>
       </div>
     ), {
       sortable: false,
-      align: 'center' as const,
-      className: 'text-center hidden lg:table-cell',
+      align: 'left' as const,
+      className: 'text-left hidden lg:table-cell',
       width: 'auto',
     }),
   ], []);
-
-  // Sort players by hands played (descending) by default
-  const sortedPlayers = useMemo(() => {
-    return [...players].sort((a, b) => b.handsPlayed - a.handsPlayed);
-  }, [players]);
 
   if (!Array.isArray(players) || players.length === 0) {
     return (
@@ -263,8 +295,10 @@ const PokerStatisticsTable: React.FC<PokerStatisticsTableProps> = ({
   return (
     <div className={className}>
       <EnhancedDataTable
-        data={sortedPlayers}
+        data={sortedData}
         columns={columns}
+        {...(sortConfig ? { sortConfig } : {})}
+        onSort={handleSort}
         className="rounded-xl"
         variant="default"
         emptyState={
