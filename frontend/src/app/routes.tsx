@@ -8,7 +8,6 @@ import LiveGameIngestPage from "../features/admin/pages/LiveGameIngestPage";
 import GameIngestPage from "../features/admin/pages/SessionIngestPage";
 import AdvancedAnalyticsPage from "../features/game/pages/AdvancedAnalyticsPage";
 import GameSummaryPage from "../features/game/pages/GameSummaryPage";
-import HandAnalyticsPage from "../features/game/pages/HandAnalyticsPage";
 import PaymentLedgerPage from "../features/payment/pages/PaymentLedgerPage";
 import RuleBookPage from "../features/rules/pages/RuleBookPage";
 import LandingPage from "../pages/Landing/LandingPage";
@@ -24,7 +23,6 @@ export default function AppRoutes() {
       <Route path="/summary/:publicCode" element={<GameSummaryPageWrapper />} />
       <Route path="/rules/:publicCode" element={<RuleBookPageWrapper />} />
       <Route path="/analytics/:publicCode" element={<AdvancedAnalyticsPageWrapper />} />
-      <Route path="/session-analytics/:publicCode" element={<HandAnalyticsPageWrapper />} />
       <Route path="/ledger-analysis/:publicCode" element={<LedgerAnalysisPageWrapper />} />
       <Route path="/audit/:publicCode" element={<AuditPageWrapper />} />
       <Route path="/payments/:publicCode" element={<PaymentLedgerPageWrapper />} />
@@ -73,15 +71,6 @@ function GameLedgerPageWrapper() {
   return (
     <GamePageWrapper publicCode={publicCode || ""}>
       <GameLedgerPage />
-    </GamePageWrapper>
-  );
-}
-
-function HandAnalyticsPageWrapper() {
-  const { publicCode } = useParams();
-  return (
-    <GamePageWrapper publicCode={publicCode || ""}>
-      <HandAnalyticsPage publicCode={publicCode || ""} />
     </GamePageWrapper>
   );
 }
