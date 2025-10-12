@@ -1,8 +1,36 @@
-import requests
+import cloudscraper
 import logging
 from sqlalchemy import select
 from db.database import SessionLocal
 from db.models import Player
+
+def create_browser_scraper():
+    """
+    Create a cloudscraper instance with browser-like headers to bypass Cloudflare.
+    """
+    scraper = cloudscraper.create_scraper(
+        browser={
+            'browser': 'chrome',
+            'platform': 'windows',
+            'desktop': True
+        }
+    )
+
+    # Add additional browser-like headers
+    scraper.headers.update({
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Accept-Encoding': 'gzip, deflate, br',
+        'DNT': '1',
+        'Connection': 'keep-alive',
+        'Upgrade-Insecure-Requests': '1',
+        'Sec-Fetch-Dest': 'document',
+        'Sec-Fetch-Mode': 'navigate',
+        'Sec-Fetch-Site': 'none',
+        'Cache-Control': 'max-age=0'
+    })
+
+    return scraper
 
 def map_validated_names_to_players(player_data):
     """
@@ -48,7 +76,8 @@ def fetch_ledger_csv(base_url):
         ledger_url = f"https://www.pokernow.club/games/{game_id}/ledger_{game_id}.csv"
         logging.debug(f"Attempting to fetch ledger CSV from: {ledger_url}")
 
-        response = requests.get(ledger_url, timeout=10)
+        scraper = create_browser_scraper()
+        response = scraper.get(ledger_url, timeout=10)
 
         if response.status_code == 200:
             csv_content = response.text
@@ -79,10 +108,18 @@ def get_game_transactions(base_url):
     url = base_url + '/players_sessions'
     logging.debug(f"Constructed URL: {url}")
     try:
-        response = requests.get(url)
-        logging.debug(f"Raw response text: {response.text}")
+        scraper = create_browser_scraper()
+        # Ensure automatic decompression by accessing .text (not .content)
+        response = scraper.get(url, timeout=15)
+        logging.debug(f"Response status code: {response.status_code}")
+        logging.debug(f"Response headers: {dict(response.headers)}")
+
+        # Force text decoding to handle gzip
+        response_text = response.text
+        logging.debug(f"Successfully fetched data from PokerNow (length: {len(response_text)})")
+        logging.debug(f"Response text preview: {response_text[:200] if response_text else 'EMPTY'}")
     except Exception as e:
-        logging.error(f"Exception during requests.get: {e}")
+        logging.error(f"Exception during cloudscraper.get: {e}")
         raise Exception(f"Exception occurred: {str(e)}")
 
     if response.status_code != 200:
@@ -90,13 +127,15 @@ def get_game_transactions(base_url):
         raise Exception('Failed to fetch data from the URL')
 
     try:
+        # Use response.json() which handles encoding automatically
         data = response.json()
-        logging.debug(f"Parsed JSON data: {data}")
+        logging.debug(f"Parsed JSON data keys: {list(data.keys()) if isinstance(data, dict) else type(data)}")
         if not isinstance(data, dict):
             logging.error(f"Expected dict from response.json(), got {type(data)}: {data}")
             raise Exception("Invalid response format from PokerNow API.")
-    except Exception as e:
-        logging.error(f"Exception during response.json(): {e}")
+    except ValueError as e:
+        logging.error(f"JSON parsing error: {e}")
+        logging.error(f"Response text was: {response_text[:500]}")
         raise Exception(f'Failed to parse JSON: {str(e)}')
 
     # Convert playersInfos dict to list
