@@ -192,8 +192,8 @@ def _upsert_db_for_session(
         display_name = (p.get("validated_name") or (p.get("names")[0] if p.get("names") else "Unknown")).strip()
 
         # Create a unique key based on external_id or normalized display_name
-        # Normalize external_id to lowercase for case-insensitive deduplication
-        unique_key = ext_pid.lower() if ext_pid else display_name.lower()
+        # external_id is case-sensitive, display_name is case-insensitive
+        unique_key = ext_pid if ext_pid else display_name.lower()
 
         if unique_key not in seen_players:
             seen_players.add(unique_key)
@@ -213,7 +213,7 @@ def _upsert_db_for_session(
         if ext_pid:
             player = db.execute(
                 select(Player)
-                .where(func.lower(Player.external_id) == ext_pid.lower())
+                .where(Player.external_id == ext_pid)
             ).scalar_one_or_none()
 
         # SECOND: Only if no external_id match found, try display_name within this game
@@ -232,7 +232,7 @@ def _upsert_db_for_session(
             elif len(players) > 1:
                 # Multiple players with same display name - pick the one with matching external_id if available
                 if ext_pid:
-                    player = next((p for p in players if p.external_id and p.external_id.lower() == ext_pid.lower()), players[0])
+                    player = next((p for p in players if p.external_id and p.external_id == ext_pid), players[0])
                 else:
                     player = players[0]
 
@@ -253,7 +253,7 @@ def _upsert_db_for_session(
                 existing_player_with_id = db.execute(
                     select(Player)
                     .where(
-                        func.lower(Player.external_id) == ext_pid.lower(),
+                        Player.external_id == ext_pid,
                         Player.id != player.id
                     )
                 ).scalar_one_or_none()
