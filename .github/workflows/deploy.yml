@@ -265,6 +265,7 @@ jobs:
           --platform managed \
           --allow-unauthenticated \
           --env-vars-file ${{ steps.config.outputs.env_file }} \
+          --update-env-vars SENDGRID_API_KEY=${{ secrets.SENDGRID_API_KEY }} \
           --add-cloudsql-instances home-game-472415:us-central1:home-game-db \
           --memory 1Gi \
           --cpu 1 \
@@ -294,6 +295,7 @@ jobs:
           --region us-central1 \
           --set-cloudsql-instances home-game-472415:us-central1:home-game-db \
           --env-vars-file ${{ steps.config.outputs.env_file }} \
+          --update-env-vars SENDGRID_API_KEY=${{ secrets.SENDGRID_API_KEY }} \
           --execute-now \
           --wait \
           --command="python" \
