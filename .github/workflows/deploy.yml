@@ -265,7 +265,6 @@ jobs:
           --platform managed \
           --allow-unauthenticated \
           --env-vars-file ${{ steps.config.outputs.env_file }} \
-          --update-env-vars SENDGRID_API_KEY=${{ secrets.SENDGRID_API_KEY }} \
           --add-cloudsql-instances home-game-472415:us-central1:home-game-db \
           --memory 1Gi \
           --cpu 1 \
@@ -274,6 +273,13 @@ jobs:
           --timeout 300
 
         echo "✅ Cloud Run deployment complete!"
+
+        echo "🔑 Injecting SENDGRID_API_KEY from GitHub Secrets..."
+        gcloud run services update ${{ steps.config.outputs.service_name }} \
+          --region us-central1 \
+          --update-env-vars SENDGRID_API_KEY=${{ secrets.SENDGRID_API_KEY }}
+
+        echo "✅ Environment variables updated!"
 
     - name: Run database migrations
       if: needs.pre-deploy-checks.outputs.has_migrations == 'true'
@@ -295,7 +301,6 @@ jobs:
           --region us-central1 \
           --set-cloudsql-instances home-game-472415:us-central1:home-game-db \
           --env-vars-file ${{ steps.config.outputs.env_file }} \
-          --update-env-vars SENDGRID_API_KEY=${{ secrets.SENDGRID_API_KEY }} \
           --execute-now \
           --wait \
           --command="python" \
