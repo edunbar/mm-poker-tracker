@@ -274,6 +274,13 @@ jobs:
 
         echo "✅ Cloud Run deployment complete!"
 
+        echo "🔑 Injecting SENDGRID_API_KEY from GitHub Secrets..."
+        gcloud run services update ${{ steps.config.outputs.service_name }} \
+          --region us-central1 \
+          --update-env-vars SENDGRID_API_KEY=${{ secrets.SENDGRID_API_KEY }}
+
+        echo "✅ Environment variables updated!"
+
     - name: Run database migrations
       if: needs.pre-deploy-checks.outputs.has_migrations == 'true'
       run: |
