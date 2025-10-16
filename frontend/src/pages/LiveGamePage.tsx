@@ -4,8 +4,8 @@ import { useGameInfo } from '../api/game';
 import { useActiveLiveGameByPublicCode } from '../api/liveGame';
 import { CreateLiveGameModal } from '../components/CreateLiveGameModal';
 import { LiveGameCreatedModal } from '../components/LiveGameCreatedModal';
-import { Heading, Text } from '../shared/ui/typography';
 import { Button } from '../shared/ui/button';
+import { Heading, Text } from '../shared/ui/typography';
 
 export default function LiveGamePage() {
   const { publicCode } = useParams<{ publicCode: string }>();

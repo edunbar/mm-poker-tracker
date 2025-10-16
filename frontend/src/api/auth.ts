@@ -4,7 +4,7 @@ import { apiClient } from './client';
 export async function loginUser(
   email: string,
   password: string,
-  rememberMe: boolean = false
+  rememberMe = false
 ): Promise<LoginResponse> {
   const response = await apiClient.post<any>('/api/auth/login', {
     email,

@@ -1,5 +1,5 @@
-import type { Participant } from '../types/liveGame';
 import { Text } from '../shared/ui/typography';
+import type { Participant } from '../types/liveGame';
 
 interface AdminParticipantsListProps {
   participants: Participant[];

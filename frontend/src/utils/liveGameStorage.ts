@@ -18,18 +18,16 @@ export interface ActiveLiveGame {
 export function setActiveLiveGame(joinCode: string, publicCode: string): void {
   try {
     if (!publicCode || publicCode.trim() === '') {
-      console.warn('[LiveGameStorage] Attempted to store invalid publicCode:', publicCode);
       return;
     }
 
     const data: ActiveLiveGame = { joinCode, publicCode };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-    console.log('[LiveGameStorage] Stored active live game:', data);
 
     // Dispatch custom event to notify components
     window.dispatchEvent(new CustomEvent('activeLiveGameChanged', { detail: data }));
   } catch (error) {
-    console.error('Failed to store active live game:', error);
+    // Silently handle storage errors
   }
 }
 
@@ -41,21 +39,17 @@ export function getActiveLiveGame(): ActiveLiveGame | null {
   try {
     const data = localStorage.getItem(STORAGE_KEY);
     if (!data) {
-      console.log('[LiveGameStorage] No active live game found');
       return null;
     }
 
     const parsed = JSON.parse(data);
     // Validate structure
     if (parsed && typeof parsed.joinCode === 'string' && typeof parsed.publicCode === 'string') {
-      console.log('[LiveGameStorage] Retrieved active live game:', parsed);
       return parsed as ActiveLiveGame;
     }
 
-    console.warn('[LiveGameStorage] Invalid active live game data:', parsed);
     return null;
   } catch (error) {
-    console.error('Failed to retrieve active live game:', error);
     return null;
   }
 }
@@ -67,11 +61,10 @@ export function getActiveLiveGame(): ActiveLiveGame | null {
 export function clearActiveLiveGame(): void {
   try {
     localStorage.removeItem(STORAGE_KEY);
-    console.log('[LiveGameStorage] Cleared active live game');
 
     // Dispatch custom event to notify components
     window.dispatchEvent(new CustomEvent('activeLiveGameChanged', { detail: null }));
   } catch (error) {
-    console.error('Failed to clear active live game:', error);
+    // Silently handle storage errors
   }
 }

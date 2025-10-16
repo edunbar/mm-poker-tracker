@@ -1,6 +1,6 @@
+import { X, AlertTriangle, CheckCircle } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { X, AlertTriangle, CheckCircle } from 'lucide-react';
 import { useCloseLiveGame } from '../api/liveGame';
 import { Button } from '../shared/ui/button';
 import { Heading, Text } from '../shared/ui/typography';
@@ -53,7 +53,6 @@ export function CloseGameModal({
         setShowConfirmation(true);
       } else {
         // Other error - will be displayed by error UI
-        console.error('Failed to close game:', error);
       }
     }
   };
@@ -74,7 +73,6 @@ export function CloseGameModal({
       // Navigate to game summary page after successful close
       navigate(`/${publicCode}`);
     } catch (error) {
-      console.error('Failed to close game with confirmations:', error);
     }
   };
 

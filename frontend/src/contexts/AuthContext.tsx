@@ -49,7 +49,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     loadUser();
   }, []);
 
-  const login = async (email: string, password: string, rememberMe: boolean = false): Promise<void> => {
+  const login = async (email: string, password: string, rememberMe = false): Promise<void> => {
     const response = await loginUser(email, password, rememberMe);
 
     localStorage.setItem(AUTH_TOKEN_KEY, response.access_token);

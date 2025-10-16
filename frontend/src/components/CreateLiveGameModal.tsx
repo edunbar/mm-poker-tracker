@@ -1,10 +1,10 @@
+import { X, AlertCircle } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { X, AlertCircle } from 'lucide-react';
 import { useCreateLiveGame } from '../api/liveGame';
 import { Button } from '../shared/ui/button';
-import { Input } from '../shared/ui/input';
 import { FormField, FormLabel } from '../shared/ui/form-field';
+import { Input } from '../shared/ui/input';
 import { Heading, Text } from '../shared/ui/typography';
 
 interface CreateLiveGameModalProps {

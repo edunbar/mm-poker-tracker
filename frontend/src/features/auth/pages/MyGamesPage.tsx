@@ -17,7 +17,6 @@ interface Game {
 }
 
 export default function MyGamesPage() {
-  console.log('[MyGamesPage] Component rendering/mounted');
 
   const [games, setGames] = useState<Game[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -26,7 +25,6 @@ export default function MyGamesPage() {
   const [isCopied, setIsCopied] = useState(false);
 
   useEffect(() => {
-    console.log('[MyGamesPage] useEffect - Component mounted, fetching games');
     fetchGames();
   }, []);
 

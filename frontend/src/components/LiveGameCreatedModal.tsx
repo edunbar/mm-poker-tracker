@@ -1,6 +1,6 @@
+import { Check, Copy } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Check, Copy } from 'lucide-react';
 import { Button } from '../shared/ui/button';
 import { Heading, Text } from '../shared/ui/typography';
 
@@ -23,7 +23,6 @@ export function LiveGameCreatedModal({ joinCode, publicCode, onClose }: LiveGame
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (error) {
-      console.error('Failed to copy:', error);
     }
   };
 

@@ -125,7 +125,7 @@ export async function getLiveGameInfo(joinCode: string): Promise<LiveGame> {
       mapping[response.data.join_code] = response.data.public_code;
       localStorage.setItem('join_code_to_public_code', JSON.stringify(mapping));
     } catch (error) {
-      console.debug('Failed to store joinCode mapping:', error);
+      // Silently handle storage errors
     }
   }
 
@@ -523,8 +523,7 @@ export function useActiveLiveGameByPublicCode(publicCode: string | undefined) {
         if (error?.response?.status === 404) {
           return; // Silently handle - API function returns null for 404s
         }
-        // Log other errors normally
-        console.error('Failed to fetch active live game:', error);
+        // Silently handle other errors
       },
     }
   );
@@ -557,8 +556,7 @@ export function useLiveGameInfo(joinCode: string | undefined) {
         if (status === 410 || status === 404) {
           return; // Silently handle
         }
-        // Log unexpected errors
-        console.error('Failed to fetch live game info:', error);
+        // Silently handle unexpected errors
       },
     }
   );

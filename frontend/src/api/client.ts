@@ -45,7 +45,6 @@ apiClient.interceptors.request.use(
         }
       } catch (error) {
         // Silently fail - admin code is optional
-        console.debug('Failed to attach X-Admin-Code header:', error);
       }
     }
 

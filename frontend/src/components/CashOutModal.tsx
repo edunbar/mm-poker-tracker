@@ -1,10 +1,10 @@
-import { useState, useEffect, useRef } from 'react';
 import { X } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
 import { useRequestCashOut, useParticipants } from '../api/liveGame';
 import { useAuth } from '../contexts/AuthContext';
 import { Button } from '../shared/ui/button';
-import { Input } from '../shared/ui/input';
 import { FormField, FormLabel } from '../shared/ui/form-field';
+import { Input } from '../shared/ui/input';
 import { Heading, Text } from '../shared/ui/typography';
 
 interface CashOutModalProps {

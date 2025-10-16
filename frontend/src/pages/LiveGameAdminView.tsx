@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { useLiveGameInfo, useParticipants, usePendingTransactions } from '../api/liveGame';
+import { AdminParticipantsList } from '../components/AdminParticipantsList';
+import { CloseGameModal } from '../components/CloseGameModal';
+import { PendingTransactionsList } from '../components/PendingTransactionsList';
 import { useLiveGameSSE } from '../hooks/useLiveGameSSE';
 import { Button } from '../shared/ui/button';
 import { Heading, Text } from '../shared/ui/typography';
-import { PendingTransactionsList } from '../components/PendingTransactionsList';
-import { AdminParticipantsList } from '../components/AdminParticipantsList';
-import { CloseGameModal } from '../components/CloseGameModal';
 import { setActiveLiveGame } from '../utils/liveGameStorage';
 
 export default function LiveGameAdminView() {

@@ -62,7 +62,6 @@ export default function JoinLiveGamePage() {
       navigate(`/live-game/${liveGame!.publicCode}/${joinCode}`);
     } catch (error: any) {
       // Error handled by mutation
-      console.error('Failed to join:', error);
     }
   };
 
@@ -88,7 +87,6 @@ export default function JoinLiveGamePage() {
       navigate(`/live-game/${liveGame!.publicCode}/${joinCode}`);
     } catch (error: any) {
       // Error is shown via mutation error handling
-      console.error('Failed to claim and join:', error);
     }
   };
 
@@ -114,7 +112,6 @@ export default function JoinLiveGamePage() {
       navigate(`/live-game/${liveGame!.publicCode}/${joinCode}`);
     } catch (error: any) {
       // Error is shown via mutation error handling
-      console.error('Failed to create and join:', error);
     }
   };
 

@@ -1,14 +1,14 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useLiveGameInfo, useParticipants } from '../api/liveGame';
-import { useLiveGameSSE } from '../hooks/useLiveGameSSE';
-import { useAuth } from '../contexts/AuthContext';
-import { Button } from '../shared/ui/button';
-import { Heading, Text } from '../shared/ui/typography';
 import { BuyInModal } from '../components/BuyInModal';
 import { CashOutModal } from '../components/CashOutModal';
 import { PlayerStats } from '../components/PlayerStats';
-import { setActiveLiveGame, clearActiveLiveGame } from '../utils/liveGameStorage';
+import { useAuth } from '../contexts/AuthContext';
+import { useLiveGameSSE } from '../hooks/useLiveGameSSE';
+import { Button } from '../shared/ui/button';
+import { Heading, Text } from '../shared/ui/typography';
+import { clearActiveLiveGame, setActiveLiveGame } from '../utils/liveGameStorage';
 
 export default function LiveGamePlayerView() {
   const { publicCode, joinCode } = useParams<{ publicCode: string; joinCode: string }>();

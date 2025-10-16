@@ -1,6 +1,6 @@
+import { ArrowLeft } from 'lucide-react';
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft } from 'lucide-react';
 import { apiClient } from '../../../api/client';
 import { Button } from '../../../shared/ui/button';
 import { FormField, FormLabel } from '../../../shared/ui/form-field';

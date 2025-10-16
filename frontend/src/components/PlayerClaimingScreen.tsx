@@ -1,10 +1,10 @@
 import { Info, UserPlus, Users } from 'lucide-react';
 import { useState } from 'react';
-import { AvailablePlayer } from '../types/liveGame';
 import { Button } from '../shared/ui/button';
 import { FormField, FormLabel } from '../shared/ui/form-field';
 import { Input } from '../shared/ui/input';
 import { Heading, Text } from '../shared/ui/typography';
+import type { AvailablePlayer } from '../types/liveGame';
 
 interface PlayerClaimingScreenProps {
   availablePlayers: AvailablePlayer[];

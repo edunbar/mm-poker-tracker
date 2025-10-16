@@ -17,12 +17,12 @@ import AdvancedAnalyticsPage from "../features/game/pages/AdvancedAnalyticsPage"
 import GameSummaryPage from "../features/game/pages/GameSummaryPage";
 import PaymentLedgerPage from "../features/payment/pages/PaymentLedgerPage";
 import RuleBookPage from "../features/rules/pages/RuleBookPage";
-import LandingPage from "../pages/Landing/LandingPage";
-import SettingsPage from "../pages/SettingsPage";
 import JoinLiveGamePage from "../pages/JoinLiveGamePage";
-import LiveGamePlayerView from "../pages/LiveGamePlayerView";
+import LandingPage from "../pages/Landing/LandingPage";
 import LiveGameAdminView from "../pages/LiveGameAdminView";
 import LiveGamePage from "../pages/LiveGamePage";
+import LiveGamePlayerView from "../pages/LiveGamePlayerView";
+import SettingsPage from "../pages/SettingsPage";
 
 export default function AppRoutes() {
   return (

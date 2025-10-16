@@ -3,8 +3,6 @@ import { AlertTriangle, Bell, ChevronDown, ChevronUp, CreditCard, DollarSign, Ed
 import { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { apiClient } from '../../../api/client';
-
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
 import { useAdminSession } from '../../../contexts/AdminSessionContext';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useToast } from '../../../contexts/ToastContext';
@@ -13,6 +11,8 @@ import { Button } from '../../../shared/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '../../../shared/ui/tooltip';
 import { Heading, Text } from '../../../shared/ui/typography';
 import { AlertSettings } from '../../admin/components/AlertSettings';
+
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
 
 interface PlayerPaymentSummary {
   player_id: string;

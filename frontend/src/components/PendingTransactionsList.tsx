@@ -1,8 +1,8 @@
 import { Check, X } from 'lucide-react';
 import { useApproveTransaction, useRejectTransaction } from '../api/liveGame';
-import type { LiveGameTransaction, Participant } from '../types/liveGame';
 import { Button } from '../shared/ui/button';
 import { Text } from '../shared/ui/typography';
+import type { LiveGameTransaction, Participant } from '../types/liveGame';
 
 interface PendingTransactionsListProps {
   joinCode: string;
@@ -28,7 +28,6 @@ export function PendingTransactionsList({ joinCode, transactions, participants }
       });
     } catch (error) {
       // Error handled by mutation
-      console.error('Failed to approve transaction:', error);
     }
   };
 
@@ -41,7 +40,6 @@ export function PendingTransactionsList({ joinCode, transactions, participants }
       });
     } catch (error) {
       // Error handled by mutation
-      console.error('Failed to reject transaction:', error);
     }
   };
 

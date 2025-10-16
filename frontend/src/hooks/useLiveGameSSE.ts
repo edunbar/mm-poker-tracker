@@ -101,7 +101,6 @@ export function useLiveGameSSE({ joinCode, enabled = true }: LiveGameSSEOptions)
 
       // Connection opened
       eventSource.onopen = () => {
-        console.log('[SSE] Connection established');
         setConnectionState({
           status: 'connected',
           retryCount: 0,
@@ -110,9 +109,7 @@ export function useLiveGameSSE({ joinCode, enabled = true }: LiveGameSSEOptions)
       };
 
       // Connection error
-      eventSource.onerror = (error) => {
-        console.error('[SSE] Connection error:', error);
-
+      eventSource.onerror = () => {
         // Close the connection
         eventSource.close();
         eventSourceRef.current = null;
@@ -123,8 +120,6 @@ export function useLiveGameSSE({ joinCode, enabled = true }: LiveGameSSEOptions)
           const newRetryDelay = Math.min(prev.retryDelay * 2, MAX_RETRY_DELAY);
 
           if (newRetryCount <= MAX_RETRIES) {
-            console.log(`[SSE] Reconnecting in ${newRetryDelay}ms (attempt ${newRetryCount}/${MAX_RETRIES})`);
-
             // Schedule reconnection
             retryTimeoutRef.current = setTimeout(() => {
               connect();
@@ -136,7 +131,6 @@ export function useLiveGameSSE({ joinCode, enabled = true }: LiveGameSSEOptions)
               retryDelay: newRetryDelay
             };
           } else {
-            console.error('[SSE] Max retries exceeded - giving up');
             return {
               status: 'error',
               retryCount: newRetryCount,
@@ -149,78 +143,72 @@ export function useLiveGameSSE({ joinCode, enabled = true }: LiveGameSSEOptions)
       // Event: participant_joined
       eventSource.addEventListener('participant_joined', (event) => {
         try {
-          const data = JSON.parse(event.data);
-          console.log('[SSE] Participant joined:', data);
+          JSON.parse(event.data);
 
           // Invalidate participants query to trigger refetch
           queryClient.invalidateQueries(liveGameKeys.participants(joinCode));
         } catch (error) {
-          console.error('[SSE] Error parsing participant_joined event:', error);
+          // Silently handle parsing errors
         }
       });
 
       // Event: transaction_created
       eventSource.addEventListener('transaction_created', (event) => {
         try {
-          const data = JSON.parse(event.data);
-          console.log('[SSE] Transaction created:', data);
+          JSON.parse(event.data);
 
           // Invalidate pending transactions and participants
           queryClient.invalidateQueries(liveGameKeys.pendingTransactions(joinCode));
           queryClient.invalidateQueries(liveGameKeys.participants(joinCode));
         } catch (error) {
-          console.error('[SSE] Error parsing transaction_created event:', error);
+          // Silently handle parsing errors
         }
       });
 
       // Event: transaction_approved
       eventSource.addEventListener('transaction_approved', (event) => {
         try {
-          const data = JSON.parse(event.data);
-          console.log('[SSE] Transaction approved:', data);
+          JSON.parse(event.data);
 
           // Invalidate all relevant queries
           queryClient.invalidateQueries(liveGameKeys.pendingTransactions(joinCode));
           queryClient.invalidateQueries(liveGameKeys.participants(joinCode));
           queryClient.invalidateQueries(liveGameKeys.summary(joinCode));
         } catch (error) {
-          console.error('[SSE] Error parsing transaction_approved event:', error);
+          // Silently handle parsing errors
         }
       });
 
       // Event: transaction_rejected
       eventSource.addEventListener('transaction_rejected', (event) => {
         try {
-          const data = JSON.parse(event.data);
-          console.log('[SSE] Transaction rejected:', data);
+          JSON.parse(event.data);
 
           // Invalidate pending transactions
           queryClient.invalidateQueries(liveGameKeys.pendingTransactions(joinCode));
         } catch (error) {
-          console.error('[SSE] Error parsing transaction_rejected event:', error);
+          // Silently handle parsing errors
         }
       });
 
       // Event: transaction_edited
       eventSource.addEventListener('transaction_edited', (event) => {
         try {
-          const data = JSON.parse(event.data);
-          console.log('[SSE] Transaction edited:', data);
+          JSON.parse(event.data);
 
           // Invalidate all relevant queries
           queryClient.invalidateQueries(liveGameKeys.pendingTransactions(joinCode));
           queryClient.invalidateQueries(liveGameKeys.participants(joinCode));
           queryClient.invalidateQueries(liveGameKeys.summary(joinCode));
         } catch (error) {
-          console.error('[SSE] Error parsing transaction_edited event:', error);
+          // Silently handle parsing errors
         }
       });
 
       // Event: game_closed
       eventSource.addEventListener('game_closed', (event) => {
         try {
-          const data = JSON.parse(event.data);
-          console.log('[SSE] Game closed:', data);
+          JSON.parse(event.data);
 
           // Don't invalidate queries - let components handle cleanup via redirect
           // Invalidating queries here triggers refetches before components can redirect,
@@ -229,7 +217,7 @@ export function useLiveGameSSE({ joinCode, enabled = true }: LiveGameSSEOptions)
           // Close SSE connection (game is over)
           cleanup();
         } catch (error) {
-          console.error('[SSE] Error parsing game_closed event:', error);
+          // Silently handle parsing errors
         }
       });
     };
@@ -243,7 +231,6 @@ export function useLiveGameSSE({ joinCode, enabled = true }: LiveGameSSEOptions)
     // Get auth token from localStorage
     const token = localStorage.getItem('auth_token');
     if (!token) {
-      console.warn('[SSE] No auth token found - cannot establish connection');
       return;
     }
 
