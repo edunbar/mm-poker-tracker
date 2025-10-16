@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useLiveGameInfo, useJoinLiveGame, useClaimAndJoinLiveGame } from '../api/liveGame';
+import { PlayerClaimingScreen } from '../components/PlayerClaimingScreen';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import { Button } from '../shared/ui/button';
 import { Heading, Text } from '../shared/ui/typography';
-import { PlayerClaimingScreen } from '../components/PlayerClaimingScreen';
 import type { AvailablePlayer } from '../types/liveGame';
 
 export default function JoinLiveGamePage() {

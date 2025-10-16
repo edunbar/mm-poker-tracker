@@ -43,7 +43,8 @@ class JoinCode:
             raise ValueError("Join code must be exactly 4 characters")
         if not self.value.isalnum():
             raise ValueError("Join code must be alphanumeric")
-        if not self.value.isupper():
+        # Allow uppercase letters and digits (digits have no case, so check for lowercase)
+        if any(c.islower() for c in self.value):
             raise ValueError("Join code must be uppercase")
 
     def __str__(self) -> str:

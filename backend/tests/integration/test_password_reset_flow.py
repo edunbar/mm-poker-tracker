@@ -11,7 +11,7 @@ Tests cover the complete password reset workflow including:
 import pytest
 import secrets
 import hashlib
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from sqlalchemy import text
 from unittest.mock import patch
 
@@ -132,7 +132,7 @@ class TestPasswordResetFlow:
                 WHERE token_hash = :token_hash
             """),
             {
-                'expired_time': datetime.utcnow() - timedelta(hours=1),
+                'expired_time': datetime.now(timezone.utc) - timedelta(hours=1),
                 'token_hash': token_hash
             }
         )
