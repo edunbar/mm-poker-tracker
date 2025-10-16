@@ -369,7 +369,7 @@ class TestLedgerUpdates:
 
         assert response.status_code == 401
         data = response.get_json()
-        assert 'X-Admin-Code header required' in data['error']
+        assert 'Missing authentication' in data['error'] or 'JWT token or X-Admin-Code' in data['error']
 
     def test_update_session_summary_invalid_admin_code(self, client, ledger_test_setup):
         """Update with invalid admin code should be rejected."""

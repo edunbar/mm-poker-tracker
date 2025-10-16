@@ -202,7 +202,7 @@ class TestAdminCodeValidation:
         assert response.status_code == 401
         data = response.get_json()
         assert 'error' in data
-        assert 'X-Admin-Code header required' in data['error']
+        assert 'Missing authentication' in data['error'] or 'JWT token or X-Admin-Code' in data['error']
 
     def test_ledger_update_valid_admin_code(self, client, test_games):
         """Valid admin code allows ledger updates."""
@@ -296,7 +296,7 @@ class TestAdminCodeValidation:
 
             assert response.status_code == 401
             data = response.get_json()
-            assert 'X-Admin-Code header required' in data['error']
+            assert 'Missing authentication' in data['error'] or 'JWT token or X-Admin-Code' in data['error']
 
         finally:
             db.close()
@@ -430,7 +430,7 @@ class TestPublicVsAdminOperations:
 
         assert response.status_code == 401
         data = response.get_json()
-        assert 'X-Admin-Code header required' in data['error']
+        assert 'Missing authentication' in data['error'] or 'JWT token or X-Admin-Code' in data['error']
 
     def test_admin_required_for_ledger_modifications(self, client, test_games):
         """Ledger modifications require admin code."""
@@ -448,7 +448,7 @@ class TestPublicVsAdminOperations:
 
         assert response.status_code == 401
         data = response.get_json()
-        assert 'X-Admin-Code header required' in data['error']
+        assert 'Missing authentication' in data['error'] or 'JWT token or X-Admin-Code' in data['error']
 
 
 class TestAdminCodeFormats:
