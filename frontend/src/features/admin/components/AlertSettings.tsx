@@ -16,7 +16,8 @@ interface AlertSettingsProps {
 }
 
 export function AlertSettings({ publicCode }: AlertSettingsProps) {
-  const { adminCode } = useAdminSession();
+  const { getAdminCode } = useAdminSession();
+  const adminCode = getAdminCode(publicCode);
   const [rules, setRules] = useState<AlertRule[]>([]);
   const [isAddingRule, setIsAddingRule] = useState(false);
   const [newRuleType, setNewRuleType] = useState<'amount_threshold' | 'days_overdue'>('amount_threshold');
@@ -41,7 +42,7 @@ export function AlertSettings({ publicCode }: AlertSettingsProps) {
     } finally {
       setLoading(false);
     }
-  }, [publicCode, adminCode]);
+  }, [publicCode, getAdminCode]);
 
   useEffect(() => {
     if (publicCode) {
