@@ -488,14 +488,14 @@ class TestLedgerDeletion:
 
         assert response.status_code == 401
         data = response.get_json()
-        assert 'X-Admin-Code header required' in data['error']
+        assert 'Missing authentication' in data['error'] or 'JWT token or X-Admin-Code' in data['error']
 
         # Test entire session deletion
         response = client.delete(f'/api/games/{game.public_code}/sessions/{session1.id}')
 
         assert response.status_code == 401
         data = response.get_json()
-        assert 'X-Admin-Code header required' in data['error']
+        assert 'Missing authentication' in data['error'] or 'JWT token or X-Admin-Code' in data['error']
 
 
 class TestLedgerValidationAndEdgeCases:

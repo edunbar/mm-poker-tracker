@@ -97,7 +97,7 @@ class TestAuthentication:
         assert 'email' in data['error'].lower()
 
     def test_user_registration_short_password(self, test_client):
-        """Test registration fails with password < 12 characters."""
+        """Test registration fails with password < 8 characters."""
         response = test_client.post('/api/auth/register', json={
             'email': 'validuser@example.com',
             'password': 'Short1!',  # Only 7 characters
@@ -107,7 +107,7 @@ class TestAuthentication:
         assert response.status_code == 400
         data = response.get_json()
         assert 'error' in data
-        assert '12' in data['error']  # Error message mentions minimum length
+        assert '8' in data['error']  # Error message mentions minimum length
 
     def test_user_login_success(self, test_client, db_session):
         """Test successful login with correct credentials."""

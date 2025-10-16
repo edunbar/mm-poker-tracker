@@ -37,7 +37,7 @@ def generate_join_code() -> str:
     # Remove O, I, 0, 1, L to avoid confusion
     chars = ''.join(c for c in string.ascii_uppercase + string.digits
                     if c not in 'OI01L')
-    return ''.join(random.choices(chars, k=4))
+    return ''.join(random.choices(chars, k=4)).upper()
 
 
 def create_unique_join_code(check_exists_fn: Callable[[str], bool]) -> JoinCode:

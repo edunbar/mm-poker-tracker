@@ -270,7 +270,7 @@ class TestPasswordResetFlow:
         """Test that resetting password sends confirmation email."""
         from services.email_service import send_password_changed_notification
 
-        with patch('services.password_reset_service.send_password_changed_notification') as mock_confirm:
+        with patch('services.email_service.send_password_changed_notification') as mock_confirm:
             # Register user and request reset
             user, _ = register_user('test@example.com', 'Password123!', 'Test User')
             request_password_reset('test@example.com', '127.0.0.1', db_session)
