@@ -28,7 +28,8 @@ from datetime import datetime
 from flask import Blueprint, Response, request, jsonify, g, stream_with_context
 
 from db.database import SessionLocal
-from middleware.auth_middleware import require_auth, get_jwt_service
+from db.models import User
+from middleware.clerk_auth import clerk_required, get_clerk_client
 from infrastructure.persistence.sqlalchemy import SQLAlchemyLiveGameRepository
 from domain.live_game.value_objects import JoinCode
 
@@ -243,26 +244,36 @@ def stream_live_game_events(join_code):
         - game_closed: Game has been closed
 
     Security Note:
-        JWT token passed via query param (EventSource limitation).
+        Clerk session token passed via query param (EventSource limitation).
         Tokens may appear in server logs. Consider short-lived SSE tokens in production.
     """
-    # Manual JWT validation (EventSource can't send Authorization header)
+    # Manual Clerk token validation (EventSource can't send Authorization header)
     token = request.args.get('token')
 
     if not token:
         return Response("Missing token query parameter", status=401)
 
-    # Validate JWT token
+    # Validate Clerk token and get user
     try:
-        jwt_service = get_jwt_service()
-        payload = jwt_service.decode_token(token)
+        from clerk_backend_api.jwks_helpers import AuthenticateRequestOptions
 
-        if not payload:
-            return Response("Invalid or expired token", status=401)
+        clerk_client = get_clerk_client()
+        request_state = clerk_client.verify_token(token, options=AuthenticateRequestOptions())
 
-        user_id = payload.get('user_id')
-        if not user_id:
-            return Response("Token missing user_id", status=401)
+        clerk_user_id = request_state.get('sub')
+        if not clerk_user_id:
+            return Response("Invalid token: missing user ID", status=401)
+
+        # Look up user by clerk_user_id to get UUID
+        db = SessionLocal()
+        try:
+            user = db.query(User).filter(User.clerk_user_id == clerk_user_id).first()
+            if not user:
+                return Response("User not found", status=401)
+
+            user_id = str(user.id)
+        finally:
+            db.close()
 
     except Exception as e:
         return Response(f"Token validation error: {str(e)}", status=401)
@@ -319,7 +330,7 @@ def stream_live_game_events(join_code):
 
 
 @live_game_sse_bp.route('/live-games/sse/metrics', methods=['GET'])
-@require_auth
+@clerk_required
 def get_sse_metrics():
     """
     Get SSE connection metrics for monitoring.

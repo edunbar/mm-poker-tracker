@@ -2,8 +2,8 @@ import React, { useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import { API_BASE_URL } from "../../config/api";
 import { useAdminSession } from "../../contexts/AdminSessionContext";
-import { useAuth } from "../../contexts/AuthContext";
 import { useToast } from "../../contexts/ToastContext";
+import { useClerkAuth } from "../../hooks/useClerkAuth";
 import { Button } from "../../shared/ui/button";
 import { FormField, FormLabel, FormMessage } from "../../shared/ui/form-field";
 import { Input } from "../../shared/ui/input";
@@ -24,10 +24,10 @@ export default function LandingPage() {
   const navigate = useNavigate();
   const { setAdminSession } = useAdminSession();
   const { showError } = useToast();
-  const { isAuthenticated, isLoading: isAuthLoading } = useAuth();
+  const { isSignedIn, isLoaded } = useClerkAuth();
 
   // Show loading spinner while checking authentication
-  if (isAuthLoading) {
+  if (!isLoaded) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
@@ -41,7 +41,7 @@ export default function LandingPage() {
   }
 
   // Redirect authenticated users to their games dashboard
-  if (isAuthenticated) {
+  if (isSignedIn) {
     return <Navigate to="/my-games" replace />;
   }
 

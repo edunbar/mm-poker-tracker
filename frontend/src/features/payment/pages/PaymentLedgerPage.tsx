@@ -4,8 +4,8 @@ import { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { apiClient } from '../../../api/client';
 import { useAdminSession } from '../../../contexts/AdminSessionContext';
-import { useAuth } from '../../../contexts/AuthContext';
 import { useToast } from '../../../contexts/ToastContext';
+import { useClerkAuth } from '../../../hooks/useClerkAuth';
 import { useGameTitle } from '../../../shared/hooks/useGameTitle';
 import { Button } from '../../../shared/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '../../../shared/ui/tooltip';
@@ -84,7 +84,7 @@ export default function PaymentLedgerPage() {
   const { getAdminCode, hasAdminSession: hasAdminSessionForGame } = useAdminSession();
   const sessionAdminCode = getAdminCode(publicCode || '');
   const hasAdminSession = hasAdminSessionForGame(publicCode || '');
-  const { isAuthenticated } = useAuth();
+  const { isSignedIn } = useClerkAuth();
   const { showSuccess, showError } = useToast();
   const [paymentSummary, setPaymentSummary] = useState<PlayerPaymentSummary[]>([]);
   const [settlements, setSettlements] = useState<SettlementSuggestion[]>([]);
@@ -149,7 +149,7 @@ export default function PaymentLedgerPage() {
 
     // Only send X-Admin-Code when not authenticated
     const adminCode = getEffectiveAdminCode();
-    if (!isAuthenticated && adminCode) {
+    if (!isSignedIn && adminCode) {
       headers['X-Admin-Code'] = adminCode;
     }
 

@@ -1,3 +1,4 @@
+import { UserButton } from '@clerk/clerk-react';
 import {
   BarChart3,
   BookOpen,
@@ -9,10 +10,8 @@ import {
   LogOut,
   Menu,
   Receipt,
-  Settings,
   Shield,
   Spade,
-  User,
   Users,
   X,
   Zap
@@ -22,9 +21,9 @@ import { Link, NavLink, useLocation } from 'react-router-dom';
 import { submitBugReport, type BugReportData } from '../../api/bugReport';
 import BugReportModal from '../../components/BugReportModal';
 import { useAdminSession } from '../../contexts/AdminSessionContext';
-import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
 import { adminNav, publicNav } from '../../features/admin/nav';
+import { useClerkAuth } from '../../hooks/useClerkAuth';
 import { useGameTitle } from '../../shared/hooks/useGameTitle';
 import { Button } from '../../shared/ui/button';
 import { Input } from '../../shared/ui/input';
@@ -99,14 +98,13 @@ function extractPublicCodeFromPath(pathname: string): string | null {
 
 export function Header() {
   const { hasAdminSession: hasAdminSessionForGame, setAdminSession, clearAdminSession } = useAdminSession();
-  const { isAuthenticated, isLoading, user, logout } = useAuth();
+  const { isSignedIn, isLoaded, user } = useClerkAuth();
   const { showSuccess, showError } = useToast();
   const location = useLocation();
   const [isBugReportModalOpen, setIsBugReportModalOpen] = useState(false);
   const [showAdminLogin, setShowAdminLogin] = useState(false);
   const [adminCode, setAdminCode] = useState('');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [showUserMenu, setShowUserMenu] = useState(false);
 
   // Get public code from URL
   const urlPublicCode = extractPublicCodeFromPath(location.pathname);
@@ -145,7 +143,7 @@ export function Header() {
       <header className="border-b border-border bg-card">
         <div className="w-full px-4 py-3 font-medium flex items-center justify-between text-card-foreground">
           <Link
-            to={isAuthenticated ? '/my-games' : '/'}
+            to={isSignedIn ? '/my-games' : '/'}
             className="hover:opacity-80 transition-opacity"
           >
             <Text variant="bodyLarge" weight="semibold">HomeGame</Text>
@@ -173,79 +171,38 @@ export function Header() {
             )}
 
             {/* User Authentication */}
-            {!isLoading && (
+            {isLoaded && (
               <>
-                {!isAuthenticated ? (
+                {!isSignedIn ? (
                   <>
                     <Link
-                      to="/login"
+                      to="/sign-in"
                       className="flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-md transition-colors"
                     >
-                      <Text variant="bodySmall" as="span" className="hidden sm:inline">Log in</Text>
+                      <Text variant="bodySmall" as="span" className="hidden sm:inline">Sign in</Text>
                     </Link>
                     <Link
-                      to="/register"
+                      to="/sign-up"
                       className="flex items-center gap-2 px-3 py-2 text-sm bg-primary text-primary-foreground hover:bg-primary/90 rounded-md transition-colors"
                     >
                       <Text variant="bodySmall" as="span">Sign up</Text>
                     </Link>
                   </>
                 ) : (
-                  <div className="relative">
-                    <button
-                      onClick={() => setShowUserMenu(!showUserMenu)}
-                      className="flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-md transition-colors"
-                      title={user?.email}
-                    >
-                      <User className="h-4 w-4" />
-                      <Text variant="bodySmall" weight="medium" as="span" className="hidden sm:inline">
-                        {user?.displayName}
-                      </Text>
-                    </button>
-
-                    {showUserMenu && (
-                      <>
-                        <div
-                          className="fixed inset-0 z-10"
-                          onClick={() => setShowUserMenu(false)}
-                        />
-                        <div className="absolute right-0 mt-2 w-48 bg-card border border-border rounded-md shadow-lg z-20">
-                          <div className="py-1">
-                            <div className="px-4 py-2 border-b border-border">
-                              <Text variant="bodySmall" weight="medium">{user?.displayName}</Text>
-                              <Text variant="caption" color="muted">{user?.email}</Text>
-                            </div>
-                            <Link
-                              to="/settings"
-                              onClick={() => setShowUserMenu(false)}
-                              className="w-full flex items-center gap-2 px-4 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-                            >
-                              <Settings className="h-4 w-4" />
-                              <Text variant="bodySmall">Settings</Text>
-                            </Link>
-                            <Link
-                              to="/my-games"
-                              onClick={() => setShowUserMenu(false)}
-                              className="w-full flex items-center gap-2 px-4 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-                            >
-                              <Home className="h-4 w-4" />
-                              <Text variant="bodySmall">My Games</Text>
-                            </Link>
-                            <div className="border-t border-border my-1" />
-                            <button
-                              onClick={() => {
-                                logout();
-                                setShowUserMenu(false);
-                              }}
-                              className="w-full flex items-center gap-2 px-4 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-                            >
-                              <LogOut className="h-4 w-4" />
-                              <Text variant="bodySmall">Log out</Text>
-                            </button>
-                          </div>
-                        </div>
-                      </>
-                    )}
+                  <div className="flex items-center gap-2">
+                    {/* User display name */}
+                    <Text variant="bodySmall" weight="medium" as="span" className="hidden sm:inline text-muted-foreground">
+                      {user?.firstName || user?.username || 'Player'}
+                    </Text>
+                    {/* Clerk UserButton with dropdown menu */}
+                    <UserButton
+                      afterSignOutUrl="/"
+                      appearance={{
+                        elements: {
+                          avatarBox: 'w-8 h-8',
+                        },
+                      }}
+                    />
                   </div>
                 )}
               </>

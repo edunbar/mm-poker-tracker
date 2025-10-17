@@ -16,8 +16,7 @@ from .database import Base
 # Columns:
 # - id             : UUID primary key (server-generated with gen_random_uuid()).
 # - email          : Unique email address for authentication (indexed).
-# - password_hash  : Hashed password for authentication.
-# - token_version  : Version number for JWT tokens; incremented on password change to invalidate old sessions.
+# - clerk_user_id  : Clerk user identifier for authentication (unique, indexed).
 # - display_name   : Human-readable name for the user.
 # - email_verified : Whether the user's email has been verified.
 # - created_at     : Timestamp when the user account was created.
@@ -27,14 +26,15 @@ from .database import Base
 # - owned_games       : Games owned by this user.
 # - poker_identities  : Poker player identities claimed by this user.
 # - audit_logs        : Audit log entries created by this user.
+#
+# Note: Authentication is managed by Clerk. clerk_user_id links to Clerk's user system.
 # ==========================================================
 class User(Base):
     __tablename__ = 'users'
 
     id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
     email = Column(String(255), unique=True, nullable=False)
-    password_hash = Column(String(255), nullable=False)
-    token_version = Column(BigInteger, nullable=False, server_default=text("1"))
+    clerk_user_id = Column(String(255), unique=True, nullable=True, index=True)
     display_name = Column(String(100), nullable=False)
     email_verified = Column(Boolean, nullable=False, server_default=text("false"))
     created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())

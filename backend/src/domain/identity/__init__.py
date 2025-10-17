@@ -6,7 +6,7 @@ and exceptions for user identity and authentication.
 """
 
 from .value_objects import Email, UserId
-from .services import AuthenticationService, PokerIdentityClaimService
+from .services import PokerIdentityClaimService
 from .entities import PokerIdentityClaim
 from .repositories import UserRepository, PokerIdentityClaimRepository, RepositoryError
 from .exceptions import (
@@ -23,7 +23,6 @@ __all__ = [
     'Email',
     'UserId',
     # Services
-    'AuthenticationService',
     'PokerIdentityClaimService',
     # Entities
     'PokerIdentityClaim',

@@ -2,8 +2,8 @@ import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useLiveGameInfo, useJoinLiveGame, useClaimAndJoinLiveGame } from '../api/liveGame';
 import { PlayerClaimingScreen } from '../components/PlayerClaimingScreen';
-import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
+import { useClerkAuth } from '../hooks/useClerkAuth';
 import { Button } from '../shared/ui/button';
 import { Heading, Text } from '../shared/ui/typography';
 import type { AvailablePlayer } from '../types/liveGame';
@@ -11,8 +11,9 @@ import type { AvailablePlayer } from '../types/liveGame';
 export default function JoinLiveGamePage() {
   const { joinCode } = useParams<{ joinCode: string }>();
   const navigate = useNavigate();
-  const { user, isAuthenticated, isLoading: isAuthLoading } = useAuth();
+  const { user, isSignedIn, isLoaded } = useClerkAuth();
   const { showSuccess } = useToast();
+  const displayName = user?.firstName || user?.username || 'Player';
 
   const { data: liveGame, isLoading, error } = useLiveGameInfo(joinCode);
   const joinMutation = useJoinLiveGame();
@@ -25,12 +26,12 @@ export default function JoinLiveGamePage() {
   const handleJoin = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!joinCode || !user?.displayName) return;
+    if (!joinCode || !displayName) return;
 
     try {
       const response = await joinMutation.mutateAsync({
         joinCode,
-        displayName: user.displayName
+        displayName
       });
 
       // Handle different response variants
@@ -121,7 +122,7 @@ export default function JoinLiveGamePage() {
     // User can try joining again or navigate away
   };
 
-  if (isAuthLoading) {
+  if (!isLoaded) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <div className="text-center">
@@ -132,7 +133,7 @@ export default function JoinLiveGamePage() {
     );
   }
 
-  if (!isAuthenticated) {
+  if (!isSignedIn) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background px-4">
         <div className="w-full max-w-md text-center space-y-4">
@@ -141,8 +142,8 @@ export default function JoinLiveGamePage() {
             You must be logged in to join a live game.
           </Text>
           <div className="flex gap-3 justify-center">
-            <Button onClick={() => navigate('/login')}>Log In</Button>
-            <Button variant="outline" onClick={() => navigate('/register')}>
+            <Button onClick={() => navigate('/sign-in')}>Log In</Button>
+            <Button variant="outline" onClick={() => navigate('/sign-up')}>
               Sign Up
             </Button>
           </div>
@@ -181,7 +182,7 @@ export default function JoinLiveGamePage() {
     return (
       <PlayerClaimingScreen
         availablePlayers={availablePlayers}
-        defaultDisplayName={user?.displayName || ''}
+        defaultDisplayName={displayName}
         onClaimExisting={handleClaimExisting}
         onCreateNew={handleCreateNew}
         onCancel={handleCancelClaiming}
@@ -217,7 +218,7 @@ export default function JoinLiveGamePage() {
                   Playing as
                 </Text>
                 <Text variant="body" weight="medium">
-                  {user?.displayName}
+                  {displayName}
                 </Text>
               </div>
 

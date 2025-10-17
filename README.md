@@ -238,6 +238,52 @@ curl -X POST http://localhost:8000/api/live-games/A7X2/close \
 
 **Live Game API Documentation**: See `docs/LIVE_GAME_API.md` for complete endpoint reference with request/response schemas, error codes, and SSE event types.
 
+## 🔐 Authentication Setup
+
+This application uses [Clerk](https://clerk.com) for user authentication and identity management.
+
+### Local Development Setup
+
+1. **Create a Clerk account** at https://clerk.com
+2. **Create a new application** in the Clerk dashboard
+3. **Configure authentication methods:**
+   - ✅ Email/Password (required)
+   - ✅ Google OAuth (recommended)
+   - ✅ GitHub OAuth (optional)
+4. **Copy your API keys** from the Clerk dashboard:
+   - Backend: `CLERK_SECRET_KEY` (API Keys → Show secret key)
+   - Frontend: `REACT_APP_CLERK_PUBLISHABLE_KEY` (API Keys → Publishable key)
+5. **Add keys to environment files:**
+   - Backend: Create `backend/.env` (use `backend/.env.example` as template)
+   - Frontend: Create `frontend/.env.local` (use `frontend/.env.example` as template)
+
+### Environment Variables
+
+**Backend (`.env`):**
+```bash
+CLERK_SECRET_KEY=sk_test_...  # Required for JWT verification
+```
+
+**Frontend (`.env.local`):**
+```bash
+REACT_APP_CLERK_PUBLISHABLE_KEY=pk_test_...  # Required for Clerk provider
+```
+
+### Important Notes
+
+- **User authentication** (Clerk) is separate from **admin authentication** (admin codes)
+- Admin code system remains unchanged and independent of Clerk
+- Some routes require both user JWT and admin code for full access
+- Password reset functionality is now handled by Clerk (email templates, token management, etc.)
+
+### Production Setup
+
+For production deployment:
+1. Create a production Clerk application (separate from development)
+2. Use production API keys in GCP Cloud Run environment variables
+3. Configure allowed redirect URLs in Clerk dashboard to match production domain
+4. Enable email verification and customize email templates in Clerk dashboard
+
 ## 🔧 Configuration
 
 ### Environment Variables Reference

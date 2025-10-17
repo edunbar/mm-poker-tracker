@@ -1,7 +1,7 @@
 import { X } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { useRequestBuyIn, useParticipants } from '../api/liveGame';
-import { useAuth } from '../contexts/AuthContext';
+import { useClerkAuth } from '../hooks/useClerkAuth';
 import { Button } from '../shared/ui/button';
 import { FormField, FormLabel } from '../shared/ui/form-field';
 import { Input } from '../shared/ui/input';
@@ -15,7 +15,7 @@ interface BuyInModalProps {
 }
 
 export function BuyInModal({ joinCode, minBuyIn, maxBuyIn, onClose }: BuyInModalProps) {
-  const { user } = useAuth();
+  const { user } = useClerkAuth();
   const [amount, setAmount] = useState(minBuyIn.toString());
   const [status, setStatus] = useState<'idle' | 'pending'>('idle');
   const buyInMutation = useRequestBuyIn();

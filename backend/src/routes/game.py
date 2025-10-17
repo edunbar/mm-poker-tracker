@@ -25,7 +25,8 @@ from services.audit_service import (
 )
 from services.ledger_analysis_service import get_ledger_analysis
 from services.audit_middleware import audit_context
-from middleware.auth_middleware import require_auth, require_auth_or_admin_code, check_game_authorization
+from middleware.auth_middleware import require_auth_or_admin_code, check_game_authorization
+from middleware.clerk_auth import clerk_required, get_current_user
 from services.live_game_service_v2 import (
     validate_live_game_data,
     create_live_game_session_data,
@@ -99,7 +100,7 @@ def create_new_game():
         return jsonify({"error": "Internal server error"}), 500
 
 @game_bp.route('/claim', methods=['POST'])
-@require_auth  # JWT ONLY
+@clerk_required  # Clerk auth only
 def claim_game():
     """
     Claim a game using admin code.
@@ -126,7 +127,7 @@ def claim_game():
         if not game:
             return jsonify({'error': 'Invalid admin code'}), 403
 
-        current_user_id = g.current_user_id
+        current_user_id = str(get_current_user().id)
 
         # Check current ownership status
         if game.owner_user_id and str(game.owner_user_id) == str(current_user_id):
@@ -137,7 +138,7 @@ def claim_game():
                 operation_type='GAME_CLAIM_EXTEND',
                 game_id=str(game.id),
                 actor_kind='user',
-                actor_id=g.current_user_email,
+                actor_id=get_current_user().email,
                 user_id=current_user_id
             ):
                 db.commit()
@@ -165,7 +166,7 @@ def claim_game():
                 operation_type='GAME_CLAIM',
                 game_id=str(game.id),
                 actor_kind='user',
-                actor_id=g.current_user_email,
+                actor_id=get_current_user().email,
                 user_id=current_user_id
             ):
                 db.commit()
@@ -226,7 +227,7 @@ def get_game_info_by_public_code(public_code: str):
         db.close()
 
 @game_bp.route('/me', methods=['GET'])
-@require_auth  # JWT ONLY
+@clerk_required  # Clerk auth only
 def get_my_games():
     """
     Get all games accessible to the authenticated user.
@@ -255,7 +256,7 @@ def get_my_games():
     """
     db = SessionLocal()
     try:
-        current_user_id = g.current_user_id
+        current_user_id = str(get_current_user().id)
 
         # Query 1: Games owned by this user
         owned_games = db.query(Game).filter(

@@ -2,9 +2,9 @@ import { ChevronDown, GitMerge, HelpCircle, X, Upload, BarChart3, Home } from "l
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useAdminSession } from "../../../contexts/AdminSessionContext";
-import { useAuth } from "../../../contexts/AuthContext";
 import { useToast } from "../../../contexts/ToastContext";
 import { PlayerInfo } from "../../../entities/game/types";
+import { useClerkAuth } from "../../../hooks/useClerkAuth";
 import { useGameTitle } from "../../../shared/hooks/useGameTitle";
 import { Button } from "../../../shared/ui/button";
 import { Heading, Text } from "../../../shared/ui/typography";
@@ -61,7 +61,7 @@ export default function GameIngestPage() {
   const { publicCode } = useParams<{ publicCode: string }>();
   const { getAdminCode } = useAdminSession();
   const adminCode = getAdminCode(publicCode || '');
-  const { isAuthenticated, user } = useAuth();
+  const { isSignedIn, user } = useClerkAuth();
   const { showSuccess, showError, showInfo } = useToast();
   const { title: _title } = useGameTitle(publicCode || '');
 
@@ -134,7 +134,7 @@ export default function GameIngestPage() {
       const error = upload.error as any;
 
       // Handle 403 specifically when authenticated
-      if (isAuthenticated && error?.response?.status === 403) {
+      if (isSignedIn && error?.response?.status === 403) {
         showError(
           "Access Denied",
           "You don't own this game. Please claim it first or use the admin code.",
@@ -150,7 +150,7 @@ export default function GameIngestPage() {
         7000 // Show errors longer
       );
     }
-  }, [upload.isError, upload.error, showError, isAuthenticated]);
+  }, [upload.isError, upload.error, showError, isSignedIn]);
 
   const totals = useMemo(() => deriveTotals(rows), [rows]);
 
@@ -175,7 +175,7 @@ export default function GameIngestPage() {
   }
 
   // If not authenticated, require admin code
-  if (!isAuthenticated && !adminCode) {
+  if (!isSignedIn && !adminCode) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
@@ -214,7 +214,7 @@ export default function GameIngestPage() {
     upload.mutate({
       public_code: PUBLIC_CODE,
       // Only send admin_code when not authenticated
-      ...(!isAuthenticated && ADMIN_CODE && { admin_code: ADMIN_CODE }),
+      ...(!isSignedIn && ADMIN_CODE && { admin_code: ADMIN_CODE }),
       sessionId,
       game_data,
       ...(date && { date: `${date}T00:00:00Z` }),
@@ -369,10 +369,10 @@ export default function GameIngestPage() {
           <Text variant="body" color="muted" className="mt-2">
             Import PokerNow session data
           </Text>
-          {isAuthenticated && user && (
+          {isSignedIn && user && (
             <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-md">
               <Text variant="bodySmall" className="text-blue-800 dark:text-blue-200">
-                Uploading as: <strong>{user.email}</strong>
+                Uploading as: <strong>{user.emailAddresses?.[0]?.emailAddress}</strong>
               </Text>
             </div>
           )}
@@ -417,7 +417,7 @@ export default function GameIngestPage() {
                     View Game Stats
                   </Button>
                 </Link>
-                {isAuthenticated && (
+                {isSignedIn && (
                   <Link to="/my-games">
                     <Button variant="outline">
                       <Home className="h-4 w-4 mr-2" />

@@ -2,7 +2,7 @@
 Authentication middleware for Flask routes.
 
 This module provides decorators for protecting routes that require
-authenticated users via JWT tokens or admin codes.
+authenticated users via Clerk tokens or admin codes.
 """
 
 import os
@@ -10,179 +10,55 @@ from functools import wraps
 from flask import request, jsonify, g
 from datetime import datetime, timezone, timedelta
 
-from infrastructure.security import JWTTokenService
-from db.models import Game
+from db.models import Game, User
 from db.database import SessionLocal
-from infrastructure.persistence.sqlalchemy.user_repository import SQLAlchemyUserRepository
-
-
-# JWT service singleton for efficiency
-_jwt_service = None
-
-def get_jwt_service():
-    """Lazy-load JWT service singleton"""
-    global _jwt_service
-    if _jwt_service is None:
-        secret = os.environ.get('JWT_SECRET')
-        if not secret:
-            raise RuntimeError("JWT_SECRET environment variable not set")
-        _jwt_service = JWTTokenService(secret)
-    return _jwt_service
-
-
-def require_auth(f):
-    """
-    Decorator to require JWT authentication for a route.
-
-    This decorator:
-    1. Extracts JWT from Authorization: Bearer <token> header
-    2. Validates token using JWTTokenService
-    3. Injects user info into Flask's g object:
-       - g.current_user_id (str): User's UUID
-       - g.current_user_email (str): User's email
-    4. Returns 401 JSON response if authentication fails
-
-    Usage:
-        >>> @app.route('/protected')
-        >>> @require_auth
-        >>> def protected_route():
-        >>>     user_id = g.current_user_id
-        >>>     return jsonify({'user_id': user_id})
-
-    Returns:
-        401 JSON response if:
-        - Authorization header is missing
-        - Token format is invalid (not "Bearer <token>")
-        - Token is expired or invalid
-        - JWT_SECRET environment variable is not set
-
-    Note:
-        The decorated function can access:
-        - g.current_user_id (str)
-        - g.current_user_email (str)
-    """
-
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        # Get Authorization header
-        auth_header = request.headers.get('Authorization')
-
-        if not auth_header:
-            return jsonify({
-                'error': 'Missing authorization header'
-            }), 401
-
-        # Check format: "Bearer <token>"
-        if not auth_header.startswith('Bearer '):
-            return jsonify({
-                'error': 'Invalid authorization header format. Expected: Bearer <token>'
-            }), 401
-
-        # Extract token
-        token = auth_header.split(' ')[1] if len(auth_header.split(' ')) > 1 else None
-
-        if not token:
-            return jsonify({
-                'error': 'Missing token in authorization header'
-            }), 401
-
-        # Get JWT service (reads JWT_SECRET from environment)
-        try:
-            jwt_service = get_jwt_service()
-        except RuntimeError as e:
-            return jsonify({
-                'error': str(e)
-            }), 500
-        except Exception as e:
-            return jsonify({
-                'error': f'Authentication service error: {str(e)}'
-            }), 500
-
-        # Decode and validate token
-        payload = jwt_service.decode_token(token)
-
-        if not payload:
-            return jsonify({
-                'error': 'Invalid or expired token'
-            }), 401
-
-        # Verify token_version to invalidate sessions after password change
-        user_id = payload.get('user_id')
-        token_version = payload.get('token_version', 1)  # Default to 1 for backwards compatibility
-
-        db = SessionLocal()
-        try:
-            user_repo = SQLAlchemyUserRepository(db)
-            user = user_repo.find_by_id(user_id)
-
-            if not user:
-                return jsonify({
-                    'error': 'Invalid token: user not found'
-                }), 401
-
-            # Check if token version matches current user version
-            if user.token_version != token_version:
-                return jsonify({
-                    'error': 'Session expired: please log in again'
-                }), 401
-
-        finally:
-            db.close()
-
-        # Inject user info into Flask's g object
-        g.current_user_id = payload.get('user_id')
-        g.current_user_email = payload.get('email')
-
-        # Call the decorated function
-        return f(*args, **kwargs)
-
-    return decorated_function
 
 
 def require_auth_or_admin_code(f):
     """
-    Validates JWT OR admin code from headers.
+    Validates Clerk token OR admin code from headers.
     Does NOT check game ownership or admin code expiration.
 
     Sets:
-        - g.auth_method: 'jwt' or 'admin_code'
-        - g.current_user_id (if JWT)
-        - g.current_user_email (if JWT)
+        - g.auth_method: 'clerk' or 'admin_code'
+        - g.current_user_id (if Clerk)
+        - g.current_user_email (if Clerk)
         - g.admin_code (if admin code)
 
     Returns 401 only for authentication failures.
     """
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        # Try JWT first
+        # Try Clerk authentication first
         auth_header = request.headers.get('Authorization')
         if auth_header and auth_header.startswith('Bearer '):
             token = auth_header.split(' ')[1] if len(auth_header.split(' ')) > 1 else None
 
             if token:
                 try:
-                    jwt_service = get_jwt_service()
-                    payload = jwt_service.decode_token(token)
+                    from clerk_backend_api import Clerk
+                    from clerk_backend_api.jwks_helpers import AuthenticateRequestOptions
 
-                    if payload:
-                        # Verify token_version
-                        user_id = payload.get('user_id')
-                        token_version = payload.get('token_version', 1)
+                    clerk_secret = os.environ.get('CLERK_SECRET_KEY')
+                    if clerk_secret:
+                        clerk_client = Clerk(bearer_auth=clerk_secret)
+                        request_state = clerk_client.verify_token(token, options=AuthenticateRequestOptions())
 
-                        db = SessionLocal()
-                        try:
-                            user_repo = SQLAlchemyUserRepository(db)
-                            user = user_repo.find_by_id(user_id)
-
-                            if user and user.token_version == token_version:
-                                g.auth_method = 'jwt'
-                                g.current_user_id = payload.get('user_id')
-                                g.current_user_email = payload.get('email')
-                                return f(*args, **kwargs)
-                        finally:
-                            db.close()
+                        clerk_user_id = request_state.get('sub')
+                        if clerk_user_id:
+                            # Look up user by clerk_user_id
+                            db = SessionLocal()
+                            try:
+                                user = db.query(User).filter(User.clerk_user_id == clerk_user_id).first()
+                                if user:
+                                    g.auth_method = 'clerk'
+                                    g.current_user_id = str(user.id)
+                                    g.current_user_email = user.email
+                                    return f(*args, **kwargs)
+                            finally:
+                                db.close()
                 except Exception:
-                    # JWT validation failed, try admin code fallback
+                    # Clerk validation failed, try admin code fallback
                     pass
 
         # Fallback to admin code
@@ -193,7 +69,7 @@ def require_auth_or_admin_code(f):
             return f(*args, **kwargs)
 
         # No valid auth provided
-        return jsonify({'error': 'Missing authentication: provide JWT token or X-Admin-Code'}), 401
+        return jsonify({'error': 'Missing authentication: provide Clerk token or X-Admin-Code'}), 401
 
     return decorated_function
 
@@ -205,14 +81,14 @@ def check_game_authorization(game: Game, auth_method: str,
 
     Args:
         game: Game object
-        auth_method: 'jwt' or 'admin_code'
-        user_id: User UUID (for JWT auth)
+        auth_method: 'clerk' or 'admin_code'
+        user_id: User UUID (for Clerk auth)
         admin_code: Admin code string (for admin code auth)
 
     Returns:
         (authorized: bool, error_message: str)
     """
-    if auth_method == 'jwt':
+    if auth_method == 'clerk':
         # JWT auth: must be game owner
         if game.owner_user_id is None:
             return False, "Game not claimed. Use admin code or claim this game first."

@@ -1,7 +1,7 @@
 import { X } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { useRequestCashOut, useParticipants } from '../api/liveGame';
-import { useAuth } from '../contexts/AuthContext';
+import { useClerkAuth } from '../hooks/useClerkAuth';
 import { Button } from '../shared/ui/button';
 import { FormField, FormLabel } from '../shared/ui/form-field';
 import { Input } from '../shared/ui/input';
@@ -20,7 +20,7 @@ export function CashOutModal({
   totalBuyIns,
   onClose
 }: CashOutModalProps) {
-  const { user } = useAuth();
+  const { user } = useClerkAuth();
   const [amount, setAmount] = useState(''); // Don't pre-fill - player counts their actual chips
   const [status, setStatus] = useState<'idle' | 'pending'>('idle');
   const cashOutMutation = useRequestCashOut();

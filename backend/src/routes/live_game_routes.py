@@ -11,7 +11,7 @@ from flask import Blueprint, request, jsonify, g
 
 from db.database import SessionLocal
 from db.models import Game as GameModel
-from middleware.auth_middleware import require_auth
+from middleware.clerk_auth import clerk_required, get_current_user
 
 from domain.identity.value_objects import UserId
 from domain.poker.value_objects import GameId
@@ -115,7 +115,7 @@ def check_admin_session(db_session, user_id: UserId, game_id: str) -> bool:
 # ============================================================================
 
 @live_game_bp.route('/games/<game_id>/live-games', methods=['POST'])
-@require_auth
+@clerk_required
 def create_live_game(game_id):
     """
     Create a new live game session for a parent game.
@@ -197,7 +197,7 @@ def create_live_game(game_id):
 
         # Create service and live game
         service = get_live_game_service(db)
-        current_user_id = UserId(g.current_user_id)
+        current_user_id = UserId(str(get_current_user().id))
 
         live_game = service.create_live_game(
             game_id=GameId(game_id),
@@ -338,7 +338,7 @@ def get_active_live_game_by_public_code(public_code):
 # ============================================================================
 
 @live_game_bp.route('/live-games/join', methods=['POST'])
-@require_auth
+@clerk_required
 def join_live_game():
     """
     Join a live game using a join code with player identity claiming.
@@ -419,7 +419,7 @@ def join_live_game():
         # Get live game by join code
         service = get_live_game_service(db)
         live_game = service.get_live_game_by_join_code(join_code_str)
-        current_user_id = UserId(g.current_user_id)
+        current_user_id = UserId(str(get_current_user().id))
 
         # ===== STEP 1: Check if user already joined this live game =====
         from db.models import LiveGameParticipant as LiveGameParticipantModel
@@ -521,7 +521,7 @@ def join_live_game():
 
 
 @live_game_bp.route('/live-games/<join_code>/claim-and-join', methods=['POST'])
-@require_auth
+@clerk_required
 def claim_and_join_live_game(join_code):
     """
     Claim a player identity and join live game atomically.
@@ -608,7 +608,7 @@ def claim_and_join_live_game(join_code):
         if live_game.status != 'active':
             return jsonify({'error': 'This game is no longer accepting new players'}), 400
 
-        current_user_id = UserId(g.current_user_id)
+        current_user_id = UserId(str(get_current_user().id))
 
         # Check if already joined
         from db.models import LiveGameParticipant as LiveGameParticipantModel
@@ -889,7 +889,7 @@ def get_participants(join_code):
 # ============================================================================
 
 @live_game_bp.route('/live-games/<join_code>/transactions/buy-in', methods=['POST'])
-@require_auth
+@clerk_required
 def request_buy_in(join_code):
     """
     Request a buy-in transaction.
@@ -940,7 +940,7 @@ def request_buy_in(join_code):
         live_game = service.get_live_game_by_join_code(join_code.strip().upper())
 
         # Request buy-in
-        current_user_id = UserId(g.current_user_id)
+        current_user_id = UserId(str(get_current_user().id))
         transaction = service.request_buy_in(
             live_game_id=live_game.id,
             user_id=current_user_id,
@@ -1002,7 +1002,7 @@ def request_buy_in(join_code):
 
 
 @live_game_bp.route('/live-games/<join_code>/transactions/cash-out', methods=['POST'])
-@require_auth
+@clerk_required
 def request_cash_out(join_code):
     """
     Request a cash-out transaction.
@@ -1053,7 +1053,7 @@ def request_cash_out(join_code):
         live_game = service.get_live_game_by_join_code(join_code.strip().upper())
 
         # Request cash-out
-        current_user_id = UserId(g.current_user_id)
+        current_user_id = UserId(str(get_current_user().id))
         transaction = service.request_cash_out(
             live_game_id=live_game.id,
             user_id=current_user_id,
@@ -1115,7 +1115,7 @@ def request_cash_out(join_code):
 
 
 @live_game_bp.route('/live-games/<join_code>/transactions/pending', methods=['GET'])
-@require_auth
+@clerk_required
 def get_pending_transactions(join_code):
     """
     Get all pending transactions for a live game.
@@ -1152,7 +1152,7 @@ def get_pending_transactions(join_code):
         live_game = service.get_live_game_by_join_code(join_code.strip().upper())
 
         # Check permission
-        current_user_id = UserId(g.current_user_id)
+        current_user_id = UserId(str(get_current_user().id))
         permission_service = get_permission_service(db)
 
         def admin_session_check(user_id: UserId, game_id: str) -> bool:
@@ -1199,7 +1199,7 @@ def get_pending_transactions(join_code):
 
 
 @live_game_bp.route('/live-games/transactions/<transaction_id>/approve', methods=['PATCH'])
-@require_auth
+@clerk_required
 def approve_transaction(transaction_id):
     """
     Approve a pending transaction.
@@ -1226,7 +1226,7 @@ def approve_transaction(transaction_id):
     db = SessionLocal()
     try:
         service = get_live_game_service(db)
-        current_user_id = UserId(g.current_user_id)
+        current_user_id = UserId(str(get_current_user().id))
 
         # Get transaction to check live game
         transaction_repo = SQLAlchemyTransactionRepository(db)
@@ -1293,7 +1293,7 @@ def approve_transaction(transaction_id):
 
 
 @live_game_bp.route('/live-games/transactions/<transaction_id>/reject', methods=['PATCH'])
-@require_auth
+@clerk_required
 def reject_transaction(transaction_id):
     """
     Reject a pending transaction.
@@ -1339,7 +1339,7 @@ def reject_transaction(transaction_id):
             return jsonify({'error': 'Rejection reason cannot be empty'}), 400
 
         service = get_live_game_service(db)
-        current_user_id = UserId(g.current_user_id)
+        current_user_id = UserId(str(get_current_user().id))
 
         # Get transaction to check live game
         transaction_repo = SQLAlchemyTransactionRepository(db)
@@ -1409,7 +1409,7 @@ def reject_transaction(transaction_id):
 
 
 @live_game_bp.route('/live-games/transactions/<transaction_id>', methods=['PATCH'])
-@require_auth
+@clerk_required
 def edit_transaction(transaction_id):
     """
     Edit transaction amount (preserves original for audit).
@@ -1463,7 +1463,7 @@ def edit_transaction(transaction_id):
             return jsonify({'error': 'Edit reason cannot be empty'}), 400
 
         service = get_live_game_service(db)
-        current_user_id = UserId(g.current_user_id)
+        current_user_id = UserId(str(get_current_user().id))
 
         # Get transaction to check live game
         transaction_repo = SQLAlchemyTransactionRepository(db)
@@ -1537,7 +1537,7 @@ def edit_transaction(transaction_id):
 # ============================================================================
 
 @live_game_bp.route('/live-games/<join_code>/close', methods=['POST'])
-@require_auth
+@clerk_required
 def close_live_game(join_code):
     """
     Close a live game with validation and automatic session creation.
@@ -1606,7 +1606,7 @@ def close_live_game(join_code):
         live_game = service.get_live_game_by_join_code(join_code.strip().upper())
 
         # Check permission
-        current_user_id = UserId(g.current_user_id)
+        current_user_id = UserId(str(get_current_user().id))
         permission_service = get_permission_service(db)
 
         def admin_session_check(user_id: UserId, game_id: str) -> bool:
@@ -1770,7 +1770,7 @@ def close_live_game(join_code):
 
 
 @live_game_bp.route('/live-games/<join_code>/create-session', methods=['POST'])
-@require_auth
+@clerk_required
 def create_session_from_closed_game(join_code):
     """
     Manually create a session from a closed live game.
@@ -1812,7 +1812,7 @@ def create_session_from_closed_game(join_code):
             return jsonify({'error': f'Invalid or expired join code: {join_code}'}), 404
 
         # Check permission
-        current_user_id = UserId(g.current_user_id)
+        current_user_id = UserId(str(get_current_user().id))
         permission_service = get_permission_service(db)
 
         def admin_session_check(user_id: UserId, game_id: str) -> bool:

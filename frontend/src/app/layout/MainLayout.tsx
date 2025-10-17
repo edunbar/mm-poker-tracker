@@ -15,6 +15,8 @@ const MainLayout: React.FC<React.PropsWithChildren> = ({ children }) => {
       '/',
       '/login',
       '/register',
+      '/sign-in',
+      '/sign-up',
       '/forgot-password',
       '/reset-password',
       '/my-games',

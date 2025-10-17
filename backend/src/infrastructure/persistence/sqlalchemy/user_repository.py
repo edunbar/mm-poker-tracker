@@ -85,6 +85,30 @@ class SQLAlchemyUserRepository(UserRepository):
                 original_error=e
             )
 
+    def find_by_clerk_id(self, clerk_user_id: str) -> Optional[User]:
+        """
+        Find a user by Clerk user ID.
+
+        Args:
+            clerk_user_id: The Clerk user ID
+
+        Returns:
+            User model if found, None otherwise
+
+        Raises:
+            RepositoryError: If the database query fails
+        """
+        try:
+            user = self.db_session.query(User).filter(
+                User.clerk_user_id == clerk_user_id
+            ).first()
+            return user
+        except SQLAlchemyError as e:
+            raise RepositoryError(
+                f"Failed to find user by Clerk ID: {str(e)}",
+                original_error=e
+            )
+
     def create(
         self,
         email: str,
@@ -93,7 +117,10 @@ class SQLAlchemyUserRepository(UserRepository):
         email_verified: bool = False
     ) -> User:
         """
-        Create a new user.
+        Create a new user (legacy - for password-based auth).
+
+        DEPRECATED: This method is kept for backward compatibility but is
+        no longer used with Clerk authentication. Use create_from_clerk() instead.
 
         Args:
             email: User's email (normalized/lowercased)
@@ -131,6 +158,56 @@ class SQLAlchemyUserRepository(UserRepository):
             self.db_session.rollback()
             raise RepositoryError(
                 f"Failed to create user: {str(e)}",
+                original_error=e
+            )
+
+    def create_from_clerk(
+        self,
+        clerk_user_id: str,
+        email,  # Email value object
+        display_name: str,
+        email_verified: bool = False
+    ) -> User:
+        """
+        Create a new user from Clerk authentication data.
+
+        This method creates a user linked to a Clerk account. It does not
+        require a password hash since authentication is managed by Clerk.
+
+        Args:
+            clerk_user_id: Clerk user ID
+            email: Email value object (from domain.identity)
+            display_name: User's display name
+            email_verified: Whether email is verified in Clerk
+
+        Returns:
+            Created User model
+
+        Raises:
+            IntegrityError: If email or clerk_user_id already exists
+            RepositoryError: If the create operation fails
+        """
+        try:
+            user = User(
+                clerk_user_id=clerk_user_id,
+                email=str(email),
+                display_name=display_name,
+                email_verified=email_verified
+            )
+
+            self.db_session.add(user)
+            self.db_session.flush()  # Flush to get the ID
+            return user
+
+        except IntegrityError as e:
+            self.db_session.rollback()
+            # Re-raise IntegrityError for duplicate email/clerk_id handling
+            raise
+
+        except SQLAlchemyError as e:
+            self.db_session.rollback()
+            raise RepositoryError(
+                f"Failed to create user from Clerk: {str(e)}",
                 original_error=e
             )
 

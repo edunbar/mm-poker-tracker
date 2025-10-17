@@ -1,7 +1,7 @@
 import { type ReactNode } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAdminSession } from '../contexts/AdminSessionContext';
-import { useAuth } from '../contexts/AuthContext';
+import { useClerkAuth } from '../hooks/useClerkAuth';
 import { Heading, Text } from '../shared/ui/typography';
 
 interface ProtectedRouteProps {
@@ -40,7 +40,7 @@ export default function ProtectedRoute({
   requireAuth = false,
 }: ProtectedRouteProps) {
   const location = useLocation();
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isSignedIn, isLoaded } = useClerkAuth();
   const { hasAdminSession: hasAdminSessionForGame } = useAdminSession();
 
   // Extract public code from URL to check admin session
@@ -49,7 +49,7 @@ export default function ProtectedRoute({
 
   // Handle user authentication requirement
   if (requireAuth) {
-    if (isLoading) {
+    if (!isLoaded) {
       return (
         <div className="flex items-center justify-center min-h-screen">
           <div className="text-center">
@@ -60,8 +60,8 @@ export default function ProtectedRoute({
       );
     }
 
-    if (!isAuthenticated) {
-      return <Navigate to="/login" state={{ from: location.pathname }} replace />;
+    if (!isSignedIn) {
+      return <Navigate to="/sign-in" state={{ from: location.pathname }} replace />;
     }
   }
 

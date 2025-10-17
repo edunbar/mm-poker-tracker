@@ -1,14 +1,14 @@
 import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/react";
 import { BrowserRouter as Router } from "react-router-dom";
+import { ClerkAuthWrapper } from "../components/ClerkAuthWrapper";
 import { AdminSessionProvider } from "../contexts/AdminSessionContext";
-import { AuthProvider } from "../contexts/AuthContext";
 import MainLayout from "./layout/MainLayout";
 import AppRoutes from "./routes";
 
 export default function App() {
   return (
-    <AuthProvider>
+    <ClerkAuthWrapper>
       <AdminSessionProvider>
         <Router>
           <MainLayout>
@@ -18,6 +18,6 @@ export default function App() {
         <Analytics />
         <SpeedInsights />
       </AdminSessionProvider>
-    </AuthProvider>
+    </ClerkAuthWrapper>
   );
 }

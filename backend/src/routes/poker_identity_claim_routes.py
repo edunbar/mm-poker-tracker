@@ -24,7 +24,7 @@ from domain.identity.exceptions import (
     UnauthorizedClaimError
 )
 from domain.poker.value_objects import PlayerId, GameId
-from middleware.auth_middleware import require_auth
+from middleware.clerk_auth import clerk_required, get_current_user
 
 # Create blueprint
 poker_identity_bp = Blueprint('poker_identity_claims', __name__)
@@ -96,13 +96,13 @@ def get_existing_claim_for_game(db_session, user_id: str, game_id: str):
 # ============================================================================
 
 @poker_identity_bp.route('/me', methods=['GET'])
-@require_auth
+@clerk_required
 def get_my_claims():
     """
     Get all claimed player identities for the current authenticated user.
 
     Headers:
-        Authorization: Bearer <jwt_token>
+        Authorization: Bearer <clerk_session_token>
 
     Returns:
         200: {
@@ -128,13 +128,13 @@ def get_my_claims():
         500: { "error": "server error message" }
 
     Note:
-        Requires valid JWT token in Authorization header.
-        User info is injected by @require_auth decorator via g.current_user_id
+        Requires valid Clerk session token in Authorization header.
+        User info is injected by @clerk_required decorator
     """
     db = SessionLocal()
     try:
-        # Get user ID from JWT payload (injected by @require_auth)
-        user_id = UserId(g.current_user_id)
+        # Get user ID from authenticated user
+        user_id = UserId(str(get_current_user().id))
 
         # Initialize service
         service = get_claim_service(db)
@@ -152,13 +152,13 @@ def get_my_claims():
 
 
 @poker_identity_bp.route('/games/<public_code>/claimable', methods=['GET'])
-@require_auth
+@clerk_required
 def get_claimable_players(public_code):
     """
     Get all unclaimed players in a specific game.
 
     Headers:
-        Authorization: Bearer <jwt_token>
+        Authorization: Bearer <clerk_session_token>
 
     Path Parameters:
         public_code: Public code of the game (e.g., "C4QRO")
@@ -208,13 +208,13 @@ def get_claimable_players(public_code):
 
 
 @poker_identity_bp.route('/claim', methods=['POST'])
-@require_auth
+@clerk_required
 def claim_player():
     """
     Claim a poker player identity.
 
     Headers:
-        Authorization: Bearer <jwt_token>
+        Authorization: Bearer <clerk_session_token>
 
     Request Body:
         {
@@ -269,8 +269,8 @@ def claim_player():
         except ValueError as e:
             return jsonify({'error': f'Invalid player_id: {str(e)}'}), 400
 
-        # Get user ID from JWT payload (injected by @require_auth)
-        user_id = UserId(g.current_user_id)
+        # Get user ID from authenticated user
+        user_id = UserId(str(get_current_user().id))
 
         # Initialize service
         service = get_claim_service(db)
@@ -301,13 +301,13 @@ def claim_player():
 
 
 @poker_identity_bp.route('/<claim_id>', methods=['DELETE'])
-@require_auth
+@clerk_required
 def unclaim_player(claim_id):
     """
     Unclaim a poker player identity.
 
     Headers:
-        Authorization: Bearer <jwt_token>
+        Authorization: Bearer <clerk_session_token>
 
     Path Parameters:
         claim_id: UUID string of the claim to remove
@@ -326,8 +326,8 @@ def unclaim_player(claim_id):
     """
     db = SessionLocal()
     try:
-        # Get user ID from JWT payload (injected by @require_auth)
-        user_id = UserId(g.current_user_id)
+        # Get user ID from authenticated user
+        user_id = UserId(str(get_current_user().id))
 
         # Initialize service
         service = get_claim_service(db)
@@ -357,13 +357,13 @@ def unclaim_player(claim_id):
 
 
 @poker_identity_bp.route('/players/<player_id>/preview', methods=['GET'])
-@require_auth
+@clerk_required
 def preview_player(player_id):
     """
     Get preview data for a player before claiming.
 
     Headers:
-        Authorization: Bearer <jwt_token>
+        Authorization: Bearer <clerk_session_token>
 
     Path Parameters:
         player_id: UUID string of the player

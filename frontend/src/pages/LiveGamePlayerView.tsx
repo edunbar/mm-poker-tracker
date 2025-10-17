@@ -4,7 +4,7 @@ import { useLiveGameInfo, useParticipants } from '../api/liveGame';
 import { BuyInModal } from '../components/BuyInModal';
 import { CashOutModal } from '../components/CashOutModal';
 import { PlayerStats } from '../components/PlayerStats';
-import { useAuth } from '../contexts/AuthContext';
+import { useClerkAuth } from '../hooks/useClerkAuth';
 import { useLiveGameSSE } from '../hooks/useLiveGameSSE';
 import { Button } from '../shared/ui/button';
 import { Heading, Text } from '../shared/ui/typography';
@@ -13,7 +13,7 @@ import { clearActiveLiveGame, setActiveLiveGame } from '../utils/liveGameStorage
 export default function LiveGamePlayerView() {
   const { publicCode, joinCode } = useParams<{ publicCode: string; joinCode: string }>();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user } = useClerkAuth();
   const [showBuyInModal, setShowBuyInModal] = useState(false);
   const [showCashOutModal, setShowCashOutModal] = useState(false);
   const [gameIsClosed, setGameIsClosed] = useState(false);

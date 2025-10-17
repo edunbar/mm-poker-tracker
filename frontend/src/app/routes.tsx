@@ -8,11 +8,7 @@ import LiveGameIngestPage from "../features/admin/pages/LiveGameIngestPage";
 import GameIngestPage from "../features/admin/pages/SessionIngestPage";
 import ClaimGamePage from "../features/auth/pages/ClaimGamePage";
 import CreateGamePage from "../features/auth/pages/CreateGamePage";
-import ForgotPasswordPage from "../features/auth/pages/ForgotPasswordPage";
-import LoginPage from "../features/auth/pages/LoginPage";
 import MyGamesPage from "../features/auth/pages/MyGamesPage";
-import RegisterPage from "../features/auth/pages/RegisterPage";
-import ResetPasswordPage from "../features/auth/pages/ResetPasswordPage";
 import AdvancedAnalyticsPage from "../features/game/pages/AdvancedAnalyticsPage";
 import GameSummaryPage from "../features/game/pages/GameSummaryPage";
 import PaymentLedgerPage from "../features/payment/pages/PaymentLedgerPage";
@@ -22,16 +18,15 @@ import LandingPage from "../pages/Landing/LandingPage";
 import LiveGameAdminView from "../pages/LiveGameAdminView";
 import LiveGamePage from "../pages/LiveGamePage";
 import LiveGamePlayerView from "../pages/LiveGamePlayerView";
-import SettingsPage from "../pages/SettingsPage";
+import SignInPage from "../pages/SignInPage";
+import SignUpPage from "../pages/SignUpPage";
 
 export default function AppRoutes() {
   return (
     <Routes>
       <Route path="/" element={<LandingPage />} />
-      <Route path="/login" element={<LoginPage />} />
-      <Route path="/register" element={<RegisterPage />} />
-      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-      <Route path="/reset-password" element={<ResetPasswordPage />} />
+      <Route path="/sign-in/*" element={<SignInPage />} />
+      <Route path="/sign-up/*" element={<SignUpPage />} />
       <Route path="/my-games" element={
         <ProtectedRoute requireAuth={true}>
           <MyGamesPage />
@@ -45,11 +40,6 @@ export default function AppRoutes() {
       <Route path="/create-game" element={
         <ProtectedRoute requireAuth={true}>
           <CreateGamePage />
-        </ProtectedRoute>
-      } />
-      <Route path="/settings" element={
-        <ProtectedRoute requireAuth={true}>
-          <SettingsPage />
         </ProtectedRoute>
       } />
       <Route path="/join-live/:joinCode" element={<JoinLiveGamePage />} />
