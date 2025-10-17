@@ -304,15 +304,30 @@ class SQLAlchemyPaymentBalanceRepository(PaymentBalanceRepository):
 
                 balance_negative_since = db_balance.balance_negative_since if db_balance else None
 
-                # Calculate the net balance to determine if we need a timestamp
+                # Calculate old and new balances for state transition logic
                 calculated_balance = poker_net + total_paid - total_received
+                old_balance_cents = int(db_balance.payment_balance) if db_balance else 0
+                new_balance_cents = int(calculated_balance.amount)
 
-                # Handle initial case: If this is the FIRST time calculating balance (no db_balance record)
-                # and the balance is negative, set timestamp to NOW
-                # This is different from RECALCULATION where we should preserve existing timestamps
-                if db_balance is None and calculated_balance < Money.zero():
-                    # Initial negative balance - set timestamp to NOW
-                    balance_negative_since = datetime.now(timezone.utc)
+                # Apply state transition logic (same as update_balances_for_players)
+                now_utc = datetime.now(timezone.utc)
+
+                if old_balance_cents >= 0 and new_balance_cents < 0:
+                    # TRANSITION: Positive/zero → negative
+                    # Set timestamp to NOW (balance just became negative)
+                    balance_negative_since = now_utc
+                elif old_balance_cents < 0 and new_balance_cents < 0:
+                    # TRANSITION: Negative → still negative
+                    # PRESERVE existing timestamp (don't reset to NOW)
+                    balance_negative_since = db_balance.balance_negative_since
+                elif old_balance_cents < 0 and new_balance_cents >= 0:
+                    # TRANSITION: Negative → positive/zero
+                    # CLEAR timestamp (player settled up)
+                    balance_negative_since = None
+                else:  # old_balance_cents >= 0 and new_balance_cents >= 0
+                    # TRANSITION: Positive/zero → still positive/zero
+                    # Keep NULL (no debt)
+                    balance_negative_since = None
 
                 balance = PlayerBalance(
                     player_id=player_id_obj,
