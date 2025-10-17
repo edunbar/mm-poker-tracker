@@ -95,32 +95,79 @@ def get_payment_events(db, game_id: str, player_id: str) -> List[TransactionEven
     return events
 
 
+def get_session_events(db, game_id: str, player_id: str) -> List[TransactionEvent]:
+    """Get all session results for a player, ordered chronologically"""
+    events = []
+
+    # Get all sessions where player participated
+    sessions = (
+        db.query(SessionPlayerSummary, Session)
+        .join(Session, SessionPlayerSummary.session_id == Session.id)
+        .filter(
+            Session.game_id == game_id,
+            SessionPlayerSummary.player_id == player_id
+        )
+        .order_by(Session.started_at.asc())
+        .all()
+    )
+
+    for sps, session in sessions:
+        events.append(TransactionEvent(
+            timestamp=session.started_at,
+            amount_cents=sps.net,
+            transaction_id=str(session.id),
+            description=f"Session {session.external_id}: ${sps.net/100:.2f}"
+        ))
+
+    return events
+
+
 def find_negative_since_timestamp(
-    poker_winnings: int,
-    events: List[TransactionEvent]
+    db,
+    game_id: str,
+    player_id: str,
+    payment_events: List[TransactionEvent]
 ) -> Optional[datetime]:
     """
-    Replay payment history to find when balance first became negative.
+    Replay session and payment history to find when balance MOST RECENTLY became negative.
+
+    This tracks the current consecutive period of being negative, NOT the first time ever.
+    The timestamp resets each time the balance goes back to >= $0.
 
     Returns:
-        The timestamp when balance first went negative, or None if never negative.
+        The timestamp when balance most recently went negative, or None if never negative.
     """
-    running_balance = poker_winnings
+    # Get session events (these determine poker winnings)
+    session_events = get_session_events(db, game_id, player_id)
 
-    # If starting balance is already negative and there are no events,
-    # we can't determine when it became negative
-    if running_balance < 0 and len(events) == 0:
-        return None
+    # Combine and sort all events chronologically
+    all_events = sorted(
+        session_events + payment_events,
+        key=lambda e: e.timestamp
+    )
 
-    for event in events:
+    running_balance = 0
+    most_recent_negative_timestamp = None
+    was_negative = False
+
+    for event in all_events:
+        old_balance = running_balance
         running_balance += event.amount_cents
 
-        # First time balance goes negative
-        if running_balance < 0:
-            return event.timestamp
+        # Check for transition from non-negative to negative
+        if old_balance >= 0 and running_balance < 0:
+            # Balance just became negative - record this timestamp
+            most_recent_negative_timestamp = event.timestamp
+            was_negative = True
+        elif old_balance < 0 and running_balance >= 0:
+            # Balance just became non-negative - reset the timestamp
+            most_recent_negative_timestamp = None
+            was_negative = False
+        # If still negative, keep the existing timestamp
 
-    # Balance never went negative in transaction history
-    return None
+    # Return the most recent timestamp when balance became negative
+    # (will be None if balance is currently non-negative)
+    return most_recent_negative_timestamp
 
 
 def fix_balance_timestamps(game_code: Optional[str] = None, dry_run: bool = True):
@@ -180,17 +227,21 @@ def fix_balance_timestamps(game_code: Optional[str] = None, dry_run: bool = True
                 print(f"    Poker winnings: ${poker_winnings / 100:.2f}")
 
                 # Get payment events
-                events = get_payment_events(db, game.id, player.id)
-                print(f"    Payment transactions: {len(events)}")
+                payment_events = get_payment_events(db, game.id, player.id)
+                print(f"    Payment transactions: {len(payment_events)}")
 
-                # Find when balance first went negative
-                new_negative_since = find_negative_since_timestamp(poker_winnings, events)
+                # Find when balance first went negative (considers both sessions and payments)
+                new_negative_since = find_negative_since_timestamp(db, game.id, player.id, payment_events)
 
                 if new_negative_since:
                     days_negative = (datetime.now(timezone.utc) - new_negative_since).days
                     print(f"    Calculated negative_since: {new_negative_since} ({days_negative} days ago)")
                 else:
-                    print(f"    Calculated negative_since: Unable to determine (no transactions)")
+                    # This should not happen with the new logic that replays sessions
+                    print(f"    ERROR: Unable to determine negative_since timestamp!")
+                    print(f"           Balance is negative but no history found.")
+                    total_skipped += 1
+                    continue
 
                 # Decide if we need to update
                 should_update = False

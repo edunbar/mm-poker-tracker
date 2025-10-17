@@ -304,15 +304,29 @@ class SQLAlchemyPaymentBalanceRepository(PaymentBalanceRepository):
 
                 balance_negative_since = db_balance.balance_negative_since if db_balance else None
 
-                # Calculate the net balance to determine if we need a timestamp
+                # Calculate old and new balances for state transition logic
                 calculated_balance = poker_net + total_paid - total_received
+                old_balance_cents = int(db_balance.payment_balance) if db_balance else 0
+                new_balance_cents = int(calculated_balance.amount)
 
-                # INVARIANT CORRECTION: Fix stale data from database
-                # If balance is negative but we don't have a timestamp, set it to now
-                if calculated_balance < Money.zero() and balance_negative_since is None:
-                    balance_negative_since = datetime.now(timezone.utc)
-                # If balance is positive/zero but we have a timestamp, clear it
-                elif calculated_balance >= Money.zero() and balance_negative_since is not None:
+                # Apply state transition logic (same as update_balances_for_players)
+                now_utc = datetime.now(timezone.utc)
+
+                if old_balance_cents >= 0 and new_balance_cents < 0:
+                    # TRANSITION: Positive/zero → negative
+                    # Set timestamp to NOW (balance just became negative)
+                    balance_negative_since = now_utc
+                elif old_balance_cents < 0 and new_balance_cents < 0:
+                    # TRANSITION: Negative → still negative
+                    # PRESERVE existing timestamp (don't reset to NOW)
+                    balance_negative_since = db_balance.balance_negative_since
+                elif old_balance_cents < 0 and new_balance_cents >= 0:
+                    # TRANSITION: Negative → positive/zero
+                    # CLEAR timestamp (player settled up)
+                    balance_negative_since = None
+                else:  # old_balance_cents >= 0 and new_balance_cents >= 0
+                    # TRANSITION: Positive/zero → still positive/zero
+                    # Keep NULL (no debt)
                     balance_negative_since = None
 
                 balance = PlayerBalance(
@@ -453,7 +467,8 @@ class SQLAlchemyPaymentBalanceRepository(PaymentBalanceRepository):
                 elif old_balance_cents < 0 and new_balance_cents < 0:
                     # TRANSITION: negative → still negative
                     # PRESERVE existing timestamp (idempotent - don't update)
-                    new_negative_since = old_negative_since or now_utc  # Fallback for migration edge case
+                    # Rely on fail-fast check (line 435-441) to catch missing timestamps
+                    new_negative_since = old_negative_since
                     transition_type = "still_negative"
 
                 elif old_balance_cents < 0 and new_balance_cents >= 0:
@@ -682,13 +697,9 @@ class SQLAlchemyPaymentBalanceRepository(PaymentBalanceRepository):
         Returns:
             Domain PlayerBalance entity
         """
-        # Calculate balance to check if we need timestamp (for migration scenarios)
-        calculated_balance = Money(db_balance.poker_net_winnings) + Money(db_balance.total_paid) - Money(db_balance.total_received)
+        # Use balance_negative_since from database as-is
+        # Don't modify timestamps during data conversion
         balance_negative_since = db_balance.balance_negative_since
-
-        # If balance is negative but no timestamp, set it now (handles migration edge cases)
-        if calculated_balance < Money.zero() and balance_negative_since is None:
-            balance_negative_since = datetime.now(timezone.utc)
 
         return PlayerBalance(
             player_id=PlayerId(str(db_balance.player_id)),
