@@ -1,12 +1,14 @@
 import { render, screen } from '@testing-library/react';
 import PaymentLedgerPage from './PaymentLedgerPage';
 
-// Mock axios
-jest.mock('axios', () => ({
-  get: jest.fn(() => Promise.resolve({ data: {} })),
-  post: jest.fn(() => Promise.resolve({ data: {} })),
-  put: jest.fn(() => Promise.resolve({ data: {} })),
-  delete: jest.fn(() => Promise.resolve({ data: {} }))
+// Mock the apiClient module
+jest.mock('../../../api/client', () => ({
+  apiClient: {
+    get: jest.fn(() => Promise.resolve({ data: {} })),
+    post: jest.fn(() => Promise.resolve({ data: {} })),
+    put: jest.fn(() => Promise.resolve({ data: {} })),
+    delete: jest.fn(() => Promise.resolve({ data: {} }))
+  }
 }));
 
 // Mock react-router-dom useParams (already mocked globally but need to override)
@@ -18,9 +20,11 @@ jest.mock('react-router-dom', () => ({
 // Mock contexts
 jest.mock('../../../contexts/AdminSessionContext', () => ({
   useAdminSession: () => ({
-    hasAdminSession: false,
-    publicCode: 'TEST123',
-    adminCode: null
+    hasAdminSession: () => false,
+    getAdminCode: () => null,
+    setAdminSession: () => {},
+    clearAdminSession: () => {},
+    getAllAdminSessions: () => []
   })
 }));
 
@@ -28,6 +32,16 @@ jest.mock('../../../contexts/ToastContext', () => ({
   useToast: () => ({
     showSuccess: () => {},
     showError: () => {}
+  })
+}));
+
+jest.mock('../../../contexts/AuthContext', () => ({
+  useAuth: () => ({
+    user: null,
+    isAuthenticated: false,
+    login: jest.fn(),
+    register: jest.fn(),
+    logout: jest.fn()
   })
 }));
 

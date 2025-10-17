@@ -2,14 +2,17 @@ import axios from 'axios';
 import { AlertTriangle, Bell, ChevronDown, ChevronUp, CreditCard, DollarSign, Edit, History, Plus, Star, Target, Trash2, Users, X } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { API_BASE_URL } from '../../../config/api';
+import { apiClient } from '../../../api/client';
 import { useAdminSession } from '../../../contexts/AdminSessionContext';
 import { useToast } from '../../../contexts/ToastContext';
+import { useClerkAuth } from '../../../hooks/useClerkAuth';
 import { useGameTitle } from '../../../shared/hooks/useGameTitle';
 import { Button } from '../../../shared/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '../../../shared/ui/tooltip';
 import { Heading, Text } from '../../../shared/ui/typography';
 import { AlertSettings } from '../../admin/components/AlertSettings';
+
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
 
 interface PlayerPaymentSummary {
   player_id: string;
@@ -78,7 +81,10 @@ interface PlayerWithMethods {
 export default function PaymentLedgerPage() {
   const { publicCode } = useParams<{ publicCode: string }>();
   const { title: _title } = useGameTitle(publicCode || '');
-  const { adminCode: sessionAdminCode, hasAdminSession } = useAdminSession();
+  const { getAdminCode, hasAdminSession: hasAdminSessionForGame } = useAdminSession();
+  const sessionAdminCode = getAdminCode(publicCode || '');
+  const hasAdminSession = hasAdminSessionForGame(publicCode || '');
+  const { isSignedIn } = useClerkAuth();
   const { showSuccess, showError } = useToast();
   const [paymentSummary, setPaymentSummary] = useState<PlayerPaymentSummary[]>([]);
   const [settlements, setSettlements] = useState<SettlementSuggestion[]>([]);
@@ -132,13 +138,27 @@ export default function PaymentLedgerPage() {
   });
   const [methodToDelete, setMethodToDelete] = useState<PlayerPaymentMethod | null>(null);
 
-  const getAdminCode = () => {
+  const getEffectiveAdminCode = () => {
     return hasAdminSession ? sessionAdminCode : manualAdminCode;
+  };
+
+  const getHeaders = () => {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json'
+    };
+
+    // Only send X-Admin-Code when not authenticated
+    const adminCode = getEffectiveAdminCode();
+    if (!isSignedIn && adminCode) {
+      headers['X-Admin-Code'] = adminCode;
+    }
+
+    return headers;
   };
 
   const fetchPaymentSummary = useCallback(async () => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/api/games/${publicCode}/payments/summary`);
+      const response = await apiClient.get(`/api/games/${publicCode}/payments/summary`);
       setPaymentSummary(response.data.players);
     } catch (error) {
       // Silently handle error
@@ -147,7 +167,7 @@ export default function PaymentLedgerPage() {
 
   const fetchSettlements = useCallback(async () => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/api/games/${publicCode}/payments/settlements`);
+      const response = await apiClient.get(`/api/games/${publicCode}/payments/settlements`);
       setSettlements(response.data.settlements);
     } catch (error) {
       // Silently handle error
@@ -156,7 +176,7 @@ export default function PaymentLedgerPage() {
 
   const fetchPaymentHistory = useCallback(async () => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/api/games/${publicCode}/payments/history`);
+      const response = await apiClient.get(`/api/games/${publicCode}/payments/history`);
       setPaymentHistory(response.data.transactions);
     } catch (error) {
       // Silently handle error
@@ -230,7 +250,7 @@ export default function PaymentLedgerPage() {
   const handleRecordPayment = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    const adminCode = getAdminCode();
+    const adminCode = getEffectiveAdminCode();
     if (!adminCode) {
       setShowAdminInput(true);
       return;
@@ -253,11 +273,8 @@ export default function PaymentLedgerPage() {
         reference_id: recordForm.reference_id || null
       };
 
-      await axios.post(`${API_BASE_URL}/api/games/${publicCode}/payments`, paymentData, {
-        headers: {
-          'X-Admin-Code': adminCode,
-          'Content-Type': 'application/json'
-        }
+      await apiClient.post(`/api/games/${publicCode}/payments`, paymentData, {
+        headers: getHeaders()
       });
 
       // Reset form and refresh data
@@ -308,7 +325,7 @@ export default function PaymentLedgerPage() {
 
     if (!editingPayment) return;
 
-    const adminCode = getAdminCode();
+    const adminCode = getEffectiveAdminCode();
     if (!adminCode) {
       setShowAdminInput(true);
       return;
@@ -332,11 +349,8 @@ export default function PaymentLedgerPage() {
         payment_date: editingPayment.payment_date
       };
 
-      await axios.put(`${API_BASE_URL}/api/games/${publicCode}/payments/${editingPayment.id}`, paymentData, {
-        headers: {
-          'X-Admin-Code': adminCode,
-          'Content-Type': 'application/json'
-        }
+      await apiClient.put(`/api/games/${publicCode}/payments/${editingPayment.id}`, paymentData, {
+        headers: getHeaders()
       });
 
       // Reset form and refresh data
@@ -374,7 +388,7 @@ export default function PaymentLedgerPage() {
   const confirmDeletePayment = async () => {
     if (!paymentToDelete) return;
 
-    const adminCode = getAdminCode();
+    const adminCode = getEffectiveAdminCode();
     if (!adminCode) {
       setShowAdminInput(true);
       return;
@@ -383,10 +397,8 @@ export default function PaymentLedgerPage() {
     setSubmitLoading(true);
 
     try {
-      await axios.delete(`${API_BASE_URL}/api/games/${publicCode}/payments/${paymentToDelete.id}`, {
-        headers: {
-          'X-Admin-Code': adminCode
-        }
+      await apiClient.delete(`/api/games/${publicCode}/payments/${paymentToDelete.id}`, {
+        headers: getHeaders()
       });
 
       // Close modal and refresh data
@@ -408,7 +420,7 @@ export default function PaymentLedgerPage() {
   };
 
   const handleMarkSettlementPaid = async (settlement: SettlementSuggestion) => {
-    const adminCode = getAdminCode();
+    const adminCode = getEffectiveAdminCode();
     if (!adminCode) {
       setShowAdminInput(true);
       return;
@@ -425,11 +437,8 @@ export default function PaymentLedgerPage() {
         notes: `Optimal settlement: ${settlement.payer_name} → ${settlement.recipient_name}`
       };
 
-      await axios.post(`${API_BASE_URL}/api/games/${publicCode}/payments`, paymentData, {
-        headers: {
-          'X-Admin-Code': adminCode,
-          'Content-Type': 'application/json'
-        }
+      await apiClient.post(`/api/games/${publicCode}/payments`, paymentData, {
+        headers: getHeaders()
       });
 
       // Remove the paid settlement from current list

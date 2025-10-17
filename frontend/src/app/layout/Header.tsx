@@ -1,3 +1,4 @@
+import { UserButton } from '@clerk/clerk-react';
 import {
   BarChart3,
   BookOpen,
@@ -16,12 +17,13 @@ import {
   Zap
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { NavLink, useLocation } from 'react-router-dom';
+import { Link, NavLink, useLocation } from 'react-router-dom';
 import { submitBugReport, type BugReportData } from '../../api/bugReport';
 import BugReportModal from '../../components/BugReportModal';
 import { useAdminSession } from '../../contexts/AdminSessionContext';
 import { useToast } from '../../contexts/ToastContext';
 import { adminNav, publicNav } from '../../features/admin/nav';
+import { useClerkAuth } from '../../hooks/useClerkAuth';
 import { useGameTitle } from '../../shared/hooks/useGameTitle';
 import { Button } from '../../shared/ui/button';
 import { Input } from '../../shared/ui/input';
@@ -95,7 +97,8 @@ function extractPublicCodeFromPath(pathname: string): string | null {
 }
 
 export function Header() {
-  const { hasAdminSession, setAdminSession, clearAdminSession, publicCode: contextPublicCode } = useAdminSession();
+  const { hasAdminSession: hasAdminSessionForGame, setAdminSession, clearAdminSession } = useAdminSession();
+  const { isSignedIn, isLoaded, user } = useClerkAuth();
   const { showSuccess, showError } = useToast();
   const location = useLocation();
   const [isBugReportModalOpen, setIsBugReportModalOpen] = useState(false);
@@ -103,10 +106,11 @@ export function Header() {
   const [adminCode, setAdminCode] = useState('');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  // Get public code from URL first (prioritize current page), then fall back to admin session context
+  // Get public code from URL
   const urlPublicCode = extractPublicCodeFromPath(location.pathname);
-  const currentPublicCode = urlPublicCode || contextPublicCode;
+  const currentPublicCode = urlPublicCode;
   const { title } = useGameTitle(currentPublicCode || '');
+  const hasAdminSession = currentPublicCode ? hasAdminSessionForGame(currentPublicCode) : false;
 
   // Close mobile menu on route change
   useEffect(() => {
@@ -138,7 +142,12 @@ export function Header() {
     <>
       <header className="border-b border-border bg-card">
         <div className="w-full px-4 py-3 font-medium flex items-center justify-between text-card-foreground">
-          <Text variant="bodyLarge" weight="semibold">HomeGame</Text>
+          <Link
+            to={isSignedIn ? '/my-games' : '/'}
+            className="hover:opacity-80 transition-opacity"
+          >
+            <Text variant="bodyLarge" weight="semibold">HomeGame</Text>
+          </Link>
 
           <div className="flex items-center gap-2">
             {/* Mobile Menu Button */}
@@ -159,6 +168,44 @@ export function Header() {
                 <Shield className="h-4 w-4" />
                 <Text variant="bodySmall" as="span" className="hidden sm:inline">Admin Login</Text>
               </button>
+            )}
+
+            {/* User Authentication */}
+            {isLoaded && (
+              <>
+                {!isSignedIn ? (
+                  <>
+                    <Link
+                      to="/sign-in"
+                      className="flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-md transition-colors"
+                    >
+                      <Text variant="bodySmall" as="span" className="hidden sm:inline">Sign in</Text>
+                    </Link>
+                    <Link
+                      to="/sign-up"
+                      className="flex items-center gap-2 px-3 py-2 text-sm bg-primary text-primary-foreground hover:bg-primary/90 rounded-md transition-colors"
+                    >
+                      <Text variant="bodySmall" as="span">Sign up</Text>
+                    </Link>
+                  </>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    {/* User display name */}
+                    <Text variant="bodySmall" weight="medium" as="span" className="hidden sm:inline text-muted-foreground">
+                      {user?.firstName || user?.username || 'Player'}
+                    </Text>
+                    {/* Clerk UserButton with dropdown menu */}
+                    <UserButton
+                      afterSignOutUrl="/"
+                      appearance={{
+                        elements: {
+                          avatarBox: 'w-8 h-8',
+                        },
+                      }}
+                    />
+                  </div>
+                )}
+              </>
             )}
 
             {/* Bug Report Button */}
@@ -278,7 +325,7 @@ export function Header() {
 
                           {/* Hover overlay with logout button */}
                           <div className="absolute top-0 left-0 right-0 opacity-0 group-hover:opacity-100 transition-opacity duration-150 bg-destructive text-destructive-foreground rounded-md px-2 py-1 flex items-center cursor-pointer"
-                               onClick={clearAdminSession}>
+                               onClick={() => clearAdminSession(currentPublicCode || undefined)}>
                             <LogOut className="w-3 h-3 mr-1" />
                             <Text variant="caption" weight="medium">Leave</Text>
                           </div>

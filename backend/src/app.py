@@ -1,11 +1,13 @@
 from flask import Flask
 from flask_cors import CORS
-from flask_limiter import Limiter
-from flask_limiter.util import get_remote_address
+from extensions import limiter
 from routes.game import game_bp
 from routes.health import health_bp
 from routes.bug_report import bug_report_bp
 from routes.rules import rules_bp
+from routes.poker_identity_claim_routes import poker_identity_bp
+from routes.live_game_routes import live_game_bp
+from routes.live_game_sse import live_game_sse_bp
 from services.audit_middleware import setup_request_audit_context, teardown_request_audit_context
 import services.audit_middleware  # Initialize the event listeners
 import os
@@ -23,22 +25,13 @@ def create_app():
     allowed_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000").split(",")
     CORS(app, resources={r"/*": {"origins": [origin.strip() for origin in allowed_origins]}})
 
-    # Rate limiting for production
+    # Initialize rate limiter with environment-specific limits
     if flask_env == "production":
-        limiter = Limiter(
-            key_func=get_remote_address,
-            default_limits=["2000 per day", "500 per hour"],
-            storage_uri="memory://"
-        )
-        limiter.init_app(app)
+        limiter.default_limits = ["2000 per day", "500 per hour"]
     else:
-        # More lenient limits for development
-        limiter = Limiter(
-            key_func=get_remote_address,
-            default_limits=["1000 per hour"],
-            storage_uri="memory://"
-        )
-        limiter.init_app(app)
+        limiter.default_limits = ["1000 per hour"]
+
+    limiter.init_app(app)
 
     # Security headers for production
     @app.after_request
@@ -68,6 +61,9 @@ def create_app():
             app.logger.info('Poker Analytics startup')
 
     # Register routes
+    app.register_blueprint(poker_identity_bp, url_prefix="/api/player-identity-claims")
+    app.register_blueprint(live_game_bp, url_prefix="/api")
+    app.register_blueprint(live_game_sse_bp, url_prefix="/api")  # SSE real-time updates
     app.register_blueprint(game_bp, url_prefix="/api/games")
     app.register_blueprint(health_bp, url_prefix="/api")
     app.register_blueprint(bug_report_bp, url_prefix="/api")
@@ -76,6 +72,19 @@ def create_app():
     # Set up audit middleware
     app.before_request(setup_request_audit_context)
     app.teardown_appcontext(teardown_request_audit_context)
+
+    # Database session cleanup
+    @app.teardown_appcontext
+    def shutdown_session(exception=None):
+        """
+        Clean up database sessions after each request.
+
+        This ensures database connections are properly returned to the pool
+        and prevents connection leaks.
+        """
+        from db.database import SessionLocal
+        if hasattr(SessionLocal, 'remove'):
+            SessionLocal.remove()
 
     return app
 

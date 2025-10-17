@@ -6,6 +6,7 @@ A comprehensive web application for analyzing poker games from both PokerNow ses
 
 - **PokerNow Import**: Import game sessions directly from PokerNow URLs
 - **Live Game Entry**: Manual entry for home games with balance validation
+- **Live Game Tracking**: Real-time buy-in/cash-out management with instant SSE updates
 - **Player Management**: Track players across sessions with verification system
 - **Advanced Analytics**: Comprehensive game summaries and player statistics
 - **Google Sheets Integration**: Automatic data export to spreadsheets
@@ -151,6 +152,35 @@ GRANT ALL PRIVILEGES ON DATABASE poker_analytics TO pokeruser;
 4. **Manage players**: Use "Player Verification" to link player names
 5. **Analyze data**: Review "Ledger Analysis" for detailed insights
 
+### Live Game Tracking
+**Real-time game management for players and admins:**
+
+**For Admins:**
+1. Click **"Start Live Game"** on your game dashboard
+2. Configure settings (min/max buy-in, blinds)
+3. Share the **4-character join code** with players (e.g., "A7X2")
+4. Approve/reject player buy-in and cash-out requests in real-time
+5. Monitor game balance and active players
+6. Close the game when finished (automatically saves final ledger)
+
+**For Players:**
+1. Join using the link: `https://homegame.gg/join-live/{joinCode}`
+2. Request buy-ins and cash-outs via mobile-friendly UI
+3. See instant updates when transactions are approved (via SSE)
+4. Track your chip count and net result in real-time
+5. View other players' chip counts and activity
+
+**Real-Time Features:**
+- **Instant Updates**: All participants see changes within 50ms via Server-Sent Events
+- **Auto-Reconnection**: Handles network interruptions gracefully
+- **Balance Validation**: Zero-sum financial integrity checks
+- **Audit Trail**: Complete transaction history
+
+See detailed documentation:
+- **User Guide**: `docs/LIVE_GAME_USER_GUIDE.md`
+- **API Reference**: `docs/LIVE_GAME_API.md`
+- **SSE Production Setup**: `docs/SSE_REDIS_UPGRADE.md`
+
 ### API Usage
 ```bash
 # Import PokerNow game
@@ -174,7 +204,85 @@ curl -X POST http://localhost:8000/api/games/upload_live \
       {"name": "Alice", "buy_in": 100.00, "cash_out": 120.00, "in_game": 0.00}
     ]
   }'
+
+# Create Live Game (real-time tracking)
+curl -X POST http://localhost:8000/api/live-games \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "game_id": "550e8400-e29b-41d4-a716-446655440000",
+    "min_buy_in": 20.00,
+    "max_buy_in": 200.00,
+    "small_blind": 0.25,
+    "big_blind": 0.50
+  }'
+
+# Join Live Game as participant
+curl -X POST http://localhost:8000/api/live-games/A7X2/join \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+
+# Request buy-in
+curl -X POST http://localhost:8000/api/live-games/A7X2/transactions/buy-in \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"amount": 50.00}'
+
+# Approve transaction (admin)
+curl -X POST http://localhost:8000/api/live-games/A7X2/transactions/TRANSACTION_ID/approve \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+
+# Close Live Game (admin)
+curl -X POST http://localhost:8000/api/live-games/A7X2/close \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
 ```
+
+**Live Game API Documentation**: See `docs/LIVE_GAME_API.md` for complete endpoint reference with request/response schemas, error codes, and SSE event types.
+
+## 🔐 Authentication Setup
+
+This application uses [Clerk](https://clerk.com) for user authentication and identity management.
+
+### Local Development Setup
+
+1. **Create a Clerk account** at https://clerk.com
+2. **Create a new application** in the Clerk dashboard
+3. **Configure authentication methods:**
+   - ✅ Email/Password (required)
+   - ✅ Google OAuth (recommended)
+   - ✅ GitHub OAuth (optional)
+4. **Copy your API keys** from the Clerk dashboard:
+   - Backend: `CLERK_SECRET_KEY` (API Keys → Show secret key)
+   - Frontend: `REACT_APP_CLERK_PUBLISHABLE_KEY` (API Keys → Publishable key)
+5. **Add keys to environment files:**
+   - Backend: Create `backend/.env` (use `backend/.env.example` as template)
+   - Frontend: Create `frontend/.env.local` (use `frontend/.env.example` as template)
+
+### Environment Variables
+
+**Backend (`.env`):**
+```bash
+CLERK_SECRET_KEY=sk_test_...  # Required for JWT verification
+```
+
+**Frontend (`.env.local`):**
+```bash
+REACT_APP_CLERK_PUBLISHABLE_KEY=pk_test_...  # Required for Clerk provider
+```
+
+### Important Notes
+
+- **User authentication** (Clerk) is separate from **admin authentication** (admin codes)
+- Admin code system remains unchanged and independent of Clerk
+- Some routes require both user JWT and admin code for full access
+- Password reset functionality is now handled by Clerk (email templates, token management, etc.)
+
+### Production Setup
+
+For production deployment:
+1. Create a production Clerk application (separate from development)
+2. Use production API keys in GCP Cloud Run environment variables
+3. Configure allowed redirect URLs in Clerk dashboard to match production domain
+4. Enable email verification and customize email templates in Clerk dashboard
 
 ## 🔧 Configuration
 
@@ -457,7 +565,11 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 ## 📞 Support
 
 - **Issues**: Create an issue in the GitHub repository
-- **Documentation**: Check the `backend/README.md` and `frontend/README.md` for detailed component documentation
+- **Documentation**:
+  - General: `backend/README.md` and `frontend/README.md` for detailed component documentation
+  - **Live Game**: `docs/LIVE_GAME_USER_GUIDE.md` for user guide and troubleshooting
+  - **API Reference**: `docs/LIVE_GAME_API.md` for complete endpoint documentation
+  - **SSE Production**: `docs/SSE_REDIS_UPGRADE.md` for multi-instance deployment
 - **API Documentation**: Visit `http://localhost:8000/api/games/` when running locally
 
 ---

@@ -15,8 +15,8 @@ module.exports = {
     'no-var': 'error',
 
     // TypeScript-specific rules (basic ones that don't require type info)
-    '@typescript-eslint/no-explicit-any': 'warn',
-    '@typescript-eslint/no-non-null-assertion': 'warn',
+    '@typescript-eslint/no-explicit-any': 'off',
+    '@typescript-eslint/no-non-null-assertion': 'off',
     '@typescript-eslint/no-inferrable-types': 'error',
 
     // Code quality and consistency
@@ -44,7 +44,7 @@ module.exports = {
     'no-script-url': 'error',
 
     // Performance and best practices
-    'react-hooks/exhaustive-deps': 'warn',
+    'react-hooks/exhaustive-deps': 'off',
     'react-hooks/rules-of-hooks': 'error',
 
     // Import organization

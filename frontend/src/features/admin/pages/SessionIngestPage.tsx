@@ -1,9 +1,10 @@
-import { ChevronDown, GitMerge, HelpCircle, X } from "lucide-react";
+import { ChevronDown, GitMerge, HelpCircle, X, Upload, BarChart3, Home } from "lucide-react";
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { useAdminSession } from "../../../contexts/AdminSessionContext";
 import { useToast } from "../../../contexts/ToastContext";
 import { PlayerInfo } from "../../../entities/game/types";
+import { useClerkAuth } from "../../../hooks/useClerkAuth";
 import { useGameTitle } from "../../../shared/hooks/useGameTitle";
 import { Button } from "../../../shared/ui/button";
 import { Heading, Text } from "../../../shared/ui/typography";
@@ -58,7 +59,9 @@ export default function GameIngestPage() {
 
   // Get public code from URL params and admin session context
   const { publicCode } = useParams<{ publicCode: string }>();
-  const { adminCode } = useAdminSession();
+  const { getAdminCode } = useAdminSession();
+  const adminCode = getAdminCode(publicCode || '');
+  const { isSignedIn, user } = useClerkAuth();
   const { showSuccess, showError, showInfo } = useToast();
   const { title: _title } = useGameTitle(publicCode || '');
 
@@ -128,6 +131,18 @@ export default function GameIngestPage() {
 
   useEffect(() => {
     if (upload.isError) {
+      const error = upload.error as any;
+
+      // Handle 403 specifically when authenticated
+      if (isSignedIn && error?.response?.status === 403) {
+        showError(
+          "Access Denied",
+          "You don't own this game. Please claim it first or use the admin code.",
+          7000
+        );
+        return;
+      }
+
       const errorMessage = formatErrorMessage(upload.error);
       showError(
         "Upload Failed",
@@ -135,7 +150,7 @@ export default function GameIngestPage() {
         7000 // Show errors longer
       );
     }
-  }, [upload.isError, upload.error, showError]);
+  }, [upload.isError, upload.error, showError, isSignedIn]);
 
   const totals = useMemo(() => deriveTotals(rows), [rows]);
 
@@ -158,18 +173,19 @@ export default function GameIngestPage() {
       </div>
     );
   }
-  
-  if (!adminCode) {
+
+  // If not authenticated, require admin code
+  if (!isSignedIn && !adminCode) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
           <Heading variant="h2" className="mb-2">Admin Access Required</Heading>
-          <Text variant="body" color="muted">You need to be logged in as admin to access this page.</Text>
+          <Text variant="body" color="muted">You need to be logged in as admin or authenticated to access this page.</Text>
         </div>
       </div>
     );
   }
-  
+
   const PUBLIC_CODE = publicCode;
   const ADMIN_CODE = adminCode;
 
@@ -197,7 +213,8 @@ export default function GameIngestPage() {
 
     upload.mutate({
       public_code: PUBLIC_CODE,
-      admin_code: ADMIN_CODE,
+      // Only send admin_code when not authenticated
+      ...(!isSignedIn && ADMIN_CODE && { admin_code: ADMIN_CODE }),
       sessionId,
       game_data,
       ...(date && { date: `${date}T00:00:00Z` }),
@@ -327,6 +344,22 @@ export default function GameIngestPage() {
     setHandLogResult({});
   };
 
+  const handleUploadAnother = () => {
+    // Reset all form state
+    setGameUrl('');
+    setSubmittedUrl('');
+    setRows([]);
+    setDate('');
+    setGameNumber('');
+    setHandLogFile(null);
+    setUploadedSessionId(null);
+    setHandLogUploadStatus('idle');
+    setHandLogError('');
+    setHandLogResult({});
+    upload.reset();
+    handLogUploadTriggered.current = false;
+  };
+
   return (
     <div className="min-h-screen bg-background py-8">
       <div className="max-w-6xl mx-auto px-4 md:px-6 lg:px-8">
@@ -336,6 +369,13 @@ export default function GameIngestPage() {
           <Text variant="body" color="muted" className="mt-2">
             Import PokerNow session data
           </Text>
+          {isSignedIn && user && (
+            <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-md">
+              <Text variant="bodySmall" className="text-blue-800 dark:text-blue-200">
+                Uploading as: <strong>{user.emailAddresses?.[0]?.emailAddress}</strong>
+              </Text>
+            </div>
+          )}
         </div>
 
       <GameUrlForm
@@ -353,6 +393,41 @@ export default function GameIngestPage() {
             ledgerCsvStatus={game.data?.ledger_csv || null}
             onViewCsv={() => setCsvViewerOpen(true)}
           />
+
+          {/* Post-Upload Action Card */}
+          {upload.isSuccess && (
+            <div className="bg-card text-card-foreground rounded-lg border border-border shadow-sm p-6">
+              <div className="flex items-center gap-2 mb-4">
+                <div className="flex items-center justify-center h-8 w-8 rounded-full bg-success/20">
+                  <svg className="h-5 w-5 text-success" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                </div>
+                <Heading variant="h4">What's Next?</Heading>
+              </div>
+
+              <div className="flex flex-wrap gap-3">
+                <Button onClick={handleUploadAnother} variant="default">
+                  <Upload className="h-4 w-4 mr-2" />
+                  Upload Another Session
+                </Button>
+                <Link to={`/summary/${publicCode}`}>
+                  <Button variant="outline">
+                    <BarChart3 className="h-4 w-4 mr-2" />
+                    View Game Stats
+                  </Button>
+                </Link>
+                {isSignedIn && (
+                  <Link to="/my-games">
+                    <Button variant="outline">
+                      <Home className="h-4 w-4 mr-2" />
+                      Back to My Games
+                    </Button>
+                  </Link>
+                )}
+              </div>
+            </div>
+          )}
 
           {rows.length > 0 && (
             <HandLogUpload

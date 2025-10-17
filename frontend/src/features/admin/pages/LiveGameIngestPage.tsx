@@ -20,7 +20,8 @@ interface LiveGameData {
 export default function LiveGameIngestPage() {
   const { publicCode } = useParams<{ publicCode: string }>();
   const navigate = useNavigate();
-  const { adminCode } = useAdminSession();
+  const { getAdminCode } = useAdminSession();
+  const adminCode = getAdminCode(publicCode || '');
   const { title: _title } = useGameTitle(publicCode || '');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);

@@ -209,34 +209,41 @@ def _upsert_db_for_session(
         # Find player by external_id FIRST (most reliable identifier), then by display_name
         player = None
 
-        # FIRST: If external_id exists, search globally (external_id is unique across all games)
-        if ext_pid:
-            player = db.execute(
-                select(Player)
-                .where(Player.external_id == ext_pid)
-            ).scalar_one_or_none()
+        # FIRST: Try to find by display_name (admin-corrected name is authoritative)
+        players = db.execute(
+            select(Player)
+            .join(GamePlayer, Player.id == GamePlayer.player_id)
+            .where(
+                GamePlayer.game_id == game.id,
+                func.lower(Player.display_name) == display_name.lower()
+            )
+        ).scalars().all()
 
-        # SECOND: Only if no external_id match found, try display_name within this game
-        if not player:
-            players = db.execute(
+        if len(players) == 1:
+            player = players[0]
+        elif len(players) > 1:
+            # Multiple players with same display name - pick the one with external_id if available
+            player = next((p for p in players if p.external_id), players[0])
+
+        # SECOND: Try external_id in THIS GAME first
+        if not player and ext_pid:
+            player = db.execute(
                 select(Player)
                 .join(GamePlayer, Player.id == GamePlayer.player_id)
                 .where(
                     GamePlayer.game_id == game.id,
-                    func.lower(Player.display_name) == display_name.lower()
+                    Player.external_id == ext_pid
                 )
-            ).scalars().all()
+            ).scalar_one_or_none()
 
-            if len(players) == 1:
-                player = players[0]
-            elif len(players) > 1:
-                # Multiple players with same display name - pick the one with matching external_id if available
-                if ext_pid:
-                    player = next((p for p in players if p.external_id and p.external_id == ext_pid), players[0])
-                else:
-                    player = players[0]
+        # THIRD: If not found in this game, try GLOBALLY by external_id
+        # This prevents duplicate player creation when users participate in multiple games
+        if not player and ext_pid:
+            player = db.execute(
+                select(Player).where(Player.external_id == ext_pid)
+            ).scalar_one_or_none()
 
-        # THIRD: If still not found, create new player
+        # FOURTH: Only create if not found anywhere
         if not player:
             player = Player(display_name=display_name, external_id=ext_pid)
             db.add(player)

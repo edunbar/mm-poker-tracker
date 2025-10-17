@@ -1,15 +1,71 @@
 import { type ReactNode } from 'react';
+import { Navigate, useLocation } from 'react-router-dom';
 import { useAdminSession } from '../contexts/AdminSessionContext';
+import { useClerkAuth } from '../hooks/useClerkAuth';
 import { Heading, Text } from '../shared/ui/typography';
 
 interface ProtectedRouteProps {
   children: ReactNode;
   requireAdmin?: boolean;
+  requireAuth?: boolean;
 }
 
-export default function ProtectedRoute({ children, requireAdmin = false }: ProtectedRouteProps) {
-  const { hasAdminSession } = useAdminSession();
+// Helper function to extract public code from URL pathname
+function extractPublicCodeFromPath(pathname: string): string | null {
+  const pathParts = pathname.split('/').filter(part => part.length > 0);
 
+  // For routes like /ingest/ABC123, /summary/ABC123, /admin/ABC123, etc.
+  if (pathParts.length >= 2) {
+    const potentialCode = pathParts[1];
+    // Check if it looks like a public code (5 chars, alphanumeric)
+    if (potentialCode && potentialCode.length === 5 && /^[A-Z0-9]+$/.test(potentialCode)) {
+      return potentialCode;
+    }
+  }
+
+  // For routes like /ABC123 (direct game access)
+  if (pathParts.length === 1) {
+    const potentialCode = pathParts[0];
+    if (potentialCode && potentialCode.length === 5 && /^[A-Z0-9]+$/.test(potentialCode)) {
+      return potentialCode;
+    }
+  }
+
+  return null;
+}
+
+export default function ProtectedRoute({
+  children,
+  requireAdmin = false,
+  requireAuth = false,
+}: ProtectedRouteProps) {
+  const location = useLocation();
+  const { isSignedIn, isLoaded } = useClerkAuth();
+  const { hasAdminSession: hasAdminSessionForGame } = useAdminSession();
+
+  // Extract public code from URL to check admin session
+  const publicCode = extractPublicCodeFromPath(location.pathname);
+  const hasAdminSession = publicCode ? hasAdminSessionForGame(publicCode) : false;
+
+  // Handle user authentication requirement
+  if (requireAuth) {
+    if (!isLoaded) {
+      return (
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto" />
+            <p className="mt-4 text-gray-600">Loading...</p>
+          </div>
+        </div>
+      );
+    }
+
+    if (!isSignedIn) {
+      return <Navigate to="/sign-in" state={{ from: location.pathname }} replace />;
+    }
+  }
+
+  // Handle admin authentication requirement
   if (requireAdmin && !hasAdminSession) {
     return (
       <div className="flex flex-col items-center justify-center min-h-64 text-center">

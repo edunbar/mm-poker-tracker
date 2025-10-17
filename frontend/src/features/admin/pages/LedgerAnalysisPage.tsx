@@ -143,7 +143,9 @@ interface PlayerData {
 
 export default function LedgerAnalysisPage() {
   const { publicCode } = useParams<{ publicCode: string }>();
-  const { hasAdminSession, adminCode } = useAdminSession();
+  const { getAdminCode, hasAdminSession: hasAdminSessionForGame } = useAdminSession();
+  const adminCode = getAdminCode(publicCode || '');
+  const hasAdminSession = hasAdminSessionForGame(publicCode || '');
   const { showSuccess, showError } = useToast();
   const { title: _title } = useGameTitle(publicCode || '');
   const [loading, setLoading] = useState(false);

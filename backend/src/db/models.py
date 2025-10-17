@@ -4,8 +4,50 @@ from sqlalchemy import (
     BigInteger, TIMESTAMP, func, Table, ARRAY, Index, text, Boolean, Numeric, CheckConstraint
 )
 from sqlalchemy.dialects.postgresql import UUID, CITEXT, JSONB
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, backref
 from .database import Base
+
+# ==========================================================
+# Users Table
+# ----------------------------------------------------------
+# Represents authenticated users of the application.
+# Users can own games and claim poker player identities.
+#
+# Columns:
+# - id             : UUID primary key (server-generated with gen_random_uuid()).
+# - email          : Unique email address for authentication (indexed).
+# - clerk_user_id  : Clerk user identifier for authentication (unique, indexed).
+# - display_name   : Human-readable name for the user.
+# - email_verified : Whether the user's email has been verified.
+# - created_at     : Timestamp when the user account was created.
+# - last_login_at  : Timestamp of the user's last login (optional).
+#
+# Relationships:
+# - owned_games       : Games owned by this user.
+# - poker_identities  : Poker player identities claimed by this user.
+# - audit_logs        : Audit log entries created by this user.
+#
+# Note: Authentication is managed by Clerk. clerk_user_id links to Clerk's user system.
+# ==========================================================
+class User(Base):
+    __tablename__ = 'users'
+
+    id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
+    email = Column(String(255), unique=True, nullable=False)
+    clerk_user_id = Column(String(255), unique=True, nullable=True, index=True)
+    display_name = Column(String(100), nullable=False)
+    email_verified = Column(Boolean, nullable=False, server_default=text("false"))
+    created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
+    last_login_at = Column(TIMESTAMP(timezone=True), nullable=True)
+
+    owned_games = relationship('Game', back_populates='owner')
+    poker_identities = relationship('PokerIdentityClaim', back_populates='user', cascade="all, delete-orphan")
+    audit_logs = relationship('AuditLog', back_populates='user')
+
+    __table_args__ = (
+        Index('ix_users_email', 'email', unique=True),
+    )
+
 
 # ==========================================================
 # Players Table
@@ -19,8 +61,9 @@ from .database import Base
 # - created_at  : Timestamp when the player record was created.
 #
 # Relationships:
-# - games     : many-to-many association with Game via GamePlayer.
-# - summaries : all SessionPlayerSummary rows for this player.
+# - games          : many-to-many association with Game via GamePlayer.
+# - summaries      : all SessionPlayerSummary rows for this player.
+# - identity_claim : optional link to a User account that claimed this player identity.
 # ==========================================================
 class Player(Base):
     __tablename__ = 'players'
@@ -38,6 +81,48 @@ class Player(Base):
     payment_methods = relationship('PlayerPaymentMethod', back_populates='player', cascade="all, delete-orphan")
     poker_events = relationship('PokerEvent', back_populates='player', cascade="all, delete-orphan")
     hands_won = relationship('HandSummary', back_populates='winner', cascade="all, delete-orphan")
+    identity_claim = relationship('PokerIdentityClaim', back_populates='player', uselist=False)
+
+
+# ==========================================================
+# PokerIdentityClaims Table
+# ----------------------------------------------------------
+# Links authenticated users to poker player identities.
+# Ensures one player can only be claimed by one user.
+#
+# Columns:
+# - id                  : UUID primary key (server-generated with gen_random_uuid()).
+# - user_id             : FK to users.id (CASCADE on delete).
+# - player_id           : FK to players.id (CASCADE on delete).
+# - claimed_at          : Timestamp when the identity was claimed.
+# - verification_method : How the identity was verified (e.g., 'email', 'admin', 'token').
+#
+# Constraints:
+# - (user_id, player_id) unique: A user cannot claim the same player twice.
+# - (player_id) unique: A player can only be claimed by one user.
+#
+# Relationships:
+# - user   : The User who claimed this player identity.
+# - player : The Player identity that was claimed.
+# ==========================================================
+class PokerIdentityClaim(Base):
+    __tablename__ = 'poker_identity_claims'
+
+    id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
+    user_id = Column(UUID(as_uuid=True), ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    player_id = Column(UUID(as_uuid=True), ForeignKey('players.id', ondelete='CASCADE'), nullable=False)
+    claimed_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
+    verification_method = Column(String(50), nullable=False)
+
+    user = relationship('User', back_populates='poker_identities')
+    player = relationship('Player', back_populates='identity_claim', uselist=False)
+
+    __table_args__ = (
+        UniqueConstraint('user_id', 'player_id', name='uq_identity_user_player'),
+        UniqueConstraint('player_id', name='uq_identity_player'),
+        Index('ix_identity_user_player', 'user_id', 'player_id', unique=True),
+        Index('ix_identity_player', 'player_id', unique=True),
+    )
 
 
 # ==========================================================
@@ -47,17 +132,21 @@ class Player(Base):
 # A game is what players will share via a short public code.
 #
 # Columns:
-# - id          : UUID primary key.
-# - public_code : Short shareable identifier (case-insensitive, CITEXT).
-# - admin_code  : Secret long token; required for admin actions like importing sessions.
-# - title       : Optional name/label for the game (e.g. "Thursday Night Home Game").
-# - created_at  : Timestamp when the game record was created.
-# - meta        : JSONB field for extra metadata or config (defaults to {}).
+# - id                    : UUID primary key.
+# - public_code           : Short shareable identifier (case-insensitive, CITEXT).
+# - admin_code            : Secret long token; required for admin actions like importing sessions.
+# - title                 : Optional name/label for the game (e.g. "Thursday Night Home Game").
+# - created_at            : Timestamp when the game record was created.
+# - meta                  : JSONB field for extra metadata or config (defaults to {}).
+# - owner_user_id         : Optional FK to users.id; the authenticated user who owns this game.
+# - admin_code_expires_at : Optional expiration timestamp for the admin_code.
 #
 # Relationships:
-# - players    : association rows linking players ↔ this game.
-# - sessions   : all Session rows that belong to this game.
-# - audit_logs : audit entries related to this game.
+# - owner              : The User who owns this game (optional).
+# - players            : association rows linking players ↔ this game.
+# - sessions           : all Session rows that belong to this game.
+# - audit_logs         : audit entries related to this game.
+# - payment_transactions, payment_balances, rules, statistics_config : related records.
 # ==========================================================
 class Game(Base):
     __tablename__ = 'games'
@@ -70,7 +159,10 @@ class Game(Base):
     # renamed from `metadata` to avoid colliding with SQLAlchemy's declarative metadata
     meta = Column(JSONB, nullable=False, server_default=text("'{}'::jsonb"))
     alert_settings = Column(JSONB, nullable=False, server_default=text("'{}'::jsonb"))
+    owner_user_id = Column(UUID(as_uuid=True), ForeignKey('users.id', ondelete='SET NULL'), nullable=True)
+    admin_code_expires_at = Column(TIMESTAMP(timezone=True), nullable=True)
 
+    owner = relationship('User', back_populates='owned_games')
     players = relationship('GamePlayer', back_populates='game', cascade="all, delete-orphan")
     sessions = relationship('Session', back_populates='game', cascade="all, delete-orphan")
     audit_logs = relationship('AuditLog', back_populates='game')
@@ -81,6 +173,174 @@ class Game(Base):
 
     __table_args__ = (
         # public_code is already UNIQUE → PG will create an index
+        Index('ix_games_owner', 'owner_user_id'),
+    )
+
+
+# ==========================================================
+# LiveGames Table
+# ----------------------------------------------------------
+# Represents an active real-time poker game session.
+# Users can join active games and log buy-ins/cash-outs in real-time.
+#
+# Columns:
+# - id                  : UUID primary key.
+# - game_id             : FK to games.id (CASCADE on delete).
+# - created_by_user_id  : FK to users.id (SET NULL on delete).
+# - join_code           : Unique 4-character code for joining (e.g. "A3X7").
+# - status              : 'active' | 'closed'.
+# - small_blind         : Optional small blind amount.
+# - big_blind           : Optional big blind amount.
+# - min_buy_in          : Minimum buy-in amount (default $10.00).
+# - max_buy_in          : Optional maximum buy-in amount.
+# - started_at          : Timestamp when live game was created.
+# - closed_at           : Timestamp when live game was closed (NULL if active).
+#
+# Constraints:
+# - Only one active live game per parent game (partial unique index).
+# - join_code must be unique across all active games.
+#
+# Relationships:
+# - game        : Parent Game this live session belongs to.
+# - creator     : User who created the live game.
+# - participants: Players who have joined this live game.
+# - transactions: Buy-in and cash-out transactions in this live game.
+# ==========================================================
+class LiveGame(Base):
+    __tablename__ = 'live_games'
+
+    id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
+    game_id = Column(UUID(as_uuid=True), ForeignKey('games.id', ondelete='CASCADE'), nullable=False)
+    created_by_user_id = Column(UUID(as_uuid=True), ForeignKey('users.id', ondelete='SET NULL'), nullable=True)
+    join_code = Column(String(4), unique=True, nullable=False)
+    status = Column(String(20), nullable=False, server_default=text("'active'"))
+    small_blind = Column(Numeric(10, 2), nullable=True)
+    big_blind = Column(Numeric(10, 2), nullable=True)
+    min_buy_in = Column(Numeric(10, 2), nullable=False, server_default=text("10.00"))
+    max_buy_in = Column(Numeric(10, 2), nullable=True)
+    started_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
+    closed_at = Column(TIMESTAMP(timezone=True), nullable=True)
+
+    # Relationships
+    game = relationship('Game', backref='live_games')
+    creator = relationship('User', backref='created_live_games')
+    participants = relationship('LiveGameParticipant', back_populates='live_game', cascade="all, delete-orphan")
+    transactions = relationship('LiveGameTransaction', back_populates='live_game', cascade="all, delete-orphan")
+
+    __table_args__ = (
+        Index('ix_live_games_join_code', 'join_code', unique=True),
+        Index('ix_live_games_game_id', 'game_id'),
+        Index('ix_live_games_status', 'status'),
+        # Partial unique index: only one active live game per parent game
+        # Note: This will be created in the migration, not here (SQLAlchemy doesn't support partial indexes declaratively)
+    )
+
+
+# ==========================================================
+# LiveGameParticipants Table
+# ----------------------------------------------------------
+# Tracks users who have joined a live game session.
+#
+# Columns:
+# - id            : UUID primary key.
+# - live_game_id  : FK to live_games.id (CASCADE on delete).
+# - user_id       : FK to users.id (CASCADE on delete).
+# - display_name  : Display name for this participant in the game.
+# - player_id     : FK to players.id (CASCADE on delete) - optional link to poker player identity.
+# - joined_at     : Timestamp when participant joined.
+#
+# Constraints:
+# - (live_game_id, user_id) unique: User can only join once per live game.
+#
+# Relationships:
+# - live_game   : The LiveGame this participant belongs to.
+# - user        : The User account of this participant.
+# - player      : The poker player identity this participant is linked to (optional).
+# - transactions: Buy-in and cash-out transactions by this participant.
+# ==========================================================
+class LiveGameParticipant(Base):
+    __tablename__ = 'live_game_participants'
+
+    id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
+    live_game_id = Column(UUID(as_uuid=True), ForeignKey('live_games.id', ondelete='CASCADE'), nullable=False)
+    user_id = Column(UUID(as_uuid=True), ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    display_name = Column(String(100), nullable=False)
+    player_id = Column(UUID(as_uuid=True), ForeignKey('players.id', ondelete='CASCADE'), nullable=True)
+    joined_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
+
+    # Relationships
+    live_game = relationship('LiveGame', back_populates='participants')
+    user = relationship('User', backref=backref('live_game_participations', passive_deletes='all'))
+    player = relationship('Player', backref='live_game_participants')
+    transactions = relationship('LiveGameTransaction', back_populates='participant', cascade="all, delete-orphan")
+
+    __table_args__ = (
+        UniqueConstraint('live_game_id', 'user_id', name='uq_live_game_participants_game_user'),
+        Index('ix_live_game_participants_live_game', 'live_game_id'),
+        Index('ix_live_game_participants_user', 'user_id'),
+        Index('ix_live_game_participants_player_id', 'player_id'),
+    )
+
+
+# ==========================================================
+# LiveGameTransactions Table
+# ----------------------------------------------------------
+# Records buy-ins and cash-outs during a live game session.
+# Transactions require approval by game admin.
+#
+# Columns:
+# - id                  : UUID primary key.
+# - live_game_id        : FK to live_games.id (CASCADE on delete).
+# - participant_id      : FK to live_game_participants.id (CASCADE on delete).
+# - user_id             : FK to users.id (CASCADE on delete) - denormalized for queries.
+# - transaction_type    : 'buy_in' | 'cash_out'.
+# - amount              : Transaction amount in dollars (DECIMAL).
+# - status              : 'pending' | 'approved' | 'rejected'.
+# - created_at          : Timestamp when transaction was logged.
+# - approved_by_user_id : FK to users.id (SET NULL on delete) - admin who approved.
+# - approved_at         : Timestamp when transaction was approved/rejected.
+# - notes               : Optional notes (rejection reasons, edit history).
+# - original_amount     : Original amount if edited (NULL if not edited).
+# - edited_at           : Timestamp of last edit (NULL if not edited).
+# - edited_by_user_id   : FK to users.id (SET NULL on delete) - admin who edited.
+#
+# Relationships:
+# - live_game : The LiveGame this transaction belongs to.
+# - participant: The participant who logged the transaction.
+# - user      : The user who logged the transaction (denormalized).
+# - approver  : The user who approved/rejected the transaction.
+# - editor    : The user who last edited the transaction.
+# ==========================================================
+class LiveGameTransaction(Base):
+    __tablename__ = 'live_game_transactions'
+
+    id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
+    live_game_id = Column(UUID(as_uuid=True), ForeignKey('live_games.id', ondelete='CASCADE'), nullable=False)
+    participant_id = Column(UUID(as_uuid=True), ForeignKey('live_game_participants.id', ondelete='CASCADE'), nullable=False)
+    user_id = Column(UUID(as_uuid=True), ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    transaction_type = Column(String(20), nullable=False)  # 'buy_in' | 'cash_out'
+    amount = Column(Numeric(10, 2), nullable=False)
+    status = Column(String(20), nullable=False, server_default=text("'pending'"))  # 'pending' | 'approved' | 'rejected'
+    created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
+    approved_by_user_id = Column(UUID(as_uuid=True), ForeignKey('users.id', ondelete='SET NULL'), nullable=True)
+    approved_at = Column(TIMESTAMP(timezone=True), nullable=True)
+    notes = Column(Text, nullable=True)
+    original_amount = Column(Numeric(10, 2), nullable=True)
+    edited_at = Column(TIMESTAMP(timezone=True), nullable=True)
+    edited_by_user_id = Column(UUID(as_uuid=True), ForeignKey('users.id', ondelete='SET NULL'), nullable=True)
+
+    # Relationships
+    live_game = relationship('LiveGame', back_populates='transactions')
+    participant = relationship('LiveGameParticipant', back_populates='transactions')
+    user = relationship('User', foreign_keys=[user_id], backref=backref('live_game_transactions', passive_deletes='all'))
+    approver = relationship('User', foreign_keys=[approved_by_user_id], backref='approved_live_transactions')
+    editor = relationship('User', foreign_keys=[edited_by_user_id], backref='edited_live_transactions')
+
+    __table_args__ = (
+        Index('ix_live_game_transactions_live_game', 'live_game_id'),
+        Index('ix_live_game_transactions_participant', 'participant_id'),
+        Index('ix_live_game_transactions_status', 'live_game_id', 'status'),
+        # Partial index for pending transactions (created in migration)
     )
 
 
@@ -209,8 +469,9 @@ class SessionPlayerSummary(Base):
 # - id          : UUID primary key.
 # - game_id     : FK to games.id (SET NULL on delete).
 # - session_id  : FK to sessions.id (SET NULL on delete).
-# - actor_kind  : Type of actor ('admin_code', 'system', later 'user').
-# - actor_id    : Identifier of actor (e.g. admin_code hash).
+# - user_id     : FK to users.id (SET NULL on delete); authenticated user who performed action.
+# - actor_kind  : Type of actor ('admin_code', 'system', 'user').
+# - actor_id    : Identifier of actor (e.g. admin_code hash, user email).
 # - action      : Action verb ('CREATE', 'UPDATE', 'DELETE', 'IMPORT').
 # - target_table: Which table was modified.
 # - target_id   : ID of target row.
@@ -221,6 +482,7 @@ class SessionPlayerSummary(Base):
 # Relationships:
 # - game    : related Game (optional).
 # - session : related Session (optional).
+# - user    : related User who performed the action (optional).
 # ==========================================================
 class AuditLog(Base):
     __tablename__ = 'audit_log'
@@ -228,8 +490,9 @@ class AuditLog(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
     game_id = Column(UUID(as_uuid=True), ForeignKey('games.id', ondelete='SET NULL'), nullable=True)
     session_id = Column(UUID(as_uuid=True), ForeignKey('sessions.id', ondelete='SET NULL'), nullable=True)
+    user_id = Column(UUID(as_uuid=True), ForeignKey('users.id', ondelete='SET NULL'), nullable=True)
 
-    actor_kind = Column(Text, nullable=False)  # 'admin_code' | 'system'
+    actor_kind = Column(Text, nullable=False)  # 'admin_code' | 'system' | 'user'
     actor_id   = Column(Text, nullable=True)
     action     = Column(Text, nullable=False)  # 'CREATE'|'UPDATE'|'DELETE'|'IMPORT'
     target_table = Column(Text, nullable=False)
@@ -240,6 +503,11 @@ class AuditLog(Base):
 
     game = relationship('Game', back_populates='audit_logs')
     session = relationship('Session', back_populates='audit_logs')
+    user = relationship('User', back_populates='audit_logs')
+
+    __table_args__ = (
+        Index('ix_audit_log_user', 'user_id'),
+    )
 
 
 # ==========================================================

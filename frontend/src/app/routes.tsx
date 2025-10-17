@@ -6,16 +6,58 @@ import GameLedgerPage from "../features/admin/pages/GameLedgerPage";
 import LedgerAnalysisPage from "../features/admin/pages/LedgerAnalysisPage";
 import LiveGameIngestPage from "../features/admin/pages/LiveGameIngestPage";
 import GameIngestPage from "../features/admin/pages/SessionIngestPage";
+import ClaimGamePage from "../features/auth/pages/ClaimGamePage";
+import CreateGamePage from "../features/auth/pages/CreateGamePage";
+import MyGamesPage from "../features/auth/pages/MyGamesPage";
 import AdvancedAnalyticsPage from "../features/game/pages/AdvancedAnalyticsPage";
 import GameSummaryPage from "../features/game/pages/GameSummaryPage";
 import PaymentLedgerPage from "../features/payment/pages/PaymentLedgerPage";
 import RuleBookPage from "../features/rules/pages/RuleBookPage";
+import JoinLiveGamePage from "../pages/JoinLiveGamePage";
 import LandingPage from "../pages/Landing/LandingPage";
+import LiveGameAdminView from "../pages/LiveGameAdminView";
+import LiveGamePage from "../pages/LiveGamePage";
+import LiveGamePlayerView from "../pages/LiveGamePlayerView";
+import SignInPage from "../pages/SignInPage";
+import SignUpPage from "../pages/SignUpPage";
 
 export default function AppRoutes() {
   return (
     <Routes>
       <Route path="/" element={<LandingPage />} />
+      <Route path="/sign-in/*" element={<SignInPage />} />
+      <Route path="/sign-up/*" element={<SignUpPage />} />
+      <Route path="/my-games" element={
+        <ProtectedRoute requireAuth={true}>
+          <MyGamesPage />
+        </ProtectedRoute>
+      } />
+      <Route path="/claim-game" element={
+        <ProtectedRoute requireAuth={true}>
+          <ClaimGamePage />
+        </ProtectedRoute>
+      } />
+      <Route path="/create-game" element={
+        <ProtectedRoute requireAuth={true}>
+          <CreateGamePage />
+        </ProtectedRoute>
+      } />
+      <Route path="/join-live/:joinCode" element={<JoinLiveGamePage />} />
+      <Route path="/live-game/:publicCode/:joinCode" element={
+        <ProtectedRoute requireAuth={true}>
+          <LiveGamePlayerView />
+        </ProtectedRoute>
+      } />
+      <Route path="/live/:publicCode/:joinCode/admin" element={
+        <ProtectedRoute requireAuth={true}>
+          <LiveGameAdminView />
+        </ProtectedRoute>
+      } />
+      <Route path="/manage-live/:publicCode" element={
+        <ProtectedRoute requireAdmin={true}>
+          <LiveGamePage />
+        </ProtectedRoute>
+      } />
       <Route path="/:publicCode" element={<GameSummaryPageWrapper />} />
       <Route path="/ingest/:publicCode" element={<GameIngestPageWrapper />} />
       <Route path="/live/:publicCode" element={<LiveGameIngestPageWrapper />} />

@@ -62,7 +62,7 @@ interface EditingDate {
 
 export default function GameLedgerPage() {
   const { publicCode } = useParams<{ publicCode: string }>();
-  const { adminCode: sessionAdminCode, hasAdminSession } = useAdminSession();
+  const { getAdminCode, hasAdminSession: hasAdminSessionForGame } = useAdminSession();
   const { title: _title } = useGameTitle(publicCode || '');
   const { showSuccess, showError } = useToast();
   const [summaries, setSummaries] = useState<SessionPlayerSummary[]>([]);
@@ -96,7 +96,9 @@ export default function GameLedgerPage() {
   const [uploadingHands, setUploadingHands] = useState(false);
   const [handUploadSessionId, setHandUploadSessionId] = useState<string | null>(null);
 
-  // Use session admin code if available, otherwise manual input
+  // Get admin code for current game, use manual input as fallback
+  const sessionAdminCode = getAdminCode(publicCode || '');
+  const hasAdminSession = hasAdminSessionForGame(publicCode || '');
   const effectiveAdminCode = sessionAdminCode || manualAdminCode;
 
   useEffect(() => {

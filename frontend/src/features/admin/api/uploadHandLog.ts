@@ -22,10 +22,11 @@ interface UploadHandLogResponse {
 }
 
 export function useUploadHandLog() {
-  const { adminCode } = useAdminSession();
+  const { getAdminCode } = useAdminSession();
 
   return useMutation<UploadHandLogResponse, Error, UploadHandLogParams>({
     mutationFn: async ({ publicCode, sessionId, file, playerMappings }) => {
+      const adminCode = getAdminCode(publicCode);
       const formData = new FormData();
       formData.append('file', file);
 

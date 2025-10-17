@@ -23,17 +23,20 @@ class AuditContext:
         self.game_id: Optional[str] = None
         self.session_id: Optional[str] = None
         self.operation_id: Optional[str] = None
+        self.user_id: Optional[str] = None
         self.enabled: bool = True
 
-    def set_context(self, actor_kind: str = None, actor_id: str = None, 
-                   operation_type: str = None, game_id: str = None, 
-                   session_id: str = None, operation_id: str = None):
+    def set_context(self, actor_kind: str = None, actor_id: str = None,
+                   operation_type: str = None, game_id: str = None,
+                   session_id: str = None, operation_id: str = None,
+                   user_id: str = None):
         if actor_kind: self.actor_kind = actor_kind
         if actor_id: self.actor_id = actor_id
         if operation_type: self.operation_type = operation_type
         if game_id: self.game_id = game_id
         if session_id: self.session_id = session_id
         if operation_id: self.operation_id = operation_id
+        if user_id: self.user_id = user_id
 
     def clear(self):
         self.actor_kind = None
@@ -42,14 +45,16 @@ class AuditContext:
         self.game_id = None
         self.session_id = None
         self.operation_id = None
+        self.user_id = None
 
 # Thread-local audit context
 _audit_context = AuditContext()
 
 @contextmanager
-def audit_context(actor_kind: str = None, actor_id: str = None, 
-                 operation_type: str = None, game_id: str = None, 
-                 session_id: str = None, operation_id: str = None):
+def audit_context(actor_kind: str = None, actor_id: str = None,
+                 operation_type: str = None, game_id: str = None,
+                 session_id: str = None, operation_id: str = None,
+                 user_id: str = None):
     """Context manager for setting audit information for a block of operations."""
     old_context = {
         'actor_kind': _audit_context.actor_kind,
@@ -57,11 +62,12 @@ def audit_context(actor_kind: str = None, actor_id: str = None,
         'operation_type': _audit_context.operation_type,
         'game_id': _audit_context.game_id,
         'session_id': _audit_context.session_id,
-        'operation_id': _audit_context.operation_id
+        'operation_id': _audit_context.operation_id,
+        'user_id': _audit_context.user_id
     }
-    
+
     try:
-        _audit_context.set_context(actor_kind, actor_id, operation_type, game_id, session_id, operation_id)
+        _audit_context.set_context(actor_kind, actor_id, operation_type, game_id, session_id, operation_id, user_id)
         yield _audit_context
     finally:
         # Restore previous context
@@ -106,15 +112,16 @@ def _create_audit_log(action: str, table_name: str, target_id: str, before_data:
     """Create an audit log entry."""
     if not _audit_context.enabled:
         return
-    
+
     try:
         # Use a separate database session to avoid conflicts
         with SessionLocal() as audit_db:
             disable_audit()  # Prevent recursive audit logging
-            
+
             audit_entry = AuditLog(
                 game_id=_audit_context.game_id,
                 session_id=_audit_context.session_id,
+                user_id=_audit_context.user_id,
                 actor_kind=_audit_context.actor_kind or "system",
                 actor_id=_audit_context.actor_id or "unknown",
                 action=_audit_context.operation_type if _audit_context.operation_type else action,

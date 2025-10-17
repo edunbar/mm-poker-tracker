@@ -1,8 +1,9 @@
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Navigate, useNavigate } from "react-router-dom";
 import { API_BASE_URL } from "../../config/api";
 import { useAdminSession } from "../../contexts/AdminSessionContext";
 import { useToast } from "../../contexts/ToastContext";
+import { useClerkAuth } from "../../hooks/useClerkAuth";
 import { Button } from "../../shared/ui/button";
 import { FormField, FormLabel, FormMessage } from "../../shared/ui/form-field";
 import { Input } from "../../shared/ui/input";
@@ -23,6 +24,26 @@ export default function LandingPage() {
   const navigate = useNavigate();
   const { setAdminSession } = useAdminSession();
   const { showError } = useToast();
+  const { isSignedIn, isLoaded } = useClerkAuth();
+
+  // Show loading spinner while checking authentication
+  if (!isLoaded) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto" />
+          <Text variant="body" color="muted" className="mt-4">
+            Loading...
+          </Text>
+        </div>
+      </div>
+    );
+  }
+
+  // Redirect authenticated users to their games dashboard
+  if (isSignedIn) {
+    return <Navigate to="/my-games" replace />;
+  }
 
   const handleJoinGame = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -297,12 +318,13 @@ export default function LandingPage() {
           )}
           
           <div className="mt-8 p-4 bg-info/10 border-l-4 border-info rounded">
-            <Heading variant="h6" color="primary" className="mb-2">Features</Heading>
+            <Heading variant="h6" color="primary" className="mb-2">Why Create an Account?</Heading>
             <ul className="space-y-1">
-              <Text variant="bodySmall" color="primary" className="opacity-80" as="li">• View player statistics and game summaries</Text>
-              <Text variant="bodySmall" color="primary" className="opacity-80" as="li">• Import PokerNow sessions automatically</Text>
-              <Text variant="bodySmall" color="primary" className="opacity-80" as="li">• Enter live game results manually</Text>
-              <Text variant="bodySmall" color="primary" className="opacity-80" as="li">• Track player performance over time</Text>
+              <Text variant="bodySmall" color="primary" className="opacity-80" as="li">• Create unlimited games with your account</Text>
+              <Text variant="bodySmall" color="primary" className="opacity-80" as="li">• Access all your games from any device</Text>
+              <Text variant="bodySmall" color="primary" className="opacity-80" as="li">• Never lose admin codes again</Text>
+              <Text variant="bodySmall" color="primary" className="opacity-80" as="li">• Track player stats across all sessions</Text>
+              <Text variant="bodySmall" color="primary" className="opacity-80" as="li">• Import PokerNow data automatically</Text>
             </ul>
           </div>
         </div>
