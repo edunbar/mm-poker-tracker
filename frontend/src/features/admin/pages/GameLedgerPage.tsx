@@ -609,7 +609,7 @@ export default function GameLedgerPage() {
                       Game #{sessionGroup.game_number}
                     </Text>
                   </div>
-                  {editingDate?.session_id === sessionGroup.session_id ? (
+                  {editingDate?.session_id === sessionGroup.session_external_id ? (
                     <div className="flex items-center gap-2 mt-2">
                       <input
                         type="date"
@@ -641,7 +641,7 @@ export default function GameLedgerPage() {
                       </Text>
                       {hasAdminSession && (
                         <Button
-                          onClick={() => handleDateEdit(sessionGroup.session_id, sessionGroup.session_started_at)}
+                          onClick={() => handleDateEdit(sessionGroup.session_external_id, sessionGroup.session_started_at)}
                           variant="ghost"
                           size="icon-sm"
                           className="p-2 min-h-[44px] min-w-[44px]"
@@ -977,7 +977,7 @@ export default function GameLedgerPage() {
                   </td>
                   <td className="px-6 py-4">
                     <Text variant="body" weight="bold" className="text-white">Game #{sessionGroup.game_number}</Text>
-                    {editingDate?.session_id === sessionGroup.session_id ? (
+                    {editingDate?.session_id === sessionGroup.session_external_id ? (
                       <div className="flex items-center gap-2 mt-1">
                         <input
                           type="date"
@@ -1009,7 +1009,7 @@ export default function GameLedgerPage() {
                         </Text>
                         {hasAdminSession && (
                           <Button
-                            onClick={() => handleDateEdit(sessionGroup.session_id, sessionGroup.session_started_at)}
+                            onClick={() => handleDateEdit(sessionGroup.session_external_id, sessionGroup.session_started_at)}
                             variant="ghost"
                             size="icon-sm"
                             className="p-1 opacity-0 group-hover:opacity-100 transition-opacity"
