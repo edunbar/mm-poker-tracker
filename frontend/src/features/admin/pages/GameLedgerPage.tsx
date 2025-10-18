@@ -609,7 +609,7 @@ export default function GameLedgerPage() {
                       Game #{sessionGroup.game_number}
                     </Text>
                   </div>
-                  {editingDate?.session_id === sessionGroup.session_id ? (
+                  {editingDate?.session_id === sessionGroup.session_external_id ? (
                     <div className="flex items-center gap-2 mt-2">
                       <input
                         type="date"
@@ -977,7 +977,7 @@ export default function GameLedgerPage() {
                   </td>
                   <td className="px-6 py-4">
                     <Text variant="body" weight="bold" className="text-white">Game #{sessionGroup.game_number}</Text>
-                    {editingDate?.session_id === sessionGroup.session_id ? (
+                    {editingDate?.session_id === sessionGroup.session_external_id ? (
                       <div className="flex items-center gap-2 mt-1">
                         <input
                           type="date"
