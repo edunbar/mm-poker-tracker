@@ -641,7 +641,7 @@ export default function GameLedgerPage() {
                       </Text>
                       {hasAdminSession && (
                         <Button
-                          onClick={() => handleDateEdit(sessionGroup.session_id, sessionGroup.session_started_at)}
+                          onClick={() => handleDateEdit(sessionGroup.session_external_id, sessionGroup.session_started_at)}
                           variant="ghost"
                           size="icon-sm"
                           className="p-2 min-h-[44px] min-w-[44px]"
@@ -1009,7 +1009,7 @@ export default function GameLedgerPage() {
                         </Text>
                         {hasAdminSession && (
                           <Button
-                            onClick={() => handleDateEdit(sessionGroup.session_id, sessionGroup.session_started_at)}
+                            onClick={() => handleDateEdit(sessionGroup.session_external_id, sessionGroup.session_started_at)}
                             variant="ghost"
                             size="icon-sm"
                             className="p-1 opacity-0 group-hover:opacity-100 transition-opacity"
