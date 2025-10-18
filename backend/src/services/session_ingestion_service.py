@@ -192,8 +192,8 @@ def _upsert_db_for_session(
         display_name = (p.get("validated_name") or (p.get("names")[0] if p.get("names") else "Unknown")).strip()
 
         # Create a unique key based on external_id or normalized display_name
-        # external_id is case-sensitive, display_name is case-insensitive
-        unique_key = ext_pid if ext_pid else display_name.lower()
+        # Both external_id and display_name are normalized to lowercase for case-insensitive matching
+        unique_key = ext_pid.lower() if ext_pid else display_name.lower()
 
         if unique_key not in seen_players:
             seen_players.add(unique_key)
@@ -210,10 +210,11 @@ def _upsert_db_for_session(
         player = None
 
         # FIRST: If external_id exists, search globally (external_id is unique across all games)
+        # Use case-insensitive matching to handle PokerNow's capitalization inconsistencies
         if ext_pid:
             player = db.execute(
                 select(Player)
-                .where(Player.external_id == ext_pid)
+                .where(func.lower(Player.external_id) == ext_pid.lower())
             ).scalar_one_or_none()
 
         # SECOND: Only if no external_id match found, try display_name within this game
@@ -231,8 +232,9 @@ def _upsert_db_for_session(
                 player = players[0]
             elif len(players) > 1:
                 # Multiple players with same display name - pick the one with matching external_id if available
+                # Use case-insensitive matching to handle PokerNow's capitalization inconsistencies
                 if ext_pid:
-                    player = next((p for p in players if p.external_id and p.external_id == ext_pid), players[0])
+                    player = next((p for p in players if p.external_id and p.external_id.lower() == ext_pid.lower()), players[0])
                 else:
                     player = players[0]
 
@@ -249,11 +251,11 @@ def _upsert_db_for_session(
             # Handle external_id updates carefully
             if ext_pid and not player.external_id:
                 # Player found by name but has no external_id
-                # Check if this external_id is already taken by another player
+                # Check if this external_id is already taken by another player (case-insensitive)
                 existing_player_with_id = db.execute(
                     select(Player)
                     .where(
-                        Player.external_id == ext_pid,
+                        func.lower(Player.external_id) == ext_pid.lower(),
                         Player.id != player.id
                     )
                 ).scalar_one_or_none()

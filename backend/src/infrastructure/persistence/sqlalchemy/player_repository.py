@@ -77,10 +77,11 @@ class SQLAlchemyPlayerRepository(PlayerRepository):
         external_id: ExternalId,
         exclude_player_id: Optional[PlayerId] = None
     ) -> bool:
-        """Check if an external ID is already in use."""
+        """Check if an external ID is already in use (case-insensitive)."""
         try:
+            from sqlalchemy import func
             query = self._db_session.query(PlayerModel).filter(
-                PlayerModel.external_id == external_id.value
+                func.lower(PlayerModel.external_id) == func.lower(external_id.value)
             )
 
             if exclude_player_id:
@@ -226,6 +227,46 @@ class SQLAlchemyPlayerRepository(PlayerRepository):
                     else:
                         # Move link
                         link.player_id = target_model.id
+
+                # Update PlayerHandParticipation records (hand analytics)
+                from db.models import PlayerHandParticipation, PlayerStatisticsCache
+                hand_participations = self._db_session.query(PlayerHandParticipation).filter(
+                    PlayerHandParticipation.player_id == source_model.id
+                ).all()
+
+                for participation in hand_participations:
+                    # Check if target already has participation for this session+hand (duplicate data)
+                    existing_participation = self._db_session.query(PlayerHandParticipation).filter(
+                        PlayerHandParticipation.session_id == participation.session_id,
+                        PlayerHandParticipation.player_id == target_model.id,
+                        PlayerHandParticipation.hand_number == participation.hand_number
+                    ).first()
+
+                    if existing_participation:
+                        # Delete duplicate participation (same person recorded twice)
+                        self._db_session.delete(participation)
+                    else:
+                        # Move to target player
+                        participation.player_id = target_model.id
+
+                # Update PlayerStatisticsCache records
+                stats_cache = self._db_session.query(PlayerStatisticsCache).filter(
+                    PlayerStatisticsCache.player_id == source_model.id
+                ).all()
+
+                for stats in stats_cache:
+                    # Check if target already has stats for this session
+                    existing_stats = self._db_session.query(PlayerStatisticsCache).filter(
+                        PlayerStatisticsCache.session_id == stats.session_id,
+                        PlayerStatisticsCache.player_id == target_model.id
+                    ).first()
+
+                    if existing_stats:
+                        # Delete duplicate (keep target's stats, they should be the same player)
+                        self._db_session.delete(stats)
+                    else:
+                        # Move to target
+                        stats.player_id = target_model.id
 
                 # Delete source player
                 self._db_session.delete(source_model)
