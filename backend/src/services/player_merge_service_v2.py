@@ -162,9 +162,9 @@ class PlayerMergeServiceV2:
                     domain_external_id,
                     exclude_player_id=domain_target_id
                 ):
-                    # Check if it's from one of the source players
+                    # Check if it's from one of the source players (case-insensitive)
                     has_match = any(
-                        p.external_id == domain_external_id
+                        p.external_id and p.external_id.value.lower() == domain_external_id.value.lower()
                         for p in source_players
                     )
                     if not has_match:
