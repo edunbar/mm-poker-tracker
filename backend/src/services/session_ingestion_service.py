@@ -280,7 +280,24 @@ def _upsert_db_for_session(
         buy_in = int(p.get("buyInSum") or 0)
         cash_out = int(p.get("buyOutSum") or 0)
         in_game = int(p.get("inGame") or 0)
-        net = int(p.get("net") or (cash_out + in_game - buy_in))
+
+        # Server-side validation: always recalculate net from components
+        calculated_net = cash_out + in_game - buy_in
+        frontend_net = p.get("net")
+
+        # Log warning if frontend sent incorrect net value (helps detect bugs)
+        if frontend_net is not None:
+            frontend_net_int = int(frontend_net)
+            if frontend_net_int != calculated_net:
+                log.warning(
+                    f"Frontend net mismatch for player {display_name}: "
+                    f"frontend={frontend_net_int} cents (${frontend_net_int/100:.2f}), "
+                    f"calculated={calculated_net} cents (${calculated_net/100:.2f}), "
+                    f"session={session_external_id}"
+                )
+
+        # Always use calculated value, never trust frontend
+        net = calculated_net
 
         # Add summary (we cleared all existing ones above)
         db.add(SessionPlayerSummary(

@@ -270,8 +270,10 @@ export default function GameIngestPage() {
     });
 
     mergedPlayer.names = Array.from(new Set(mergedPlayer.names));
-    const buyOutEffective = mergedPlayer.buyOutSum === 0 ? mergedPlayer.inGame : mergedPlayer.buyOutSum;
-    mergedPlayer.net = buyOutEffective - mergedPlayer.buyInSum;
+    // Always include both cash_out and in_game chips when calculating net
+    // Net calculation: (cash_out + chips_still_on_table) - buy_in
+    // This is the player's true profit/loss for the session
+    mergedPlayer.net = (mergedPlayer.buyOutSum + mergedPlayer.inGame) - mergedPlayer.buyInSum;
 
     const newPlayersInfos = rows.filter((_, index) => !selectedPlayers.has(index));
     newPlayersInfos.push(mergedPlayer);
