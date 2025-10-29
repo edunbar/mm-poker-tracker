@@ -172,7 +172,6 @@ class BalanceHistoryServiceV2:
             JOIN sessions s ON sps.session_id = s.id
             WHERE sps.player_id = :player_id
               AND s.game_id = :game_id
-              AND s.ended_at IS NOT NULL
         """)
 
         poker_result = self.db.execute(
@@ -268,7 +267,6 @@ class BalanceHistoryServiceV2:
                 JOIN sessions s ON sps.session_id = s.id
                 WHERE sps.player_id = :player_id
                   AND s.game_id = :game_id
-                  AND s.ended_at IS NOT NULL
 
                 UNION ALL
 
