@@ -378,7 +378,7 @@ class LedgerService:
             from db.models import PaymentBalance, SessionPlayerSummary
             from db.models import Session as SessionModel
 
-            payment_service = PaymentService()
+            payment_service = PaymentService(self._db_session)
             payment_service._update_payment_balances(self._db_session, game_id, [player_id])
 
             # Check if player still has activity in this game
@@ -425,7 +425,7 @@ class LedgerService:
             ).first()
 
             if session:
-                payment_service = PaymentService()
+                payment_service = PaymentService(self._db_session)
                 payment_service._update_payment_balances(
                     self._db_session,
                     str(session.game_id),

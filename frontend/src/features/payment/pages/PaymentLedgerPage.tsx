@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { AlertTriangle, Bell, ChevronDown, ChevronUp, CreditCard, DollarSign, Edit, History, Plus, Star, Target, Trash2, Users, X } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { API_BASE_URL } from '../../../config/api';
 import { useAdminSession } from '../../../contexts/AdminSessionContext';
 import { useToast } from '../../../contexts/ToastContext';
@@ -77,6 +77,7 @@ interface PlayerWithMethods {
 
 export default function PaymentLedgerPage() {
   const { publicCode } = useParams<{ publicCode: string }>();
+  const navigate = useNavigate();
   const { title: _title } = useGameTitle(publicCode || '');
   const { adminCode: sessionAdminCode, hasAdminSession } = useAdminSession();
   const { showSuccess, showError } = useToast();
@@ -131,6 +132,10 @@ export default function PaymentLedgerPage() {
     is_primary: false
   });
   const [methodToDelete, setMethodToDelete] = useState<PlayerPaymentMethod | null>(null);
+
+  const handleViewHistory = (playerId: string) => {
+    navigate(`/payments/${publicCode}/players/${playerId}/balance-history`);
+  };
 
   const getAdminCode = () => {
     return hasAdminSession ? sessionAdminCode : manualAdminCode;
@@ -838,7 +843,11 @@ export default function PaymentLedgerPage() {
                 </thead>
                 <tbody className="bg-card divide-y divide-border">
                   {sortedPaymentSummary.map((player) => (
-                    <tr key={player.player_id}>
+                    <tr
+                      key={player.player_id}
+                      onClick={() => handleViewHistory(player.player_id)}
+                      className="cursor-pointer hover:bg-muted/50 transition-colors"
+                    >
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center gap-2">
                           {playersWithViolations.has(player.player_id) && (
@@ -911,7 +920,11 @@ export default function PaymentLedgerPage() {
             <div className="md:hidden divide-y divide-border">
               {sortedPaymentSummary.map((player) => {
                 return (
-                  <div key={player.player_id} className="p-4">
+                  <div
+                    key={player.player_id}
+                    onClick={() => handleViewHistory(player.player_id)}
+                    className="p-4 cursor-pointer hover:bg-muted/50 transition-colors"
+                  >
                     <div className="mb-3 flex items-center gap-2">
                       {playersWithViolations.has(player.player_id) && (
                         <Tooltip>
@@ -2203,6 +2216,7 @@ export default function PaymentLedgerPage() {
             </div>
           </div>
         )}
+
       </div>
     </div>
   );

@@ -2900,3 +2900,107 @@ def get_service_info_endpoint():
     except Exception as e:
         logging.error(f"Error getting service info: {e}")
         return jsonify({"error": str(e)}), 500
+
+
+# ==========================================================
+# Balance History Endpoint
+# ==========================================================
+
+@game_bp.get("/<public_code>/players/<player_id>/balance-history")
+def get_player_balance_history(public_code: str, player_id: str):
+    """
+    Get paginated balance history for a player in a game.
+    Shows poker sessions and payment transactions with running balance.
+
+    Query params:
+    - page: int (default: 1, must be >= 1)
+    - per_page: int (default: 5, max: 100)
+
+    Returns paginated transaction history with running balances.
+    """
+    try:
+        # Parse query parameters
+        try:
+            page = int(request.args.get('page', 1))
+            per_page = int(request.args.get('per_page', 20))
+        except ValueError:
+            return jsonify({"error": "Invalid page or per_page parameter"}), 400
+
+        # Validate ranges
+        if page < 1:
+            return jsonify({"error": "Page number must be >= 1"}), 400
+
+        if per_page < 1 or per_page > 100:
+            return jsonify({"error": "per_page must be between 1 and 100"}), 400
+
+        with SessionLocal() as db:
+            # Get game by public_code
+            game = db.query(Game).filter(Game.public_code == public_code).first()
+            if not game:
+                return jsonify({"error": "Game not found"}), 404
+
+            # Get player
+            player = db.query(Player).filter(Player.id == player_id).first()
+            if not player:
+                return jsonify({"error": "Player not found"}), 404
+
+            # Use balance history service
+            from services.balance_history_service_v2 import BalanceHistoryServiceV2
+            service = BalanceHistoryServiceV2(db)
+
+            try:
+                history = service.get_player_balance_history(
+                    game_id=str(game.id),
+                    player_id=player_id,
+                    page=page,
+                    per_page=per_page
+                )
+            except ValueError as e:
+                # Handle page out of range or other validation errors
+                return jsonify({"error": str(e)}), 400
+
+            # Convert to JSON-serializable format
+            return jsonify({
+                "player": {
+                    "id": history.player_id,
+                    "display_name": history.player_name
+                },
+                "amount_owed": float(history.current_balance),
+                "summary": {
+                    "poker_net": float(history.summary.poker_net),
+                    "payments_sent": float(history.summary.payments_sent),
+                    "payments_received": float(history.summary.payments_received),
+                    "session_count": history.summary.session_count,
+                    "payment_count": history.summary.payment_count
+                },
+                "transactions": [
+                    {
+                        "date": t.date.isoformat(),
+                        "type": t.type,
+                        "description": t.description,
+                        "amount": float(t.amount),
+                        "amount_owed": float(t.running_balance),
+                        "session_id": t.session_id,
+                        "payment_id": t.payment_id,
+                        "payment_method": t.payment_method,
+                        "to_player_name": t.to_player_name,
+                        "from_player_name": t.from_player_name
+                    }
+                    for t in history.transactions
+                ],
+                "pagination": {
+                    "current_page": history.current_page,
+                    "per_page": history.per_page,
+                    "total_count": history.total_count,
+                    "total_pages": history.total_pages,
+                    "has_next": history.has_next,
+                    "has_prev": history.has_prev
+                }
+            }), 200
+
+    except ValueError as e:
+        logging.error(f"Validation error in balance history: {e}")
+        return jsonify({"error": str(e)}), 400
+    except Exception as e:
+        logging.exception("Error getting player balance history")
+        return jsonify({"error": "Internal server error"}), 500

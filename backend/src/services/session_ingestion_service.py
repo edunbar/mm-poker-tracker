@@ -102,6 +102,7 @@ def _upsert_db_for_session(
     session_type: str = "pokernow",
     session_name: str | None = None,
     ledger_csv_content: str | None = None,
+    ended_at: datetime | None = None,
 ) -> Tuple[str, int]:
     """
     Upsert session + summaries + players + links. Returns (session_id, affected_rows).
@@ -142,6 +143,7 @@ def _upsert_db_for_session(
             session_name=session_name,
             game_number=game_number,
             started_at=when,
+            ended_at=ended_at,
             end_session_json=payload_json,   # keep raw snapshot
             ledger_csv_content=ledger_csv_content,
         )
@@ -150,6 +152,7 @@ def _upsert_db_for_session(
     else:
         # Update existing session
         sess.started_at = sess.started_at or when
+        sess.ended_at = sess.ended_at or ended_at
         # Update game number if manual override is provided
         if manual_game_number is not None:
             # Check if the manual game number already exists in this game
@@ -399,6 +402,15 @@ def ingest_session(
         else:
             when = _today_naive_utc()
 
+        # Extract end date from game data
+        ended_at = None
+        ended_at_iso = game_data.get("endedAt")
+        if ended_at_iso:
+            try:
+                ended_at = datetime.fromisoformat(ended_at_iso)
+            except Exception:
+                ended_at = when  # Default to start date if parsing fails
+
         # For Sheets date formatting
         date_for_sheet = _format_mmddyyyy(when)
 
@@ -424,6 +436,7 @@ def ingest_session(
             session_type=session_type,
             session_name=session_name_from_data,
             ledger_csv_content=ledger_csv_content,
+            ended_at=ended_at,
         )
 
         # Update the stored JSON with ledger number

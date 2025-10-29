@@ -212,11 +212,17 @@ def validate_service_compatibility() -> dict:
         'service_info': get_service_info()
     }
 
+    # Create a temporary database session for V2 service validation
+    temp_db_session = None
     try:
+        from db.database import SessionLocal
+        temp_db_session = SessionLocal()
+
         # Test service instantiation
-        payment_service = PaymentService()
-        live_service = LiveGameService()
-        ledger_service = LedgerService()
+        # V2 services require db_session parameter
+        payment_service = PaymentService(temp_db_session)
+        live_service = LiveGameService(temp_db_session)
+        ledger_service = LedgerService(temp_db_session)
 
         # Check for required methods
         if not hasattr(payment_service, 'record_payment'):
@@ -244,6 +250,10 @@ def validate_service_compatibility() -> dict:
     except Exception as e:
         results['issues'].append(f"Service instantiation failed: {e}")
         results['valid'] = False
+    finally:
+        # Clean up temporary session
+        if temp_db_session:
+            temp_db_session.close()
 
     return results
 

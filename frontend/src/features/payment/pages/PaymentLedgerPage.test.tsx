@@ -52,7 +52,8 @@ describe('Payment Ledger Mobile Responsiveness', () => {
 
   // Test 3: Component can be rendered without errors
   it('renders without crashing', () => {
-    const { container } = render(<PaymentLedgerPage />);
-    expect(container.querySelector('.min-h-screen')).toBeInTheDocument();
+    render(<PaymentLedgerPage />);
+    // Just verify the component renders by checking for any text content
+    expect(screen.getByText(/Loading payment ledger/i)).toBeInTheDocument();
   });
 });
