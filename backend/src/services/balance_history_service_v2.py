@@ -255,7 +255,7 @@ class BalanceHistoryServiceV2:
                 -- Sessions
                 SELECT
                     sps.net / 100.0 AS amount,
-                    s.ended_at AS date,
+                    COALESCE(s.ended_at, s.started_at) AS date,
                     'session' AS type,
                     COALESCE(s.session_name, 'Session #' || s.game_number::text) AS description,
                     s.id::text AS session_id,
