@@ -8,6 +8,7 @@ import LiveGameIngestPage from "../features/admin/pages/LiveGameIngestPage";
 import GameIngestPage from "../features/admin/pages/SessionIngestPage";
 import AdvancedAnalyticsPage from "../features/game/pages/AdvancedAnalyticsPage";
 import GameSummaryPage from "../features/game/pages/GameSummaryPage";
+import { BalanceHistoryPage } from "../features/payment/pages/BalanceHistoryPage";
 import PaymentLedgerPage from "../features/payment/pages/PaymentLedgerPage";
 import RuleBookPage from "../features/rules/pages/RuleBookPage";
 import LandingPage from "../pages/Landing/LandingPage";
@@ -26,6 +27,7 @@ export default function AppRoutes() {
       <Route path="/ledger-analysis/:publicCode" element={<LedgerAnalysisPageWrapper />} />
       <Route path="/audit/:publicCode" element={<AuditPageWrapper />} />
       <Route path="/payments/:publicCode" element={<PaymentLedgerPageWrapper />} />
+      <Route path="/payments/:publicCode/players/:playerId/balance-history" element={<BalanceHistoryPageWrapper />} />
     </Routes>
   );
 }
@@ -115,6 +117,15 @@ function AuditPageWrapper() {
       <ProtectedRoute requireAdmin={true}>
         <AuditPage />
       </ProtectedRoute>
+    </GamePageWrapper>
+  );
+}
+
+function BalanceHistoryPageWrapper() {
+  const { publicCode } = useParams();
+  return (
+    <GamePageWrapper publicCode={publicCode || ""}>
+      <BalanceHistoryPage />
     </GamePageWrapper>
   );
 }

@@ -14,10 +14,11 @@ This script will:
 
 import os
 import sys
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 import csv
 import io
+import random
 
 # Add the backend src directory to Python path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
@@ -803,6 +804,40 @@ def parse_date(date_str):
         return None
 
 
+def generate_session_date(game_number, total_games=103):
+    """
+    Generate realistic dates for poker sessions.
+
+    Strategy:
+    - Most recent game (#103): ~1 week ago
+    - Oldest game (#1): ~8 months ago
+    - Space games 2-4 days apart with slight randomness
+
+    Args:
+        game_number: The game number (1-103)
+        total_games: Total number of games (default 103)
+
+    Returns:
+        datetime object with timezone info
+    """
+    # Start date: ~1 week ago for the most recent game
+    most_recent_date = datetime.now(timezone.utc) - timedelta(days=7)
+
+    # Calculate how many games back this is from the most recent
+    games_back = total_games - int(game_number)
+
+    # Average 2.5 days between games, with randomness (2-4 days)
+    base_days_back = games_back * 2.5
+    randomness = random.uniform(-0.5, 0.5) * games_back  # Add some variance
+
+    total_days_back = base_days_back + randomness
+
+    # Generate the date
+    session_date = most_recent_date - timedelta(days=total_days_back)
+
+    return session_date
+
+
 def get_or_create_player(db, name):
     """Get existing player or create new one"""
     name = name.strip()
@@ -881,15 +916,9 @@ def main():
                 session_rows = sessions[game_num]
                 session_name = f"Game #{game_num}"
 
-                # Get date from first row with a date
-                session_date = None
-                for row in session_rows:
-                    date_value = row.get('Date')
-                    if date_value and isinstance(date_value, str):
-                        date_str = date_value.strip()
-                        if date_str:
-                            session_date = parse_date(date_str)
-                            break
+                # Generate realistic date for this session
+                # (CSV dates are empty, so we generate them programmatically)
+                session_date = generate_session_date(game_num, total_games=len(sessions))
 
                 # Build players list
                 players = []
@@ -924,7 +953,8 @@ def main():
                     public_code=public_code,
                     admin_code=admin_code,
                     session_id=live_session_data["sessionId"],
-                    game_data=live_session_data
+                    game_data=live_session_data,
+                    date_iso=session_date.isoformat()  # Pass historical date so started_at matches ended_at
                 )
 
                 if result.get("success"):

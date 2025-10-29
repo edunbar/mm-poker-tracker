@@ -571,7 +571,7 @@ class SessionIngestionService:
             player_ids = list(set(result['player_id'] for result in ingestion_results))
 
             # Update payment balances for all affected players
-            payment_service = PaymentService()
+            payment_service = PaymentService(self._db_session)
             payment_service._update_payment_balances(self._db_session, game_id, player_ids)
 
             log.info(f"Updated payment balances for {len(player_ids)} player(s)")
