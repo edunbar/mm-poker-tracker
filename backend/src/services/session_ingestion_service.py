@@ -221,9 +221,9 @@ def _upsert_db_for_session(
             )
         ).scalar_one_or_none()
 
-        # If not found, create new player (still store external_id for reference)
+        # If not found, create new player (don't store external_id - causes unique constraint issues)
         if not player:
-            player = Player(display_name=display_name, external_id=ext_pid)
+            player = Player(display_name=display_name, external_id=None)
             db.add(player)
             db.flush()
 

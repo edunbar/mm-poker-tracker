@@ -468,9 +468,9 @@ class SessionIngestionService:
         if existing_player:
             return existing_player
 
-        # Create new player (still store external_id for reference)
+        # Create new player (don't store external_id - causes unique constraint issues)
         new_player = Player(
-            external_id=external_id,
+            external_id=None,
             display_name=player_name
         )
         self._db_session.add(new_player)
