@@ -13,7 +13,7 @@ from typing import Dict, Any, List, Optional
 from decimal import Decimal
 
 from sqlalchemy.orm import Session
-from sqlalchemy import select
+from sqlalchemy import select, func
 
 from db.database import SessionLocal
 from db.models import Game, Player, GamePlayer, AuditLog
@@ -437,6 +437,10 @@ class SessionIngestionService:
         """
         Get or create a player based on player data.
 
+        Matches by display_name (case-insensitive) within the game only.
+        Does NOT use external_id for matching to avoid duplicates when
+        same person joins with different PokerNow accounts.
+
         Args:
             player_data: Player information from game data
             game_id: Game UUID
@@ -451,19 +455,20 @@ class SessionIngestionService:
             "Unknown Player"
         )
 
-        # Try to find existing player
-        existing_player = None
-        if external_id:
-            existing_player = self._db_session.execute(
-                select(Player).where(Player.external_id == external_id)
-            ).scalar_one_or_none()
+        # Match by display_name (case-insensitive) within the game only
+        existing_player = self._db_session.execute(
+            select(Player)
+            .join(GamePlayer, Player.id == GamePlayer.player_id)
+            .where(
+                GamePlayer.game_id == game_id,
+                func.lower(Player.display_name) == player_name.lower()
+            )
+        ).scalar_one_or_none()
 
         if existing_player:
-            # Ensure player is linked to game
-            self._link_player_to_game(existing_player, game_id)
             return existing_player
 
-        # Create new player
+        # Create new player (still store external_id for reference)
         new_player = Player(
             external_id=external_id,
             display_name=player_name
